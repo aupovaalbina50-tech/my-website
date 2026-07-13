@@ -1,54 +1,65 @@
 :root {
-  --text: #4b5a6b;
-  --text-h: #0b2545;
-  --bg: #fff;
-  --border: #dbe2e8;
-  --code-bg: #eef3f7;
-  --accent: #e8590c;
-  --accent-bg: rgba(232, 89, 12, 0.1);
-  --accent-border: rgba(232, 89, 12, 0.5);
-  --navy: #0b3d91;
-  --social-bg: rgba(238, 243, 247, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Institutional palette */
+  --navy: #081c2c;
+  --navy-2: #0f2f4a;
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --text: #17212b;
+  --text-soft: #667085;
+  --border: #dce3e9;
+  --red: #d62828;
+  --red-bg: rgba(214, 40, 40, 0.08);
+  --orange: #e66a1f;
 
-  --sans: 'Noto Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Noto Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* legacy aliases used across components */
+  --text-h: var(--text);
+  --bg-soft: #eef2f5;
+  --code-bg: #eef2f5;
+  --accent: var(--navy);
+  --accent-bg: rgba(8, 28, 44, 0.06);
+  --accent-border: rgba(8, 28, 44, 0.3);
+  --gold: var(--red);
+  --gold-bright: var(--red);
+  --gold-bg: var(--red-bg);
+  --social-bg: rgba(238, 242, 245, 0.6);
+  --shadow: 0 1px 2px rgba(8, 28, 44, 0.04), 0 8px 24px rgba(8, 28, 44, 0.06);
 
-  font: 18px/155% var(--sans);
-  letter-spacing: 0.3px;
-  color-scheme: light dark;
+  /* spacing scale */
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --space-7: 64px;
+  --space-8: 96px;
+
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  font: 16px/1.6 var(--sans);
+  letter-spacing: 0;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9fb1c2;
-    --text-h: #eef3f7;
-    --bg: #0e1a2b;
-    --border: #223349;
-    --code-bg: #16253a;
-    --accent: #ff8a3d;
-    --accent-bg: rgba(255, 138, 61, 0.15);
-    --accent-border: rgba(255, 138, 61, 0.5);
-    --navy: #4d8fe6;
-    --social-bg: rgba(22, 37, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+html {
+  scroll-behavior: smooth;
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
 }
 
@@ -64,37 +75,52 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding-bottom: 48px;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+  color: var(--text);
+  margin: 0;
 }
 
 h1 {
-  font-size: 56px;
-  line-height: 1.25;
-  letter-spacing: 0;
-  margin: 32px 0;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
   @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+    font-size: 32px;
   }
 }
+
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: 0;
-  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
   @media (max-width: 1024px) {
-    font-size: 20px;
+    font-size: 24px;
   }
 }
+
+h3 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  @media (max-width: 1024px) {
+    font-size: 19px;
+  }
+}
+
 p {
   margin: 0;
+}
+
+a {
+  color: inherit;
 }
 
 code,
@@ -102,12 +128,17 @@ code,
   font-family: var(--mono);
   display: inline-flex;
   border-radius: 4px;
-  color: var(--text-h);
+  color: var(--text);
 }
 
 code {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+::selection {
+  background: var(--navy);
+  color: #fff;
 }
