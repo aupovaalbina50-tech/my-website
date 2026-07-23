@@ -282,7 +282,7 @@ function RegisterForm() {
 
       <div className="field">
         <label htmlFor="reg-password">{t.auth.signUp.passwordLabel}</label>
-        <div className={`input-icon-wrap${fieldErrors.password ? ' invalid' : ''}`}>
+        <div className={`input-icon-wrap has-toggle${fieldErrors.password ? ' invalid' : ''}`}>
           <Lock size={18} className="input-icon" aria-hidden="true" />
           <input
             id="reg-password"

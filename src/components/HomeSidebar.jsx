@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X, Search, Quote, Landmark, Users, FileText, UserCircle } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { SECTION_IDS } from '../constants/navigation.js'
@@ -14,10 +14,17 @@ const SECTION_ICONS = {
 
 function HomeSidebar({ activeSection, onSectionClick }) {
   const { t } = useLanguage()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const quotesActive = location.pathname.startsWith('/quotes')
 
   const handleClick = (id) => {
-    onSectionClick(id)
+    if (location.pathname === '/') {
+      onSectionClick(id)
+    } else {
+      navigate(`/#${id}`)
+    }
     setOpen(false)
   }
 
@@ -58,6 +65,20 @@ function HomeSidebar({ activeSection, onSectionClick }) {
         <nav className="sidebar-nav" aria-label={t.nav.aria}>
           {SECTION_IDS.map((id) => {
             const Icon = SECTION_ICONS[id]
+            if (id === 'quotes') {
+              return (
+                <Link
+                  key={id}
+                  to="/quotes"
+                  className={`sidebar-link${quotesActive ? ' active' : ''}`}
+                  onClick={() => setOpen(false)}
+                  aria-current={quotesActive ? 'page' : undefined}
+                >
+                  <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
+                  <span>{t.nav[id]}</span>
+                </Link>
+              )
+            }
             return (
               <button
                 key={id}

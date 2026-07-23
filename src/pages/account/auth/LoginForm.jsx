@@ -96,7 +96,7 @@ function LoginForm() {
 
       <div className="field">
         <label htmlFor="login-password">{t.auth.signIn.passwordLabel}</label>
-        <div className={`input-icon-wrap${fieldErrors.password ? ' invalid' : ''}`}>
+        <div className={`input-icon-wrap has-toggle${fieldErrors.password ? ' invalid' : ''}`}>
           <Lock size={18} className="input-icon" aria-hidden="true" />
           <input
             id="login-password"

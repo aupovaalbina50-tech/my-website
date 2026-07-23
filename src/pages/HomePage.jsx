@@ -518,13 +518,6 @@ function HomePage() {
         </div>
       </section>
 
-      <section id="quotes" className="section-static">
-        <div className="card">
-          <h2>{t.sections.quotesTitle}</h2>
-          <p className="empty-state-text">{t.sections.comingSoon}</p>
-        </div>
-      </section>
-
       <section id="ministry" className="section-ministry">
         <div className="section-kicker" aria-hidden="true"></div>
         <h2 className="section-title">{t.sections.ministryTitle}</h2>

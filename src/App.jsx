@@ -1,7 +1,11 @@
 import { Route, Routes } from 'react-router-dom'
 import HomePage from './pages/HomePage.jsx'
+import QuotesPage from './pages/quotes/QuotesPage.jsx'
+import QuoteDetailPage from './pages/quotes/QuoteDetailPage.jsx'
 import AccountLayout from './pages/account/AccountLayout.jsx'
 import AccountHomePage from './pages/account/AccountHomePage.jsx'
+import FavoriteQuotesPage from './pages/account/FavoriteQuotesPage.jsx'
+import RecentlyViewedQuotesPage from './pages/account/RecentlyViewedQuotesPage.jsx'
 import PlaceholderPage from './pages/account/PlaceholderPage.jsx'
 import ForgotPasswordPage from './pages/account/auth/ForgotPasswordPage.jsx'
 import ResetPasswordPage from './pages/account/auth/ResetPasswordPage.jsx'
@@ -12,6 +16,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/quotes" element={<QuotesPage />} />
+      <Route path="/quotes/:number" element={<QuoteDetailPage />} />
       <Route path="/account/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/account/reset-password" element={<ResetPasswordPage />} />
       <Route path="/account" element={<AccountLayout />}>
@@ -28,7 +34,7 @@ function App() {
           path="favorites"
           element={
             <RequireAuth>
-              <PlaceholderPage titleKey="favorites" />
+              <FavoriteQuotesPage />
             </RequireAuth>
           }
         />
@@ -44,7 +50,7 @@ function App() {
           path="viewing-history"
           element={
             <RequireAuth>
-              <PlaceholderPage titleKey="viewingHistory" />
+              <RecentlyViewedQuotesPage />
             </RequireAuth>
           }
         />
