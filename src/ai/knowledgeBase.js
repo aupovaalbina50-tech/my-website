@@ -162,8 +162,13 @@ export async function buildContext(query) {
 
   const snippets = [...terms, ...ministry, ...committees, ...quotes]
 
+  // No local keyword match doesn't mean "refuse" — it just means the LLM
+  // gets no site-specific grounding for this question. The system prompt
+  // decides from there: use general civil-defense/MChS knowledge if the
+  // question is in-domain, or decline if it's genuinely off-topic. We still
+  // send it to the model instead of short-circuiting locally.
   if (snippets.length === 0) {
-    return { contextText: '', found: false }
+    return { contextText: '', found: true }
   }
 
   const contextText = snippets.map((s, i) => `${i + 1}. ${s.text}`).join('\n')
