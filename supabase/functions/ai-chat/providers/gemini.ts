@@ -15,7 +15,7 @@ export async function generate({ systemPrompt, messages, apiKey, model }: Genera
     body: JSON.stringify({
       contents,
       systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: { temperature: 0.3, maxOutputTokens: 2000 },
+      generationConfig: { temperature: 0.15, maxOutputTokens: 2000 },
     }),
   })
 

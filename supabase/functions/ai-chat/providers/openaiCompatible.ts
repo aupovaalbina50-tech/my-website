@@ -15,7 +15,7 @@ export async function callOpenAiCompatible(
     },
     body: JSON.stringify({
       model,
-      temperature: 0.3,
+      temperature: 0.15,
       max_tokens: 2000,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
     }),
