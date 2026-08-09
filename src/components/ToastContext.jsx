@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 
 const ToastContext = createContext(null)
@@ -25,8 +25,10 @@ export function ToastProvider({ children }) {
     [dismiss],
   )
 
+  const value = useMemo(() => ({ showToast, dismiss }), [showToast, dismiss])
+
   return (
-    <ToastContext.Provider value={{ showToast, dismiss }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="toast-stack" role="status" aria-live="polite">
         {toasts.map((toast) => (

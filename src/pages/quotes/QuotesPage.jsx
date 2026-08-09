@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -7,6 +7,8 @@ import QuoteCard from './QuoteCard.jsx'
 import Header from '../../components/Header.jsx'
 import HomeSidebar from '../../components/HomeSidebar.jsx'
 import Footer from '../../components/Footer.jsx'
+
+const noop = () => {}
 
 function shuffle(list, seed) {
   const arr = [...list]
@@ -39,8 +41,10 @@ function QuotesPage() {
     }
   }, [quotes, quoteOfDay])
 
+  const deferredSearch = useDeferredValue(search)
+
   const visibleQuotes = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = deferredSearch.trim().toLowerCase()
     const filtered = query
       ? quotes.filter((quote) => quote.quote_text.toLowerCase().includes(query))
       : quotes
@@ -52,7 +56,7 @@ function QuotesPage() {
       return shuffle(filtered, randomSeed)
     }
     return filtered
-  }, [quotes, search, sortMode, randomSeed])
+  }, [quotes, deferredSearch, sortMode, randomSeed])
 
   const handleSortChange = (mode) => {
     setSortMode(mode)
@@ -63,10 +67,10 @@ function QuotesPage() {
     <>
       <Header />
       <div className="account-shell">
-        <HomeSidebar activeSection="quotes" onSectionClick={() => {}} />
+        <HomeSidebar activeSection="quotes" onSectionClick={noop} />
         <div className="home-content">
           <section className="quote-hero">
-            <div className="hero-topo" aria-hidden="true"></div>
+            <div className="hero-glow" aria-hidden="true"></div>
             <p className="hero-kicker">{t.quotes.hero.kicker}</p>
             <h1 className="quote-hero-title">{t.quotes.hero.title}</h1>
             <p className="quote-hero-desc">{t.quotes.hero.description}</p>

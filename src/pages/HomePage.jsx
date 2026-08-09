@@ -1,152 +1,114 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../i18n/translations'
-import { COMMITTEES, COMMITTEES_SOURCE_URL } from '../data/committees'
-import {
-  MINISTRY_MISSION,
-  MINISTRY_HISTORY,
-  MINISTRY_LEADERSHIP,
-  MINISTRY_CONTACTS,
-  MINISTRY_SOURCES,
-} from '../data/ministry'
 import { SECTION_IDS } from '../constants/navigation.js'
 import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
+import { PlayButton, AiSpeakButton } from '../components/TermAudio.jsx'
+import { toSentenceCase } from '../utils/textCase.js'
 
 const DELETE_PASSWORD = 'termincom2026'
+const MAX_SUGGESTIONS = 8
 
-function PlayButton({ src, label, t }) {
-  if (!src) return null
-  return (
-    <button
-      type="button"
-      className="btn-play"
-      onClick={() => new Audio(src).play()}
-      aria-label={t.table.playAria(label)}
-      title={t.table.playTitle}
-    >
-      🔊
-    </button>
-  )
+function startsWithQuery(text, query) {
+  return text
+    .toLowerCase()
+    .split(/[\s,;()/-]+/)
+    .some((word) => word.startsWith(query))
 }
 
-function speakText(text, lang) {
-  if (!text || !('speechSynthesis' in window)) return
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = lang
-  const voices = window.speechSynthesis.getVoices()
-  const voice =
-    voices.find((v) => v.lang.toLowerCase() === lang.toLowerCase()) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2)))
-  if (voice) utterance.voice = voice
-  window.speechSynthesis.cancel()
-  window.speechSynthesis.speak(utterance)
-}
-
-function AiSpeakButton({ text, lang, t }) {
-  if (!text) return null
-  return (
-    <button
-      type="button"
-      className="btn-ai-play"
-      onClick={() => speakText(text, lang)}
-      aria-label={t.table.aiAria(text)}
-      title={t.table.aiTitle}
-    >
-      🤖
-    </button>
-  )
-}
-
-function CommitteeModal({ committee, lang, t, onClose }) {
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') onClose()
+function HighlightedText({ text, query }) {
+  if (!query) return text
+  const wordRegex = /[^\s,;()/-]+/g
+  const parts = []
+  let lastIndex = 0
+  let match
+  while ((match = wordRegex.exec(text))) {
+    const word = match[0]
+    if (word.toLowerCase().startsWith(query)) {
+      const start = match.index
+      const end = start + query.length
+      if (start > lastIndex) parts.push(text.slice(lastIndex, start))
+      parts.push(<mark key={start}>{text.slice(start, end)}</mark>)
+      lastIndex = end
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
-
-  if (!committee) return null
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={committee.name[lang]}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          className="modal-close"
-          onClick={onClose}
-          aria-label={t.committees.closeButton}
-        >
-          ✕
-        </button>
-        <h3>{committee.name[lang]}</h3>
-        <p className="modal-description">{committee.description[lang]}</p>
-
-        <div className="modal-meta">
-          <div className="modal-meta-row">
-            <span className="modal-meta-label">{t.committees.chairLabel}</span>
-            <span>{committee.chair[lang]}</span>
-          </div>
-          {committee.phone && (
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.committees.phoneLabel}</span>
-              <span>{committee.phone[lang]}</span>
-            </div>
-          )}
-          {committee.email && (
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.committees.emailLabel}</span>
-              <span>{committee.email}</span>
-            </div>
-          )}
-          {!committee.phone && !committee.email && (
-            <p className="modal-meta-empty">{t.committees.noContact}</p>
-          )}
-        </div>
-
-        <a
-          className="modal-source-link"
-          href={COMMITTEES_SOURCE_URL[lang]}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t.committees.sourceLabel}: {t.committees.sourceLinkText} ↗
-        </a>
-      </div>
-    </div>
-  )
+  }
+  parts.push(text.slice(lastIndex))
+  return parts
 }
+
+const StepsSection = memo(function StepsSection({ t }) {
+  return (
+    <section className="steps-section">
+      <div className="section-kicker" aria-hidden="true"></div>
+      <h2 className="section-title">{t.steps.title}</h2>
+      <div className="steps-grid steps-grid-2">
+        {t.steps.items.map((step) => (
+          <div className="step-card" key={step.n}>
+            <span className="step-n">{step.n}</span>
+            <h3>{step.title}</h3>
+            <p>{step.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+})
+
+const AudienceSection = memo(function AudienceSection({ t }) {
+  return (
+    <section className="audience-section">
+      <div className="section-kicker" aria-hidden="true"></div>
+      <h2 className="section-title">{t.audience.title}</h2>
+      <div className="audience-grid">
+        {t.audience.items.map((a) => (
+          <div className="audience-card" key={a.title}>
+            <h3>{a.title}</h3>
+            <p>{a.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+})
+
+const DocsSection = memo(function DocsSection({ t }) {
+  return (
+    <section id="docs" className="section-static">
+      <div className="card">
+        <h2>{t.sections.docsTitle}</h2>
+        <p className="empty-state-text">{t.sections.comingSoon}</p>
+      </div>
+    </section>
+  )
+})
 
 function HomePage() {
   const { lang, t } = useLanguage()
   const location = useLocation()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState('search')
-  const [activeCommittee, setActiveCommittee] = useState(null)
   const [terms, setTerms] = useState([])
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => searchParams.get('q') || '')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ ru: '', kk: '', en: '', category: '' })
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const tableRef = useRef(null)
+  const searchWrapRef = useRef(null)
 
   const fetchTerms = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('terms')
       .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
-      .order('ru', { ascending: true })
+      .order('kk', { ascending: true })
 
     if (error) {
       setError(t.alerts.loadFailed)
@@ -188,10 +150,20 @@ function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.hash])
 
-  const handleNavClick = (id) => {
+  useEffect(() => {
+    const current = searchParams.get('q') || ''
+    if (current === search) return
+    const next = new URLSearchParams(searchParams)
+    if (search) next.set('q', search)
+    else next.delete('q')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
+  const handleNavClick = useCallback((id) => {
     setActiveTab(id)
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+  }, [])
 
   const handleCategoryChip = (key) => {
     setCategoryFilter((current) => (current === key ? '' : key))
@@ -199,7 +171,7 @@ function HomePage() {
   }
 
   const handleDelete = async (term) => {
-    const label = term.ru || term.kk || term.en
+    const label = toSentenceCase(term.kk || term.ru || term.en)
     if (!window.confirm(t.confirm.deleteTerm(label))) {
       return
     }
@@ -250,14 +222,16 @@ function HomePage() {
     await fetchTerms()
   }
 
+  const deferredSearch = useDeferredValue(search)
+
   const visibleTerms = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = deferredSearch.trim().toLowerCase()
     let filtered = query
       ? terms.filter(
           (term) =>
-            term.ru.toLowerCase().includes(query) ||
-            term.kk.toLowerCase().includes(query) ||
-            term.en.toLowerCase().includes(query),
+            startsWithQuery(term.ru, query) ||
+            startsWithQuery(term.kk, query) ||
+            startsWithQuery(term.en, query),
         )
       : terms
 
@@ -266,11 +240,46 @@ function HomePage() {
     }
 
     return [...filtered].sort((a, b) =>
-      a.ru.localeCompare(b.ru, 'ru') ||
       a.kk.localeCompare(b.kk, 'ru') ||
+      a.ru.localeCompare(b.ru, 'ru') ||
       a.en.localeCompare(b.en, 'en'),
     )
-  }, [terms, search, categoryFilter])
+  }, [terms, deferredSearch, categoryFilter])
+
+  const searchSuggestions = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return []
+    const matches = terms.filter(
+      (term) =>
+        startsWithQuery(term.ru, query) ||
+        startsWithQuery(term.kk, query) ||
+        startsWithQuery(term.en, query),
+    )
+    matches.sort((a, b) =>
+      a.kk.localeCompare(b.kk, 'ru') ||
+      a.ru.localeCompare(b.ru, 'ru') ||
+      a.en.localeCompare(b.en, 'en'),
+    )
+    return matches.slice(0, MAX_SUGGESTIONS)
+  }, [terms, search])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) {
+        setIsSearchFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const suggestionQuery = search.trim().toLowerCase()
+  const showSuggestions = isSearchFocused && suggestionQuery.length > 0
+
+  const handleSuggestionSelect = (term) => {
+    setIsSearchFocused(false)
+    navigate(`/terms/${term.id}`)
+  }
 
   const categoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.[lang] || key
 
@@ -283,19 +292,56 @@ function HomePage() {
       {error && <div className="alert">{error}</div>}
 
       <section id="search" className="section-search">
-        <div className="hero-topo" aria-hidden="true"></div>
+        <div className="hero-glow" aria-hidden="true"></div>
         <div className="hero-search">
           <p className="hero-kicker">{t.hero.kicker}</p>
           <h2 className="hero-headline">{t.hero.headline}</h2>
           <p className="hero-lead">{t.hero.lead}</p>
-          <input
-            type="search"
-            className="hero-search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t.hero.placeholder}
-            aria-label={t.hero.searchAria}
-          />
+          <div className="hero-search-box" ref={searchWrapRef}>
+            <input
+              type="search"
+              className="hero-search-input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              placeholder={t.hero.placeholder}
+              aria-label={t.hero.searchAria}
+              role="combobox"
+              aria-expanded={showSuggestions}
+              aria-autocomplete="list"
+              aria-controls="search-suggestions"
+            />
+            {showSuggestions && (
+              <ul className="search-suggestions" id="search-suggestions" role="listbox">
+                {searchSuggestions.length === 0 ? (
+                  <li className="search-suggestion-empty">{t.table.emptyNoResults}</li>
+                ) : (
+                  searchSuggestions.map((term) => (
+                    <li key={term.id} role="option" aria-selected="false">
+                      <button
+                        type="button"
+                        className="search-suggestion-item"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSuggestionSelect(term)}
+                      >
+                        <span className="search-suggestion-accent" aria-hidden="true"></span>
+                        <span className="search-suggestion-text">
+                          <span className="search-suggestion-primary">
+                            <HighlightedText text={toSentenceCase(term.kk)} query={suggestionQuery} />
+                          </span>
+                          <span className="search-suggestion-secondary">
+                            <HighlightedText text={toSentenceCase(term.ru)} query={suggestionQuery} />
+                            {' · '}
+                            <HighlightedText text={toSentenceCase(term.en)} query={suggestionQuery} />
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
           <div className="hero-meta">
             <span>
               {search.trim() ? t.hero.found(visibleTerms.length) : t.hero.total(terms.length)}
@@ -340,8 +386,8 @@ function HomePage() {
             <table className="terms-table">
               <thead>
                 <tr>
-                  <th>{t.langNames.ru}</th>
                   <th>{t.langNames.kk}</th>
+                  <th>{t.langNames.ru}</th>
                   <th>{t.langNames.en}</th>
                   <th>{t.form.categoryLabel}</th>
                   <th className="col-actions"></th>
@@ -372,18 +418,18 @@ function HomePage() {
                             <td>
                               <input
                                 className="row-input"
-                                value={editForm.ru}
+                                value={editForm.kk}
                                 onChange={(e) =>
-                                  setEditForm({ ...editForm, ru: e.target.value })
+                                  setEditForm({ ...editForm, kk: e.target.value })
                                 }
                               />
                             </td>
                             <td>
                               <input
                                 className="row-input"
-                                value={editForm.kk}
+                                value={editForm.ru}
                                 onChange={(e) =>
-                                  setEditForm({ ...editForm, kk: e.target.value })
+                                  setEditForm({ ...editForm, ru: e.target.value })
                                 }
                               />
                             </td>
@@ -434,21 +480,24 @@ function HomePage() {
                         ) : (
                           <>
                             <td>
-                              <span className="cell-text">{term.ru}</span>
-                              <PlayButton src={term.audio_ru} label={term.ru} t={t} />
-                              {!term.audio_ru && (
-                                <AiSpeakButton text={term.ru} lang="ru-RU" t={t} />
+                              <span className="cell-text">{toSentenceCase(term.kk)}</span>
+                              <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
+                              {!term.audio_kk && (
+                                <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
                               )}
                             </td>
                             <td>
-                              <span className="cell-text">{term.kk}</span>
-                              <PlayButton src={term.audio_kk} label={term.kk} t={t} />
+                              <span className="cell-text">{toSentenceCase(term.ru)}</span>
+                              <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
+                              {!term.audio_ru && (
+                                <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
+                              )}
                             </td>
                             <td>
-                              <span className="cell-text">{term.en}</span>
-                              <PlayButton src={term.audio_en} label={term.en} t={t} />
+                              <span className="cell-text">{toSentenceCase(term.en)}</span>
+                              <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
                               {!term.audio_en && (
-                                <AiSpeakButton text={term.en} lang="en-US" t={t} />
+                                <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
                               )}
                             </td>
                             <td>
@@ -466,7 +515,9 @@ function HomePage() {
                                   type="button"
                                   className="btn-edit"
                                   onClick={() => handleEditStart(term)}
-                                  aria-label={t.table.editAria(term.ru || term.kk || term.en)}
+                                  aria-label={t.table.editAria(
+                                    toSentenceCase(term.kk || term.ru || term.en),
+                                  )}
                                 >
                                   {t.table.edit}
                                 </button>
@@ -474,7 +525,9 @@ function HomePage() {
                                   type="button"
                                   className="btn-delete"
                                   onClick={() => handleDelete(term)}
-                                  aria-label={t.table.deleteAria(term.ru || term.kk || term.en)}
+                                  aria-label={t.table.deleteAria(
+                                    toSentenceCase(term.kk || term.ru || term.en),
+                                  )}
                                 >
                                   {t.table.delete}
                                 </button>
@@ -491,164 +544,13 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="steps-section">
-        <div className="section-kicker" aria-hidden="true"></div>
-        <h2 className="section-title">{t.steps.title}</h2>
-        <div className="steps-grid steps-grid-2">
-          {t.steps.items.map((step) => (
-            <div className="step-card" key={step.n}>
-              <span className="step-n">{step.n}</span>
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="audience-section">
-        <div className="section-kicker" aria-hidden="true"></div>
-        <h2 className="section-title">{t.audience.title}</h2>
-        <div className="audience-grid">
-          {t.audience.items.map((a) => (
-            <div className="audience-card" key={a.title}>
-              <h3>{a.title}</h3>
-              <p>{a.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="ministry" className="section-ministry">
-        <div className="section-kicker" aria-hidden="true"></div>
-        <h2 className="section-title">{t.sections.ministryTitle}</h2>
-
-        <div className="card">
-          <h3 className="ministry-subtitle">{t.ministry.missionTitle}</h3>
-          <p className="ministry-mission">{MINISTRY_MISSION[lang]}</p>
-          <a
-            className="modal-source-link"
-            href={MINISTRY_SOURCES.gov[lang]}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t.ministry.sourceGovText}
-          </a>
-        </div>
-
-        <div className="ministry-block">
-          <h3 className="ministry-subtitle">{t.ministry.historyTitle}</h3>
-          <div className="steps-grid">
-            {MINISTRY_HISTORY.map((item) => (
-              <div className="step-card" key={item.year}>
-                <span className="step-n">{item.year}</span>
-                <p>{item[lang]}</p>
-              </div>
-            ))}
-          </div>
-          <a
-            className="modal-source-link"
-            href={MINISTRY_SOURCES.wikipedia}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t.ministry.sourceWikiText}
-          </a>
-        </div>
-
-        <div className="ministry-block">
-          <h3 className="ministry-subtitle">{t.ministry.leadershipTitle}</h3>
-          <div className="committees-grid">
-            {MINISTRY_LEADERSHIP.map((person) => (
-              <div className="committee-card leader-card" key={person.id}>
-                <h3>{person.name[lang]}</h3>
-                <p className="leader-role">{person.role[lang]}</p>
-                {person.areas && (
-                  <p className="leader-areas">
-                    {t.ministry.areasLabel}: {person.areas[lang]}
-                  </p>
-                )}
-                <span className="committee-chair">
-                  {t.committees.phoneLabel}: {person.phone}
-                </span>
-                <span className="committee-chair">
-                  {t.committees.emailLabel}: {person.email}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card ministry-contacts">
-          <h3 className="ministry-subtitle">{t.ministry.contactsTitle}</h3>
-          <div className="modal-meta">
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.ministry.addressLabel}</span>
-              <span>{MINISTRY_CONTACTS.address[lang]}</span>
-            </div>
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.committees.emailLabel}</span>
-              <span>{MINISTRY_CONTACTS.email}</span>
-            </div>
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.ministry.officeLabel}</span>
-              <span>{MINISTRY_CONTACTS.office}</span>
-            </div>
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.ministry.trustLineLabel}</span>
-              <span>{MINISTRY_CONTACTS.trustLine}</span>
-            </div>
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.ministry.pressLabel}</span>
-              <span>{MINISTRY_CONTACTS.press}</span>
-            </div>
-            <div className="modal-meta-row">
-              <span className="modal-meta-label">{t.ministry.emergencyLabel}</span>
-              <span>{MINISTRY_CONTACTS.emergency}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="committees" className="section-committees">
-        <div className="section-kicker" aria-hidden="true"></div>
-        <h2 className="section-title">{t.committees.title}</h2>
-        <p className="section-lead">{t.committees.lead}</p>
-        <div className="committees-grid">
-          {COMMITTEES.map((committee) => (
-            <button
-              type="button"
-              className="committee-card"
-              key={committee.id}
-              onClick={() => setActiveCommittee(committee)}
-            >
-              <h3>{committee.name[lang]}</h3>
-              <p>{committee.description[lang]}</p>
-              <span className="committee-chair">
-                {t.committees.chairLabel}: {committee.chair[lang]}
-              </span>
-              <span className="committee-more">{t.committees.detailsButton} →</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section id="docs" className="section-static">
-        <div className="card">
-          <h2>{t.sections.docsTitle}</h2>
-          <p className="empty-state-text">{t.sections.comingSoon}</p>
-        </div>
-      </section>
+      <StepsSection t={t} />
+      <AudienceSection t={t} />
+      <DocsSection t={t} />
         </div>
       </div>
 
       <Footer />
-
-      <CommitteeModal
-        committee={activeCommittee}
-        lang={lang}
-        t={t}
-        onClose={() => setActiveCommittee(null)}
-      />
     </>
   )
 }

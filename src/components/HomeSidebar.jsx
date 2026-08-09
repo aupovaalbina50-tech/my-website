@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X, Search, Quote, Landmark, Users, FileText, UserCircle } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
@@ -12,12 +12,17 @@ const SECTION_ICONS = {
   docs: FileText,
 }
 
+const ROUTE_SECTIONS = {
+  quotes: '/quotes',
+  ministry: '/ministry',
+  committees: '/committees',
+}
+
 function HomeSidebar({ activeSection, onSectionClick }) {
   const { t } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const quotesActive = location.pathname.startsWith('/quotes')
 
   const handleClick = (id) => {
     if (location.pathname === '/') {
@@ -65,25 +70,30 @@ function HomeSidebar({ activeSection, onSectionClick }) {
         <nav className="sidebar-nav" aria-label={t.nav.aria}>
           {SECTION_IDS.map((id) => {
             const Icon = SECTION_ICONS[id]
-            if (id === 'quotes') {
+            const routePath = ROUTE_SECTIONS[id]
+
+            if (routePath) {
+              const isActive =
+                location.pathname === routePath || location.pathname.startsWith(`${routePath}/`)
               return (
                 <Link
                   key={id}
-                  to="/quotes"
-                  className={`sidebar-link${quotesActive ? ' active' : ''}`}
+                  to={routePath}
+                  className={`sidebar-link${isActive ? ' active' : ''}`}
                   onClick={() => setOpen(false)}
-                  aria-current={quotesActive ? 'page' : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
                   <span>{t.nav[id]}</span>
                 </Link>
               )
             }
+
             return (
               <button
                 key={id}
                 type="button"
-                className={`sidebar-link${activeSection === id ? ' active' : ''}`}
+                className={`sidebar-link${id === 'search' ? ' sidebar-link-search' : ''}${activeSection === id ? ' active' : ''}`}
                 onClick={() => handleClick(id)}
                 aria-current={activeSection === id ? 'page' : undefined}
               >
@@ -102,4 +112,4 @@ function HomeSidebar({ activeSection, onSectionClick }) {
   )
 }
 
-export default HomeSidebar
+export default memo(HomeSidebar)

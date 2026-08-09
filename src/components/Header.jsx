@@ -15,20 +15,28 @@ function Header() {
       <header className="letterhead">
         <div className="letterhead-inner">
           <div className="brand-emblems">
-            <img
-              src="/emblems/academy.png"
-              alt={t.header.academyAlt}
-              className="emblem"
-              width="240"
-              height="240"
-            />
-            <img
-              src="/emblems/ministry.png"
-              alt={t.header.ministryAlt}
-              className="emblem"
-              width="240"
-              height="240"
-            />
+            <picture>
+              <source srcSet="/emblems/academy.webp" type="image/webp" />
+              <img
+                src="/emblems/academy.png"
+                alt={t.header.academyAlt}
+                className="emblem"
+                width="240"
+                height="240"
+                decoding="async"
+              />
+            </picture>
+            <picture>
+              <source srcSet="/emblems/ministry.webp" type="image/webp" />
+              <img
+                src="/emblems/ministry.png"
+                alt={t.header.ministryAlt}
+                className="emblem"
+                width="240"
+                height="240"
+                decoding="async"
+              />
+            </picture>
           </div>
           <div className="brand-rule" aria-hidden="true"></div>
           <div className="letterhead-text">

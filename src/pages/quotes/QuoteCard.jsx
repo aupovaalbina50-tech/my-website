@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Quote, Copy, Share2, Star } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -65,4 +66,4 @@ function QuoteCard({ quote, isFavorite, onToggleFavorite, onCopy, onShare, searc
   )
 }
 
-export default QuoteCard
+export default memo(QuoteCard)

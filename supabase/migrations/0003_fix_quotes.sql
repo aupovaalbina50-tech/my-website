@@ -1,0 +1,110 @@
+-- =============================================================
+-- Fix typos and missing spaces in the seeded Malik Gabdullin quotes
+--
+-- HOW TO RUN:
+--   Open your Supabase project -> SQL Editor -> paste this file -> Run.
+--   This updates quote_text for already-seeded rows (0002_quotes.sql
+--   only inserts and skips existing rows, so it cannot fix them).
+--   Safe to re-run.
+-- =============================================================
+
+update public.quotes set quote_text = 'Жауынгер жолдасың үшін жан аяма, өзің өлімге барсаң да, жолдасыңды ажалдан құтқар' where quote_number = 1;
+update public.quotes set quote_text = 'Жеңіс кілті-достықта' where quote_number = 2;
+update public.quotes set quote_text = 'Біз достық ынтымағы жасаған елдің адамдарымыз. Біздің елдегі ұлы табыстардың зор мақтанышпен айтатындай қайнар көзінің бірі осы-достықта' where quote_number = 3;
+update public.quotes set quote_text = 'Бүгінгі ұрпақты халқымыздың ерлік дәстүрімен таныстыру патриоттық рухта тәрбиелеу басты міндетіміз болып табылады.' where quote_number = 4;
+update public.quotes set quote_text = 'Ерлік өлмейді мәңгі жасайды деген рас болса соның айғағы Төлеген Тоқтаров екендігі сөзсіз' where quote_number = 5;
+update public.quotes set quote_text = 'Ер ерлігі-ел ерлігі' where quote_number = 6;
+update public.quotes set quote_text = 'Сөз жоқ ерлік пен батырлық адам бойына өздігіне бітетін қасиет емес. Ол адамдардың ұлтына қарамайды. Ондай қасиет Отаның халқын шын сүйген оларға барлық ар-ұятымен беріле қызмет етуді мақсат еткен сол үшін саналы түрде күрескен айтарлықтай нәтижеге жеткен адамға ғана тән' where quote_number = 7;
+update public.quotes set quote_text = 'Жауынгер жолдасың үшін жан аяма, өзің өлімге бар бірақ жолдасыңды ажалдан сақтап қал' where quote_number = 8;
+update public.quotes set quote_text = 'Отаның, халқың шын сүйген адам ғана батырлық, ерлік істер жасай алады.' where quote_number = 9;
+update public.quotes set quote_text = 'Халқын, өз елін шын сүйген адамдардың бір қасиеті жаудан қорықпаушылық, ұйымшылдық және іс үшін жан берушілік екенің де кешегі Ұлы Отан соғысы көрсетті.' where quote_number = 10;
+update public.quotes set quote_text = 'Бірлік-болаттан да берік' where quote_number = 11;
+update public.quotes set quote_text = 'Меніңше, дүниедегі ең қымбат, ең асыл, ең қымбат бір ғана нәрсе бар. Ол өзінің халқын, ел-жұрттың, туып-өскен отаның' where quote_number = 12;
+update public.quotes set quote_text = 'Өзінің арқа сүйген халқы, туып өскен отаны, ел-жұрты болмаған адамға ешқандай абырой-атақ, бақыт та жоқ. Ондай адам мүсәпір, қара басының қамы үшін күнделікті, күнкәріс үшін ғана тіршілік еткен болып табылады.' where quote_number = 13;
+update public.quotes set quote_text = 'Өз жерің, өз Отаның, өз халқын болса дүниедегі ең бағалы, ең асыл заттардың бәрі де өзінен табыла бермек' where quote_number = 14;
+update public.quotes set quote_text = 'Қазақ халқы бейбітшілікті көксеген бостандық шаттық өмірді мақсат еткен сол үшін саналы түрле күрескен ел' where quote_number = 15;
+update public.quotes set quote_text = 'Дүниедегі ең қымбатты, ең асыл нәрсе-ол халық соны қорғаушылық, одан артық еш нәрсе жоқ' where quote_number = 16;
+update public.quotes set quote_text = 'Адамның бақытты болуы еңбек етуге байланысты. Кімде-кім алдына ізгі ірі мақсат қойса ол оған қажырлы еңбек ету арқылы ғана жетеді' where quote_number = 17;
+update public.quotes set quote_text = 'Адамның бақытты болуы абырой-атаққа жетуі өздігінен келмейді. Ол адам еңбекке, зор күрескен, саналы мақсатқа байланысты' where quote_number = 18;
+update public.quotes set quote_text = 'Сақтық та-батырлық' where quote_number = 19;
+update public.quotes set quote_text = 'Бала анадан туады, халыққа қызмет істейді. Анадан туған балада, 2 ана бар, бірі тапқан ана, екіншісі-тәрбиелеген ана, бұл соңғысы халық' where quote_number = 20;
+update public.quotes set quote_text = 'Ана тәрбиесі, балаға алғашқы адам жолын көрсетеді, халық тәрбиесі-болашақ өмірдің соқпағына салады. Ана сүтін ақтаған бала-халық қызметкері. Халық анасынан тәрбие алған бала, халық тілегін, үмітін ақтауға тиіс' where quote_number = 21;
+update public.quotes set quote_text = 'Атағын шығарған балаға халқы разы' where quote_number = 22;
+update public.quotes set quote_text = 'Бала “халқым” десе сүйгендігін айтады, халқы разы болса, тапқан ананың да қуанышы. Сондықтан да балаға тапқан анадан да халық тәрбиесі әсері күшті болмақ керек' where quote_number = 23;
+update public.quotes set quote_text = 'Мен батырмын, мықтымын, өнерлімін, білімдімін дейтін адам, өзін-өзі тарих таразысына салушы адам-халық баласы емес. Ол қара басының қамы ойлаушы, топас адам' where quote_number = 24;
+update public.quotes set quote_text = 'Сенің кім екеніне сыншы-халық' where quote_number = 25;
+update public.quotes set quote_text = 'Бір кісінің сыны халық тілегіне сай емес келмесе-сын емес' where quote_number = 26;
+update public.quotes set quote_text = 'Халық сыны-қадірлі сын' where quote_number = 27;
+update public.quotes set quote_text = 'Айлалы адам ажалды жеңеді' where quote_number = 28;
+update public.quotes set quote_text = 'Адам баласы үшін дүниедегі ең қымбат нәрсенің бірі-достық, жолдастық' where quote_number = 29;
+update public.quotes set quote_text = 'Достық, жолдастық дегендер адамның тіліне, ұлтына байланысты емес. Ол адамның адамгершілігіне, санасына байланысты' where quote_number = 30;
+update public.quotes set quote_text = 'Досқа достық ету керек. Ол үшін өлсең де арманың жоқ, Өлсең сен үшін кек алатын да -жақсы жолдастарың' where quote_number = 31;
+update public.quotes set quote_text = 'Бейнет көрмеген берекесіздік жасайды' where quote_number = 32;
+update public.quotes set quote_text = 'Ел намысы-ер намысы' where quote_number = 33;
+update public.quotes set quote_text = 'Жеңілген жау есінен айырылады' where quote_number = 34;
+update public.quotes set quote_text = 'Қаһарлы сөз қамал бұзар' where quote_number = 35;
+update public.quotes set quote_text = 'Соғыс дегеніміз-белгілі бір сарынмен жүріп отыратын нәрсе емес, ол әр алуан жағдайлы болады. Осы жағдайларды басынн кешіруші-жауынгер' where quote_number = 36;
+update public.quotes set quote_text = 'Қорықпаған батыр болады' where quote_number = 37;
+update public.quotes set quote_text = 'Қырағылық та ерлік' where quote_number = 38;
+update public.quotes set quote_text = 'Ерлік тәрбиеден туады' where quote_number = 39;
+update public.quotes set quote_text = 'Адамның патриот болуы, батыр болуы, ер болуы-бұл ұзақ уақыт бойына үзбей, ерінбей талмай жүргізілген тәрбиелік жұмыстардың нәтижесінде, тәрбие жұмысының сан алуан түрлерін қолдану негізінде болады.' where quote_number = 40;
+update public.quotes set quote_text = 'Тәрбие дегеніміз-баланың үстіне кигізе қоятын дайын киім емес' where quote_number = 41;
+update public.quotes set quote_text = '“Батыр” деген атақ адамның дене құрылысына, ұлтына қарап берілмейді' where quote_number = 42;
+update public.quotes set quote_text = 'Жүрегінде патриоттық сезімі, бойында намыс оты жоқ адам, еш уақытта ешқандай ерлік жасай алмайды' where quote_number = 43;
+update public.quotes set quote_text = 'Тәртіп адамның күш-қуатын нығайта беретін құралының бірі' where quote_number = 44;
+update public.quotes set quote_text = 'Адамды жігерлендіріп батыл ететін алға қойған ұлы мақсатқа жетуге ұмтылдыратын, үлкен арманды орындап шығуға қанағаттандыратын, қысқасы, адамды нағыз адам ететін күштің бірі саналы тәртіп пен тәртіптілік' where quote_number = 45;
+update public.quotes set quote_text = 'Жас ұрпақты адамгершілікке, саналыққа тәрбиелегенде негізгі еске алатын нәрсенің бірі-сенім' where quote_number = 46;
+update public.quotes set quote_text = 'Адамдар арасында бір-біріне сенушілік өріс пайда болған жерде ғана жолдастық, достық, бауырмалдық коллективтік қарым-қатынас орнайды' where quote_number = 47;
+update public.quotes set quote_text = 'Бүгінгі жастарды халқымыздың ең жақсы деген ерлік дәстүрімен таныстыра, соларды әңгімелей отырып, жеткіншектерді Отанын сүйген, патриот, елінің ісіне шексіз берілген, қандай жағдай болса да, халық үшін ерлік жасайтын ер азамат етіп өсіруіміз міндет' where quote_number = 48;
+update public.quotes set quote_text = 'Тәрбие-таптық категория' where quote_number = 49;
+update public.quotes set quote_text = 'Әрбір тап жас ұрпақты тәрбиелегенде оған өзінің таптық мүдде-көзқарасың беруді, сөйтіп, өзіне керекті адамдарды тәрбиелеп шығаруды мақсат етеді және осы мақсатын жүзеге асыру үшін қолындағы құралдың бәрін пайдаланады' where quote_number = 50;
+update public.quotes set quote_text = 'Жас ұрпақты тәрбиелеу ісі тек алғашқы адам қоғамында ғана таптық болған жоқ, одан бергі қоғамдарда тәрбие ісі таптық болып отырды' where quote_number = 51;
+update public.quotes set quote_text = 'Кейінгі жас ұрпақты қоғамдық іске еңбекке қызмет етуге, жігерлі болуға үйрету мақсатымен адам баласының қоғамдық өмірінде, тарихында, тұрмыс тіршілігінде қалыптасқан өмір тәжірибесін мінез-құлық пен дағдыны тәрбие дейміз' where quote_number = 52;
+update public.quotes set quote_text = 'Патриотизм өзінің қайнар көзін халық эпосынан бастап, ежелгі заманынан алады' where quote_number = 53;
+update public.quotes set quote_text = 'Халық ұғымында қас батырға тән қасиеттің бірі-намысқорлық' where quote_number = 54;
+update public.quotes set quote_text = 'Қанша, мықты болсаң да, шапқыншылық жасама, ұрыншақ болма, ондай әрекет адамның жолы сәтсіздікке ұшырайды' where quote_number = 55;
+update public.quotes set quote_text = 'Халықты сүй, халық үшін еңбек, ерлік ет, ел-жұртына қорған бол деушілік, қазіргі күнде ескірген сөздер емес, қайта мағыналы, мәнді сөздер' where quote_number = 56;
+update public.quotes set quote_text = 'Ертедегі халық жырларын да батырлардың патриоттық істерін суреттеген, әңгімелерінің ішінен бүгінгі жастарымызды тәрбиелеуде әсер ететіндерің таңдап алып орнымен дұрыс пайдалана білсең, онымыз теріс болмас еді.' where quote_number = 57;
+update public.quotes set quote_text = 'Отан үшін қызмет ету, оны қорғау, ең ардақты борышымыз, әрқайсымыздың қасиетті міндетіміз' where quote_number = 58;
+update public.quotes set quote_text = 'Панфиловшы 28 батырдың ерлігі -көп ұлтты совет халқының достық ынтымағы мызғымас беріктігінің айғағы болып табылады' where quote_number = 59;
+update public.quotes set quote_text = 'Жас ұрпақты халықтар достығы рухында да, тәрбиелеуіміз шарт' where quote_number = 60;
+update public.quotes set quote_text = 'Көп ұлтты совет халықтары арасында орнаған достық ынтымақ жас жеткіншектерге үлгі-өнеге болсын' where quote_number = 61;
+update public.quotes set quote_text = 'Жас ұрпақты ерлік-батырлық, патриоттық рухта тәрбиелеу панфиловшы 28 батырдың ерлігі ерекше мәнді болатындығы сөзсіз' where quote_number = 62;
+update public.quotes set quote_text = 'Ұлы Отан соғысы жылдарында фашистік зұлымдардан Отанды қорғауда тамаша-тамаша ерліктер жасаған басқа да, батырларды, олардың кетпес ерліктерін үлгі етуіміз керек' where quote_number = 63;
+update public.quotes set quote_text = 'Кеудесінде намыс оты жоқ адам батыр да, болмайды, ынжық болады' where quote_number = 64;
+update public.quotes set quote_text = 'Жастар арасындағы тәрбие жұмысына ата-аналардың қатысуы оны жақсартуға себепші болады' where quote_number = 65;
+update public.quotes set quote_text = 'Жас ұрпақты батырлық-ерлік рухта тәрбиелеу Отанның жалынды патриоты етіп өсіруі әрбір семьяның, әрбір мектептің, өндірістік коллективтік және ондағы қоғамдық ұйымдардың басты мақсатының бірі' where quote_number = 66;
+update public.quotes set quote_text = 'Адамның патриот болуы, батыр болуы, ер болуы-бұл ұзақ уақыт бойында үзбей, ерінбей, талмай жүргізілген тәрбиелік жұмыстардың нәтижесінде, тәрбие жұмысының сан алуан түрлерін қолдану негізінде болады' where quote_number = 67;
+update public.quotes set quote_text = 'Әрбір жастық мінезінде ойлау, сезіну дүниесінде, түсінігі мен көкарасында өзіндік ерекшелігі болады' where quote_number = 68;
+update public.quotes set quote_text = '“Батыр”-деген атақ адамның дене құрылысына, ұлтына қарап берілмейді. Мұндай жоғары атақ адамның қасиеті Отанымыз үшін жасаған ерекше ерлігі үшін беріледі' where quote_number = 69;
+update public.quotes set quote_text = 'Батырлық, ерлік- дегеніміз отандық семьясында өскен, мектебінде оқыған, тәрбие алған, отандық өмірдің дүниедегі ең шат, ең қазақты өмір екенің білген жастарымыздың бойына бітіп, қанына сінген жоғарғы қасиет болып табылады' where quote_number = 70;
+update public.quotes set quote_text = 'Оқушының тәртіпті болуы-тәрбиеге байланысты' where quote_number = 71;
+update public.quotes set quote_text = 'Жасынан тәртіптілікке үйренген бала өсе келе ұқыпты жинақы болып келеді' where quote_number = 72;
+update public.quotes set quote_text = 'Мектепте жүргізілген саналы тәрбиенің нәтижесінде тәртіптілікке үйренген, соған дағдыланған бала ер жеткен соң, халықтың мақтаныш ететін нағыз азаматтың өзі болып табылады' where quote_number = 73;
+update public.quotes set quote_text = 'Жастарға үлгі болатын фактілерді Ұлы Отан соғысы жылдарынан және күнделікті өмірден алып отыру керек' where quote_number = 74;
+update public.quotes set quote_text = 'Қазақ халқы-біздің көп ұлтты Одағымыздың басқа халықтары тәріздес ертеден келе жатқан ескі ескерткіштерге көне мәдениетке бай халық' where quote_number = 75;
+update public.quotes set quote_text = 'Халықтың тарихына, қоғамдық өміріне, экономикалық жағдайына, салт-санасына, тіршілік-тұрмысына, таптық мүддесіне байланыссыз олардан тыс туған батырлар жыры болған емес' where quote_number = 76;
+update public.quotes set quote_text = 'Әрбір халық эпостан өзінің тарихын көреді, ата-бабаларының байыпты жайын біледі' where quote_number = 77;
+update public.quotes set quote_text = 'Ұйымшылдығы мен бірлігі бар коллектив әрі мықты, әрі алдына қойған мақсатына жеткісі келеді бұл естерінде болсын' where quote_number = 78;
+update public.quotes set quote_text = 'Жалғыз адам бір тал шыбық сияқты' where quote_number = 79;
+update public.quotes set quote_text = 'Көпшілік қандай қиын қыстаудан болса да, ақылмен жол табады, бір-біріне көмек көрсете қиыншылықты жеңеді' where quote_number = 80;
+update public.quotes set quote_text = 'Көпшілік аштық та, шаршап-шалдығу да, азап шегу де, бөгет бола алмайды, көпшілік мұның бәріне төтеп береді де, мұратына жетеді' where quote_number = 81;
+update public.quotes set quote_text = 'Ұйымшылдығы, бірлігі күшті көпшілік ешқандай жауға алдырмайды, қайта ерлік жасаушы болады' where quote_number = 82;
+update public.quotes set quote_text = 'Сенім деген ұғым қоғамдық саяси өмірдің тұрмыс-тіршіліктің, адамдар арасындағы қарым-қатынастық т. б сан алуан жақтарын қамтиды' where quote_number = 83;
+update public.quotes set quote_text = 'Адамдардың сенімпаздығы бір-біріне күмәнсіз қарауы қоғам өмірін алға бастыратын күштің бірі' where quote_number = 84;
+update public.quotes set quote_text = 'Сенім жастардың тәртібін, сабаққа үлгеруін, тапсырылған жұмысты зор жауапкершілікпен орындау сезімін арттырады' where quote_number = 85;
+update public.quotes set quote_text = 'Сенім болмаған жерде мықты коллектив, берік семья құрылуы мүмкін емес' where quote_number = 86;
+update public.quotes set quote_text = 'Жас ұрпақты тәрбиелеу-бүкіл халықтық іс және бәріміздің міндетіміз' where quote_number = 87;
+update public.quotes set quote_text = 'Басқаны сыйлай білетін адамдарды жұрт та, сыйлап құрметтейтін болады' where quote_number = 88;
+update public.quotes set quote_text = 'Кісіні сыйлап үйренбеген соған дағдыланбаған адам басқаның сый-құрметін көрмейді, мұндай адам өзін-өзі сыйламайтындардың қатарына қосылады' where quote_number = 89;
+update public.quotes set quote_text = 'Өзін-өзі құрметтегісі келген адам алдымен басқаны құрметтеп, сыйлай білетін болуы керек' where quote_number = 90;
+update public.quotes set quote_text = 'Өзіне құрмет көрсетіп, ілтипаттық пен сәлем берген баланы үлкендердің қайсысы болса да, зор мақтаныш етеді, сүйіспеншілік ықылысың білдіреді' where quote_number = 91;
+update public.quotes set quote_text = 'Жас ұрпақты “адам-адамға дос, жолдас және бауыр” деген моралдік принципте тәрбиелеу қажет' where quote_number = 92;
+update public.quotes set quote_text = 'Қоғамдық ортада үлкендерді, сыйлағыш болып тәрбиеленген болса бала, сөз жоқ әдепті бала болып табылады' where quote_number = 93;
+update public.quotes set quote_text = 'Үлкендерді сыйлау, қайырымды болу-әдептіліктің белгісі емес, ол мәдениеттіліктің де белгісі деп қаралуы мүмкін' where quote_number = 94;
+update public.quotes set quote_text = 'Әдептілік пен мәдениеттілік ұғым сөз' where quote_number = 95;
+update public.quotes set quote_text = 'Адамның мәдениетті болуы, оның оқуына, алған біліміне ғана байланысты емес, ол оның семьяда, мектепте, қоғамдық ортада алған тәрбиесінде, үлгі-өнегесінде. Мұны ата-анадардың әрқашан да есте ұстағаны жөн' where quote_number = 96;
+update public.quotes set quote_text = 'Тәртіп бұзған балаға қолданылатын шараның қай түрі болса да, педагогтық білгірлікпен іске асырылуы қажет' where quote_number = 97;
+update public.quotes set quote_text = 'Баланың мектепке барған күнінен бастап, өзіне үлгі ететін адамы-мұғалім' where quote_number = 98;
+update public.quotes set quote_text = 'Халық мақалдары адамдардың ынтымақта, ұйымшылдық пен бірлікте болуын өсиет, нақыл етеді' where quote_number = 99;
+update public.quotes set quote_text = 'Неше күшті болсаң да, барлық адамгершілік қасиет бойында бар ел болсаң да, халық қауымның қолдауынсыз болсаң, сүйенер серіктерің болмаса, онда сен бағасыз құнсызсың.' where quote_number = 100;

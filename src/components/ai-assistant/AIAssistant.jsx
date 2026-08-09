@@ -1,0 +1,295 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Bot, X, Send, Copy, Check, RotateCcw, Trash2, Sparkles } from 'lucide-react'
+import { useLanguage } from '../../i18n/LanguageContext.jsx'
+import { askAssistant, RateLimitError } from '../../ai/aiClient'
+import './AIAssistant.css'
+
+const STORAGE_KEY = 'cd_ai_chat_history'
+let msgIdCounter = 0
+const nextId = () => `m${Date.now()}_${++msgIdCounter}`
+
+function loadStoredMessages() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function makeWelcomeMessage(text) {
+  return { id: nextId(), role: 'assistant', content: text, timestamp: Date.now(), isWelcome: true }
+}
+
+function AIAssistant() {
+  const { lang, t } = useLanguage()
+  const a = t.assistant
+
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState(loadStoredMessages)
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
+
+  const listRef = useRef(null)
+  const textareaRef = useRef(null)
+
+  // Seed the welcome message the first time the widget is opened.
+  useEffect(() => {
+    if (open) {
+      setMessages((current) => (current.length === 0 ? [makeWelcomeMessage(a.welcomeMessage)] : current))
+    }
+  }, [open, a.welcomeMessage])
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+    } catch {
+      /* storage unavailable (private mode, quota, etc.) — chat still works this session */
+    }
+  }, [messages])
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight
+    }
+  }, [messages, loading])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const timer = setTimeout(() => textareaRef.current?.focus(), 220)
+    return () => clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    if (open) document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('ai-chat-open', open)
+    return () => document.documentElement.classList.remove('ai-chat-open')
+  }, [open])
+
+  // Auto-grow the textarea up to a max height (CSS caps it, this just
+  // keeps scrollHeight in sync so it doesn't stay clipped at one line).
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [input])
+
+  const runAssistant = useCallback(
+    async (userMessage, historyBase) => {
+      setLoading(true)
+      const historyForApi = historyBase
+        .filter((m) => !m.isWelcome && !m.isError)
+        .map((m) => ({ role: m.role, content: m.content }))
+
+      try {
+        const { reply, found } = await askAssistant({ message: userMessage, history: historyForApi })
+        const content = found ? reply : a.notFound
+        setMessages((current) => [
+          ...current,
+          { id: nextId(), role: 'assistant', content, timestamp: Date.now() },
+        ])
+      } catch (err) {
+        const content = err instanceof RateLimitError ? a.rateLimited : a.errorMessage
+        setMessages((current) => [
+          ...current,
+          { id: nextId(), role: 'assistant', content, timestamp: Date.now(), isError: true },
+        ])
+      } finally {
+        setLoading(false)
+      }
+    },
+    [a.notFound, a.errorMessage, a.rateLimited],
+  )
+
+  const handleSend = useCallback(() => {
+    const text = input.trim()
+    if (!text || loading) return
+
+    const userMsg = { id: nextId(), role: 'user', content: text, timestamp: Date.now() }
+    const next = [...messages, userMsg]
+    setInput('')
+    setMessages(next)
+    runAssistant(text, next)
+  }, [input, loading, messages, runAssistant])
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const handleRegenerate = useCallback(() => {
+    if (loading) return
+    const reversedIdx = [...messages].reverse().findIndex((m) => m.role === 'user')
+    if (reversedIdx === -1) return
+    const idx = messages.length - 1 - reversedIdx
+    const lastUserMessage = messages[idx].content
+    const trimmed = messages.slice(0, idx + 1)
+    setMessages(trimmed)
+    runAssistant(lastUserMessage, trimmed)
+  }, [loading, messages, runAssistant])
+
+  const handleClear = useCallback(() => {
+    if (!window.confirm(a.clearConfirm)) return
+    setMessages([makeWelcomeMessage(a.welcomeMessage)])
+  }, [a.clearConfirm, a.welcomeMessage])
+
+  const handleCopy = useCallback((msg) => {
+    if (!navigator.clipboard) return
+    navigator.clipboard
+      .writeText(msg.content)
+      .then(() => {
+        setCopiedId(msg.id)
+        setTimeout(() => setCopiedId((current) => (current === msg.id ? null : current)), 1600)
+      })
+      .catch(() => {})
+  }, [])
+
+  const formatTime = useCallback(
+    (ts) =>
+      new Intl.DateTimeFormat(lang === 'kk' ? 'kk-KZ' : 'ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(ts),
+    [lang],
+  )
+
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant' && !m.isWelcome)?.id
+
+  return (
+    <div className="ai-widget">
+      <div className={`ai-window${open ? ' open' : ''}`} role="dialog" aria-modal="false" aria-label={a.name} inert={!open}>
+        <div className="ai-window-header">
+          <div className="ai-header-identity">
+            <span className="ai-avatar">
+              <Sparkles size={18} aria-hidden="true" />
+            </span>
+            <div className="ai-header-text">
+              <span className="ai-header-name">{a.name}</span>
+              <span className="ai-header-status">
+                <span className="ai-status-dot" aria-hidden="true"></span>
+                {a.online}
+              </span>
+            </div>
+          </div>
+          <div className="ai-header-actions">
+            <button
+              type="button"
+              className="ai-icon-btn"
+              onClick={handleClear}
+              title={a.clearChat}
+              aria-label={a.clearChat}
+            >
+              <Trash2 size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="ai-icon-btn"
+              onClick={() => setOpen(false)}
+              aria-label={a.closeAria}
+            >
+              <X size={19} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <div className="ai-messages" ref={listRef}>
+          {messages.map((msg) => (
+            <div key={msg.id} className={`ai-message-row ai-message-${msg.role}`}>
+              <div className={`ai-bubble ai-bubble-${msg.role}${msg.isError ? ' ai-bubble-error' : ''}`}>
+                <p className="ai-bubble-text">{msg.content}</p>
+                <div className="ai-bubble-meta">
+                  <span className="ai-bubble-time">{formatTime(msg.timestamp)}</span>
+                  {msg.role === 'assistant' && !msg.isWelcome && (
+                    <span className="ai-bubble-actions">
+                      <button
+                        type="button"
+                        className="ai-bubble-action"
+                        onClick={() => handleCopy(msg)}
+                        title={a.copy}
+                        aria-label={a.copy}
+                      >
+                        {copiedId === msg.id ? (
+                          <Check size={13} aria-hidden="true" />
+                        ) : (
+                          <Copy size={13} aria-hidden="true" />
+                        )}
+                      </button>
+                      {msg.id === lastAssistantId && !loading && (
+                        <button
+                          type="button"
+                          className="ai-bubble-action"
+                          onClick={handleRegenerate}
+                          title={a.regenerate}
+                          aria-label={a.regenerate}
+                        >
+                          <RotateCcw size={13} aria-hidden="true" />
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {loading && (
+            <div className="ai-message-row ai-message-assistant">
+              <div className="ai-bubble ai-bubble-assistant ai-bubble-typing" aria-label={a.typing}>
+                <span className="ai-typing-dot"></span>
+                <span className="ai-typing-dot"></span>
+                <span className="ai-typing-dot"></span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="ai-input-row">
+          <textarea
+            ref={textareaRef}
+            className="ai-input"
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={a.placeholder}
+          />
+          <button
+            type="button"
+            className="ai-send-btn"
+            onClick={handleSend}
+            disabled={!input.trim() || loading}
+            aria-label={a.sendAria}
+          >
+            <Send size={18} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className={`ai-fab${open ? ' open' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? a.closeAria : a.openAria}
+        aria-expanded={open}
+      >
+        <Bot size={24} className="ai-fab-icon ai-fab-icon-bot" aria-hidden="true" />
+        <X size={22} className="ai-fab-icon ai-fab-icon-close" aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
+export default AIAssistant
