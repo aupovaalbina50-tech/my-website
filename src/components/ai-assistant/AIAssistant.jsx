@@ -35,6 +35,7 @@ function AIAssistant() {
 
   const listRef = useRef(null)
   const textareaRef = useRef(null)
+  const lastMessageRef = useRef(null)
 
   // Seed the welcome message the first time the widget is opened.
   useEffect(() => {
@@ -52,7 +53,12 @@ function AIAssistant() {
   }, [messages])
 
   useEffect(() => {
-    if (listRef.current) {
+    // Scroll so the START of the newest message is visible, not its end —
+    // long replies would otherwise land the view on their last line, making
+    // the user scroll back up to read from the top.
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ block: 'start', behavior: 'auto' })
+    } else if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
     }
   }, [messages, loading])
@@ -206,8 +212,12 @@ function AIAssistant() {
         </div>
 
         <div className="ai-messages" ref={listRef}>
-          {messages.map((msg) => (
-            <div key={msg.id} className={`ai-message-row ai-message-${msg.role}`}>
+          {messages.map((msg, idx) => (
+            <div
+              key={msg.id}
+              ref={idx === messages.length - 1 ? lastMessageRef : null}
+              className={`ai-message-row ai-message-${msg.role}`}
+            >
               <div className={`ai-bubble ai-bubble-${msg.role}${msg.isError ? ' ai-bubble-error' : ''}`}>
                 <p className="ai-bubble-text">{msg.content}</p>
                 <div className="ai-bubble-meta">
