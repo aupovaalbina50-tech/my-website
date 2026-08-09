@@ -1,4 +1,4 @@
-import { resolveProvider } from './providers/index.ts'
+import { resolveProviderChain } from './providers/index.ts'
 import { buildSystemPrompt } from './systemPrompt.ts'
 import { enforceRateLimits, getClientIp } from './rateLimit.ts'
 
@@ -65,18 +65,35 @@ Deno.serve(async (req: Request) => {
     )
   }
 
+  let chain
   try {
-    const provider = resolveProvider()
-    const reply = await provider.generate({
-      systemPrompt: buildSystemPrompt(context),
-      messages: [...history, { role: 'user', content: message }],
-      apiKey: provider.apiKey,
-      model: provider.model,
-    })
-    return jsonResponse({ reply, provider: provider.name })
+    chain = resolveProviderChain()
   } catch (err) {
-    console.error('ai-chat error:', err)
+    console.error('ai-chat config error:', err)
     const errMessage = err instanceof Error ? err.message : 'Unknown error'
-    return jsonResponse({ error: errMessage }, 502)
+    return jsonResponse({ error: errMessage }, 500)
   }
+
+  const systemPrompt = buildSystemPrompt(context)
+  const messages = [...history, { role: 'user' as const, content: message }]
+
+  const failures: string[] = []
+  for (const provider of chain) {
+    try {
+      const reply = await provider.generate({
+        systemPrompt,
+        messages,
+        apiKey: provider.apiKey,
+        model: provider.model,
+      })
+      return jsonResponse({ reply, provider: provider.name })
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : 'Unknown error'
+      console.error(`ai-chat provider "${provider.name}" failed, trying next:`, errMessage)
+      failures.push(`${provider.name}: ${errMessage}`)
+    }
+  }
+
+  // Every configured provider failed (quota, outage, bad key, ...).
+  return jsonResponse({ error: `All AI providers failed. ${failures.join(' | ')}` }, 502)
 })
