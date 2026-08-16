@@ -43,7 +43,7 @@ function renderMarkdown(content) {
     if (!list) return
     const ListTag = list.type
     blocks.push(
-      <ListTag key={`list-${blocks.length}`} className="ai-md-list">
+      <ListTag key={`list-${blocks.length}`} className="ai-md-list" start={list.start}>
         {list.items.map((item, idx) => (
           <li key={idx}>{renderInline(item, `li-${blocks.length}-${idx}`)}</li>
         ))}
@@ -56,7 +56,7 @@ function renderMarkdown(content) {
     const line = rawLine.trim()
     const heading = line.match(/^(#{1,4})\s+(.*)$/)
     const ul = line.match(/^[-*]\s+(.*)$/)
-    const ol = line.match(/^\d+\.\s+(.*)$/)
+    const ol = line.match(/^(\d+)\.\s+(.*)$/)
 
     if (heading) {
       flushList()
@@ -75,9 +75,12 @@ function renderMarkdown(content) {
     } else if (ol) {
       if (!list || list.type !== 'ol') {
         flushList()
-        list = { type: 'ol', items: [] }
+        // Start numbering from the number the model actually wrote (e.g.
+        // "2.") — segments resumed after nested sub-bullets otherwise
+        // render their own <ol> and visually restart the count at 1.
+        list = { type: 'ol', items: [], start: Number(ol[1]) }
       }
-      list.items.push(ol[1])
+      list.items.push(ol[2])
     } else if (line === '') {
       flushList()
     } else {

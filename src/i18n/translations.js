@@ -32,6 +32,7 @@ export const translations = {
       aria: 'Сайт бөлімдері',
       search: 'Іздеу',
       terms: 'Терминдер',
+      confusable: 'Шатастырмау',
       quotes: 'Мәлік Ғабдуллин нақыл сөздері',
       ministry: 'Төтенше жағдайлар министрлігі',
       committees: 'Комитеттер',
@@ -222,6 +223,13 @@ export const translations = {
       emptyFavorites: 'Сізде әлі таңдаулы нақыл сөздер жоқ.',
       emptyViewed: 'Сіз әлі ешбір нақыл сөзді қарамадыңыз.',
       browseAll: 'Барлық нақыл сөздерді қарау',
+    },
+    confusable: {
+      lead: 'Мағынасы жақын болғандықтан жиі шатастырылатын терминдер жұбы. Әр жұпты таңдап, олардың нақты айырмашылығын оқыңыз.',
+      eyebrow: 'Жиі шатастырылады',
+      differenceHeading: 'Айырмашылығы неде',
+      sourceLabel: 'Ресми дереккөз',
+      sourceLinkText: 'adilet.zan.kz сайтында қарау',
     },
     committees: {
       title: 'Министрліктің комитеттері',
@@ -488,6 +496,7 @@ export const translations = {
       aria: 'Разделы сайта',
       search: 'Поиск',
       terms: 'Термины',
+      confusable: 'Не путать',
       quotes: 'Цитаты Малика Габдуллина',
       ministry: 'Министерство по чрезвычайным ситуациям',
       committees: 'Комитеты',
@@ -677,6 +686,13 @@ export const translations = {
       emptyFavorites: 'У вас пока нет избранных цитат.',
       emptyViewed: 'Вы ещё не просматривали цитаты.',
       browseAll: 'Смотреть все цитаты',
+    },
+    confusable: {
+      lead: 'Термины, которые часто путают из-за схожести смысла. Выберите пару, чтобы увидеть, в чём именно их различие.',
+      eyebrow: 'Часто путают',
+      differenceHeading: 'В чём разница',
+      sourceLabel: 'Официальный источник',
+      sourceLinkText: 'Посмотреть на adilet.zan.kz',
     },
     committees: {
       title: 'Комитеты Министерства',

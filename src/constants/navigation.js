@@ -1,1 +1,1 @@
-export const SECTION_IDS = ['search', 'terms', 'quotes', 'ministry', 'committees', 'docs']
+export const SECTION_IDS = ['search', 'terms', 'confusable', 'quotes', 'ministry', 'committees', 'docs']

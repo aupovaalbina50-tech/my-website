@@ -9,6 +9,7 @@ const HomePage = lazy(() => import('./pages/HomePage.jsx'))
 const TermsNetworkPage = lazy(() => import('./pages/TermsNetworkPage.jsx'))
 const TermsListPage = lazy(() => import('./pages/TermsListPage.jsx'))
 const TermDetailPage = lazy(() => import('./pages/TermDetailPage.jsx'))
+const ConfusableTermsPage = lazy(() => import('./pages/ConfusableTermsPage.jsx'))
 const MinistryPage = lazy(() => import('./pages/MinistryPage.jsx'))
 const CommitteesPage = lazy(() => import('./pages/CommitteesPage.jsx'))
 const QuotesPage = lazy(() => import('./pages/quotes/QuotesPage.jsx'))
@@ -38,6 +39,7 @@ function App() {
               <Route path="/terms" element={<TermsNetworkPage />} />
               <Route path="/terms/:id" element={<TermDetailPage />} />
               <Route path="/category/:key" element={<TermsListPage />} />
+              <Route path="/not-to-confuse" element={<ConfusableTermsPage />} />
               <Route path="/ministry" element={<MinistryPage />} />
               <Route path="/committees" element={<CommitteesPage />} />
               <Route path="/quotes" element={<QuotesPage />} />

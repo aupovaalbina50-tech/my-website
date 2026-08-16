@@ -1,12 +1,24 @@
 import { memo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, Search, List, Quote, Landmark, Users, FileText, UserCircle } from 'lucide-react'
+import {
+  Menu,
+  X,
+  Search,
+  List,
+  Quote,
+  Landmark,
+  Users,
+  FileText,
+  UserCircle,
+  ArrowLeftRight,
+} from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { SECTION_IDS } from '../constants/navigation.js'
 
 const SECTION_ICONS = {
   search: Search,
   terms: List,
+  confusable: ArrowLeftRight,
   quotes: Quote,
   ministry: Landmark,
   committees: Users,
@@ -15,6 +27,7 @@ const SECTION_ICONS = {
 
 const ROUTE_SECTIONS = {
   terms: '/terms',
+  confusable: '/not-to-confuse',
   quotes: '/quotes',
   ministry: '/ministry',
   committees: '/committees',
