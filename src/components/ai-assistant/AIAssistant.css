@@ -312,6 +312,41 @@ html.ai-chat-open {
   word-break: break-word;
 }
 
+.ai-md-p {
+  margin: 0 0 8px;
+}
+
+.ai-md-heading {
+  margin: 10px 0 6px;
+  font-size: 1em;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-md-list {
+  margin: 0 0 8px;
+  padding-left: 1.3em;
+}
+
+.ai-md-list li {
+  margin-bottom: 2px;
+}
+
+.ai-bubble-text > *:first-child {
+  margin-top: 0;
+}
+
+.ai-bubble-text > *:last-child {
+  margin-bottom: 0;
+}
+
+.ai-bubble-text code {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
 .ai-bubble-meta {
   display: flex;
   align-items: center;

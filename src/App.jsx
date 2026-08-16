@@ -71,14 +71,6 @@ function App() {
                   }
                 />
                 <Route
-                  path="search-history"
-                  element={
-                    <RequireAuth>
-                      <PlaceholderPage titleKey="searchHistory" />
-                    </RequireAuth>
-                  }
-                />
-                <Route
                   path="viewing-history"
                   element={
                     <RequireAuth>

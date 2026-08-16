@@ -136,196 +136,172 @@ function TermsListPage() {
                   </div>
                 </div>
 
-                <div className="card">
-                  <div className="table-wrap">
-                    <table className="terms-table">
-                      <thead>
-                        <tr>
-                          <th>{t.langNames.kk}</th>
-                          <th>{t.langNames.ru}</th>
-                          <th>{t.langNames.en}</th>
-                          <th>{t.form.categoryLabel}</th>
-                          <th className="col-actions"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loading && (
-                          <tr>
-                            <td className="empty-state" colSpan={5}>
-                              {t.table.loading}
-                            </td>
-                          </tr>
-                        )}
-                        {!loading && terms.length === 0 && (
-                          <tr>
-                            <td className="empty-state" colSpan={5}>
-                              {category ? t.termsList.empty : t.table.emptyNoTerms}
-                            </td>
-                          </tr>
-                        )}
-                        {!loading &&
-                          terms.map((term) => {
-                            const isEditing = editingId === term.id
-                            return (
-                              <tr key={term.id}>
-                                {isEditing ? (
-                                  <>
-                                    <td>
-                                      <input
-                                        className="row-input"
-                                        value={editForm.kk}
-                                        onChange={(e) => setEditForm({ ...editForm, kk: e.target.value })}
-                                      />
-                                    </td>
-                                    <td>
-                                      <input
-                                        className="row-input"
-                                        value={editForm.ru}
-                                        onChange={(e) => setEditForm({ ...editForm, ru: e.target.value })}
-                                      />
-                                    </td>
-                                    <td>
-                                      <input
-                                        className="row-input"
-                                        value={editForm.en}
-                                        onChange={(e) => setEditForm({ ...editForm, en: e.target.value })}
-                                      />
-                                    </td>
-                                    <td>
-                                      <select
-                                        className="row-input"
-                                        value={editForm.category}
-                                        onChange={(e) =>
-                                          setEditForm({ ...editForm, category: e.target.value })
-                                        }
-                                      >
-                                        <option value="">{t.form.noCategory}</option>
-                                        {CATEGORIES.map((cat) => (
-                                          <option key={cat.key} value={cat.key}>
-                                            {cat[lang]}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                    <td className="col-actions">
-                                      <div className="row-actions">
-                                        <button
-                                          type="button"
-                                          className="btn-save"
-                                          onClick={() => handleEditSave(term.id)}
-                                        >
-                                          {t.table.save}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="btn-cancel"
-                                          onClick={handleEditCancel}
-                                        >
-                                          {t.table.cancel}
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </>
-                                ) : (
-                                  <>
-                                    <td>
-                                      <button
-                                        type="button"
-                                        className="cell-text cell-text-link"
-                                        onClick={() => navigate(`/terms/${term.id}`)}
-                                      >
-                                        {toSentenceCase(term.kk)}
-                                      </button>
-                                      <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
-                                      {!term.audio_kk && (
-                                        <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
-                                      )}
-                                    </td>
-                                    <td>
-                                      <span className="cell-text">{toSentenceCase(term.ru)}</span>
-                                      <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
-                                      {!term.audio_ru && (
-                                        <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
-                                      )}
-                                    </td>
-                                    <td>
-                                      <span className="cell-text">{toSentenceCase(term.en)}</span>
-                                      <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
-                                      {!term.audio_en && (
-                                        <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
-                                      )}
-                                    </td>
-                                    <td>
-                                      {term.category ? (
-                                        <span className="category-badge">{categoryLabel(term.category)}</span>
-                                      ) : (
-                                        <span className="cell-text">—</span>
-                                      )}
-                                    </td>
-                                    <td className="col-actions">
-                                      <div className="row-actions">
-                                        <button
-                                          type="button"
-                                          className={`quote-icon-btn term-fav-btn${
-                                            favoriteIds.has(term.id) ? ' active' : ''
-                                          }`}
-                                          onClick={() => toggleFavorite(term)}
-                                          aria-label={
-                                            favoriteIds.has(term.id)
-                                              ? t.termDetail.favoriteRemoveAria(
-                                                  toSentenceCase(term.kk || term.ru || term.en),
-                                                )
-                                              : t.termDetail.favoriteAddAria(
-                                                  toSentenceCase(term.kk || term.ru || term.en),
-                                                )
-                                          }
-                                          title={
-                                            favoriteIds.has(term.id)
-                                              ? t.termDetail.favoriteRemove
-                                              : t.termDetail.favoriteAdd
-                                          }
-                                          aria-pressed={favoriteIds.has(term.id)}
-                                        >
-                                          <Star
-                                            size={16}
-                                            aria-hidden="true"
-                                            fill={favoriteIds.has(term.id) ? 'currentColor' : 'none'}
-                                          />
-                                        </button>
-                                        {isAdmin && (
-                                          <>
-                                            <button
-                                              type="button"
-                                              className="btn-edit"
-                                              onClick={() => handleEditStart(term)}
-                                              aria-label={t.table.editAria(
-                                                toSentenceCase(term.kk || term.ru || term.en),
-                                              )}
-                                            >
-                                              {t.table.edit}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className="btn-delete"
-                                              onClick={() => handleDelete(term)}
-                                              aria-label={t.table.deleteAria(
-                                                toSentenceCase(term.kk || term.ru || term.en),
-                                              )}
-                                            >
-                                              {t.table.delete}
-                                            </button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </>
+                <div className="card term-entries-card">
+                  {loading && <p className="empty-state-text">{t.table.loading}</p>}
+                  {!loading && terms.length === 0 && (
+                    <p className="empty-state-text">
+                      {category ? t.termsList.empty : t.table.emptyNoTerms}
+                    </p>
+                  )}
+                  {!loading && terms.length > 0 && (
+                    <ul className="term-entries">
+                      {terms.map((term) => {
+                        const isEditing = editingId === term.id
+                        const label = toSentenceCase(term.kk || term.ru || term.en)
+
+                        if (isEditing) {
+                          return (
+                            <li key={term.id} className="term-entry term-entry-editing">
+                              <div className="term-entry-edit-grid">
+                                <label className="term-entry-edit-field">
+                                  <span>{t.langNames.kk}</span>
+                                  <input
+                                    className="row-input"
+                                    value={editForm.kk}
+                                    onChange={(e) => setEditForm({ ...editForm, kk: e.target.value })}
+                                  />
+                                </label>
+                                <label className="term-entry-edit-field">
+                                  <span>{t.langNames.ru}</span>
+                                  <input
+                                    className="row-input"
+                                    value={editForm.ru}
+                                    onChange={(e) => setEditForm({ ...editForm, ru: e.target.value })}
+                                  />
+                                </label>
+                                <label className="term-entry-edit-field">
+                                  <span>{t.langNames.en}</span>
+                                  <input
+                                    className="row-input"
+                                    value={editForm.en}
+                                    onChange={(e) => setEditForm({ ...editForm, en: e.target.value })}
+                                  />
+                                </label>
+                                <label className="term-entry-edit-field">
+                                  <span>{t.form.categoryLabel}</span>
+                                  <select
+                                    className="row-input"
+                                    value={editForm.category}
+                                    onChange={(e) =>
+                                      setEditForm({ ...editForm, category: e.target.value })
+                                    }
+                                  >
+                                    <option value="">{t.form.noCategory}</option>
+                                    {CATEGORIES.map((cat) => (
+                                      <option key={cat.key} value={cat.key}>
+                                        {cat[lang]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+                              <div className="term-entry-edit-actions">
+                                <button
+                                  type="button"
+                                  className="btn-save"
+                                  onClick={() => handleEditSave(term.id)}
+                                >
+                                  {t.table.save}
+                                </button>
+                                <button type="button" className="btn-cancel" onClick={handleEditCancel}>
+                                  {t.table.cancel}
+                                </button>
+                              </div>
+                            </li>
+                          )
+                        }
+
+                        return (
+                          <li key={term.id} className="term-entry">
+                            <div className="term-entry-head">
+                              <button
+                                type="button"
+                                className="term-entry-headword"
+                                onClick={() => navigate(`/terms/${term.id}`)}
+                              >
+                                {toSentenceCase(term.kk)}
+                              </button>
+                              <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
+                              {!term.audio_kk && (
+                                <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
+                              )}
+                              {term.category && (
+                                <span className="category-badge term-entry-badge">
+                                  {categoryLabel(term.category)}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="term-entry-translations">
+                              <div className="term-entry-translation">
+                                <span className="term-entry-lang">{t.langNames.ru}</span>
+                                <span className="term-entry-value">{toSentenceCase(term.ru)}</span>
+                                <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
+                                {!term.audio_ru && (
+                                  <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
                                 )}
-                              </tr>
-                            )
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                              <div className="term-entry-translation">
+                                <span className="term-entry-lang">{t.langNames.en}</span>
+                                <span className="term-entry-value">{toSentenceCase(term.en)}</span>
+                                <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
+                                {!term.audio_en && (
+                                  <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="term-entry-actions">
+                              <button
+                                type="button"
+                                className={`quote-icon-btn term-fav-btn${
+                                  favoriteIds.has(term.id) ? ' active' : ''
+                                }`}
+                                onClick={() => toggleFavorite(term)}
+                                aria-label={
+                                  favoriteIds.has(term.id)
+                                    ? t.termDetail.favoriteRemoveAria(label)
+                                    : t.termDetail.favoriteAddAria(label)
+                                }
+                                title={
+                                  favoriteIds.has(term.id)
+                                    ? t.termDetail.favoriteRemove
+                                    : t.termDetail.favoriteAdd
+                                }
+                                aria-pressed={favoriteIds.has(term.id)}
+                              >
+                                <Star
+                                  size={16}
+                                  aria-hidden="true"
+                                  fill={favoriteIds.has(term.id) ? 'currentColor' : 'none'}
+                                />
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn-edit"
+                                    onClick={() => handleEditStart(term)}
+                                    aria-label={t.table.editAria(label)}
+                                  >
+                                    {t.table.edit}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-delete"
+                                    onClick={() => handleDelete(term)}
+                                    aria-label={t.table.deleteAria(label)}
+                                  >
+                                    {t.table.delete}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
                 </div>
               </>
             )}

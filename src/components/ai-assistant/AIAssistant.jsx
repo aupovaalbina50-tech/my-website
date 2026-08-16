@@ -8,6 +8,91 @@ const STORAGE_KEY = 'cd_ai_chat_history'
 let msgIdCounter = 0
 const nextId = () => `m${Date.now()}_${++msgIdCounter}`
 
+// Assistant replies come back as Markdown (the LLM isn't told not to use it),
+// so bold/headings/lists need real rendering — otherwise users see literal
+// **/#/- characters. Deliberately small and dependency-free: bold, italic,
+// inline code, headings, and (un)ordered lists cover what the model actually
+// produces here.
+function renderInline(text, keyPrefix) {
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g
+  const parts = []
+  let lastIndex = 0
+  let match
+  let i = 0
+  while ((match = regex.exec(text))) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
+    const token = match[0]
+    if (token.startsWith('**')) {
+      parts.push(<strong key={`${keyPrefix}-${i++}`}>{token.slice(2, -2)}</strong>)
+    } else if (token.startsWith('`')) {
+      parts.push(<code key={`${keyPrefix}-${i++}`}>{token.slice(1, -1)}</code>)
+    } else {
+      parts.push(<em key={`${keyPrefix}-${i++}`}>{token.slice(1, -1)}</em>)
+    }
+    lastIndex = regex.lastIndex
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return parts
+}
+
+function renderMarkdown(content) {
+  const blocks = []
+  let list = null
+
+  const flushList = () => {
+    if (!list) return
+    const ListTag = list.type
+    blocks.push(
+      <ListTag key={`list-${blocks.length}`} className="ai-md-list">
+        {list.items.map((item, idx) => (
+          <li key={idx}>{renderInline(item, `li-${blocks.length}-${idx}`)}</li>
+        ))}
+      </ListTag>,
+    )
+    list = null
+  }
+
+  content.split('\n').forEach((rawLine, idx) => {
+    const line = rawLine.trim()
+    const heading = line.match(/^(#{1,4})\s+(.*)$/)
+    const ul = line.match(/^[-*]\s+(.*)$/)
+    const ol = line.match(/^\d+\.\s+(.*)$/)
+
+    if (heading) {
+      flushList()
+      const HeadingTag = `h${Math.min(heading[1].length + 3, 6)}`
+      blocks.push(
+        <HeadingTag key={`h-${idx}`} className="ai-md-heading">
+          {renderInline(heading[2], `h-${idx}`)}
+        </HeadingTag>,
+      )
+    } else if (ul) {
+      if (!list || list.type !== 'ul') {
+        flushList()
+        list = { type: 'ul', items: [] }
+      }
+      list.items.push(ul[1])
+    } else if (ol) {
+      if (!list || list.type !== 'ol') {
+        flushList()
+        list = { type: 'ol', items: [] }
+      }
+      list.items.push(ol[1])
+    } else if (line === '') {
+      flushList()
+    } else {
+      flushList()
+      blocks.push(
+        <p key={`p-${idx}`} className="ai-md-p">
+          {renderInline(line, `p-${idx}`)}
+        </p>,
+      )
+    }
+  })
+  flushList()
+  return blocks
+}
+
 function loadStoredMessages() {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
@@ -94,7 +179,11 @@ function AIAssistant() {
   const runAssistant = useCallback(
     async (userMessage, historyBase) => {
       setLoading(true)
+      // historyBase's last entry is always the current turn (already appended
+      // by the caller) — drop it here since askAssistant sends it separately
+      // as `message`; otherwise it would reach the LLM twice in a row.
       const historyForApi = historyBase
+        .slice(0, -1)
         .filter((m) => !m.isWelcome && !m.isError)
         .map((m) => ({ role: m.role, content: m.content }))
 
@@ -219,7 +308,9 @@ function AIAssistant() {
               className={`ai-message-row ai-message-${msg.role}`}
             >
               <div className={`ai-bubble ai-bubble-${msg.role}${msg.isError ? ' ai-bubble-error' : ''}`}>
-                <p className="ai-bubble-text">{msg.content}</p>
+                <div className="ai-bubble-text">
+                  {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                </div>
                 <div className="ai-bubble-meta">
                   <span className="ai-bubble-time">{formatTime(msg.timestamp)}</span>
                   {msg.role === 'assistant' && !msg.isWelcome && (
