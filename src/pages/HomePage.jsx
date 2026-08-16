@@ -1,16 +1,27 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  ArrowRight,
+  Search,
+  BookOpen,
+  Bookmark,
+  Flame,
+  GraduationCap,
+  Languages,
+  Presentation,
+  HandHeart,
+  Globe,
+} from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../i18n/translations'
 import { SECTION_IDS } from '../constants/navigation.js'
+import { categoryLucideIcon } from '../constants/categoryIcons.js'
 import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
-import { PlayButton, AiSpeakButton } from '../components/TermAudio.jsx'
 import { toSentenceCase } from '../utils/textCase.js'
 
-const DELETE_PASSWORD = 'termincom2026'
 const MAX_SUGGESTIONS = 8
 
 function startsWithQuery(text, query) {
@@ -40,36 +51,93 @@ function HighlightedText({ text, query }) {
   return parts
 }
 
-const StepsSection = memo(function StepsSection({ t }) {
+const CategoryGrid = memo(function CategoryGrid({ t, lang, counts, countsReady, onSelect }) {
+  const lastIndex = CATEGORIES.length - 1
   return (
-    <section className="steps-section">
-      <div className="section-kicker" aria-hidden="true"></div>
-      <h2 className="section-title">{t.steps.title}</h2>
-      <div className="steps-grid steps-grid-2">
-        {t.steps.items.map((step) => (
-          <div className="step-card" key={step.n}>
-            <span className="step-n">{step.n}</span>
-            <h3>{step.title}</h3>
-            <p>{step.text}</p>
-          </div>
-        ))}
+    <section className="category-section">
+      <h2 className="category-section-title">{t.categorySection.title}</h2>
+      <div className="category-grid">
+        {CATEGORIES.map((cat, index) => {
+          const Icon = categoryLucideIcon(cat.key)
+          const count = counts[cat.key] || 0
+          const isWide = index === lastIndex
+          return (
+            <button
+              key={cat.key}
+              type="button"
+              className={`category-card${isWide ? ' category-card-wide' : ''}`}
+              onClick={() => onSelect(cat.key)}
+            >
+              <span className="category-card-top">
+                <Icon className="category-card-icon" strokeWidth={1.75} aria-hidden="true" />
+                <span className="category-card-number">{String(index + 1).padStart(2, '0')}</span>
+              </span>
+              <span className="category-card-name">{cat[lang]}</span>
+              <span className="category-card-bottom">
+                {countsReady && <span className="category-card-count">{t.categorySection.count(count)}</span>}
+                <ArrowRight className="category-card-arrow" strokeWidth={2} aria-hidden="true" />
+              </span>
+            </button>
+          )
+        })}
       </div>
     </section>
   )
 })
+
+const STEP_ICONS = [Search, BookOpen, Bookmark]
+
+const StepsSection = memo(function StepsSection({ t }) {
+  const [activeStep, setActiveStep] = useState(0)
+  return (
+    <section className="steps-section">
+      <div className="section-kicker" aria-hidden="true"></div>
+      <h2 className="section-title">{t.steps.title}</h2>
+      <div className="steps-grid">
+        {t.steps.items.map((step, index) => {
+          const Icon = STEP_ICONS[index] || Search
+          const isActive = activeStep === index
+          return (
+            <button
+              type="button"
+              className={`step-card${isActive ? ' active' : ''}`}
+              key={step.n}
+              onClick={() => setActiveStep(index)}
+              aria-pressed={isActive}
+            >
+              <span className="step-card-top">
+                <Icon className="step-card-icon" strokeWidth={1.75} aria-hidden="true" />
+                <span className="step-n">{step.n}</span>
+              </span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+})
+
+const AUDIENCE_ICONS = [Flame, GraduationCap, Languages, Presentation, HandHeart, Globe]
 
 const AudienceSection = memo(function AudienceSection({ t }) {
   return (
     <section className="audience-section">
       <div className="section-kicker" aria-hidden="true"></div>
       <h2 className="section-title">{t.audience.title}</h2>
+      <p className="section-lead">{t.audience.lead}</p>
       <div className="audience-grid">
-        {t.audience.items.map((a) => (
-          <div className="audience-card" key={a.title}>
-            <h3>{a.title}</h3>
-            <p>{a.text}</p>
-          </div>
-        ))}
+        {t.audience.items.map((a, index) => {
+          const Icon = AUDIENCE_ICONS[index] || Globe
+          return (
+            <div className="audience-card" key={a.title}>
+              <Icon className="audience-card-icon" strokeWidth={1.75} aria-hidden="true" />
+              <h3>{a.title}</h3>
+              <p>{a.text}</p>
+            </div>
+          )
+        })}
       </div>
     </section>
   )
@@ -94,14 +162,11 @@ function HomePage() {
   const [activeTab, setActiveTab] = useState('search')
   const [terms, setTerms] = useState([])
   const [search, setSearch] = useState(() => searchParams.get('q') || '')
-  const [categoryFilter, setCategoryFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ ru: '', kk: '', en: '', category: '' })
   const [isSearchFocused, setIsSearchFocused] = useState(false)
-  const tableRef = useRef(null)
   const searchWrapRef = useRef(null)
+  const searchInputRef = useRef(null)
 
   const fetchTerms = async () => {
     setLoading(true)
@@ -165,68 +230,23 @@ function HomePage() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  const handleCategoryChip = (key) => {
-    setCategoryFilter((current) => (current === key ? '' : key))
-    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const handleCategoryCardClick = (key) => {
+    navigate(`/category/${key}`)
   }
 
-  const handleDelete = async (term) => {
-    const label = toSentenceCase(term.kk || term.ru || term.en)
-    if (!window.confirm(t.confirm.deleteTerm(label))) {
-      return
-    }
-    const password = window.prompt(t.confirm.deletePasswordPrompt)
-    if (password === null) return
-    if (password !== DELETE_PASSWORD) {
-      setError(t.alerts.wrongPassword)
-      return
-    }
-
-    const { error } = await supabase.from('terms').delete().eq('id', term.id)
-    if (error) {
-      setError(t.alerts.deleteFailed)
-      return
-    }
-    setError('')
-    await fetchTerms()
+  const handleHeroSearchAction = () => {
+    searchInputRef.current?.focus()
   }
 
-  const handleEditStart = (term) => {
-    setEditingId(term.id)
-    setEditForm({ ru: term.ru, kk: term.kk, en: term.en, category: term.category || '' })
-  }
-
-  const handleEditCancel = () => {
-    setEditingId(null)
-    setEditForm({ ru: '', kk: '', en: '', category: '' })
-  }
-
-  const handleEditSave = async (id) => {
-    const ru = editForm.ru.trim()
-    const kk = editForm.kk.trim()
-    const en = editForm.en.trim()
-    const category = editForm.category
-    if (!ru && !kk && !en) return
-
-    const { error } = await supabase
-      .from('terms')
-      .update({ ru, kk, en, category })
-      .eq('id', id)
-
-    if (error) {
-      setError(t.alerts.saveFailed)
-      return
-    }
-    setError('')
-    setEditingId(null)
-    await fetchTerms()
+  const handleHeroCompareAction = () => {
+    navigate('/terms')
   }
 
   const deferredSearch = useDeferredValue(search)
 
   const visibleTerms = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
-    let filtered = query
+    const filtered = query
       ? terms.filter(
           (term) =>
             startsWithQuery(term.ru, query) ||
@@ -235,16 +255,20 @@ function HomePage() {
         )
       : terms
 
-    if (categoryFilter) {
-      filtered = filtered.filter((term) => term.category === categoryFilter)
-    }
-
     return [...filtered].sort((a, b) =>
       a.kk.localeCompare(b.kk, 'ru') ||
       a.ru.localeCompare(b.ru, 'ru') ||
       a.en.localeCompare(b.en, 'en'),
     )
-  }, [terms, deferredSearch, categoryFilter])
+  }, [terms, deferredSearch])
+
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    terms.forEach((term) => {
+      if (term.category) counts[term.category] = (counts[term.category] || 0) + 1
+    })
+    return counts
+  }, [terms])
 
   const searchSuggestions = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -281,8 +305,6 @@ function HomePage() {
     navigate(`/terms/${term.id}`)
   }
 
-  const categoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.[lang] || key
-
   return (
     <>
       <Header />
@@ -299,6 +321,7 @@ function HomePage() {
           <p className="hero-lead">{t.hero.lead}</p>
           <div className="hero-search-box" ref={searchWrapRef}>
             <input
+              ref={searchInputRef}
               type="search"
               className="hero-search-input"
               value={search}
@@ -342,6 +365,19 @@ function HomePage() {
               </ul>
             )}
           </div>
+          <div className="hero-actions">
+            <button type="button" className="hero-action" onClick={handleHeroSearchAction}>
+              {t.hero.actions.search}
+            </button>
+            <span className="hero-action-sep" aria-hidden="true">·</span>
+            <button type="button" className="hero-action" onClick={handleHeroCompareAction}>
+              {t.hero.actions.compare}
+            </button>
+            <span className="hero-action-sep" aria-hidden="true">·</span>
+            <button type="button" className="hero-action" onClick={handleHeroSearchAction}>
+              {t.hero.actions.translate}
+            </button>
+          </div>
           <div className="hero-meta">
             <span>
               {search.trim() ? t.hero.found(visibleTerms.length) : t.hero.total(terms.length)}
@@ -351,197 +387,13 @@ function HomePage() {
           </div>
         </div>
 
-        <div className="category-chips">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.key}
-              type="button"
-              className={`chip${categoryFilter === cat.key ? ' active' : ''}`}
-              onClick={() => handleCategoryChip(cat.key)}
-            >
-              {cat[lang]}
-            </button>
-          ))}
-        </div>
-
-        <div className="card" ref={tableRef}>
-          <div className="table-toolbar">
-            <h2>{t.table.heading(terms.length)}</h2>
-            <select
-              className="category-filter"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              aria-label={t.table.filterAria}
-            >
-              <option value="">{t.table.allCategories}</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat.key} value={cat.key}>
-                  {cat[lang]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="table-wrap">
-            <table className="terms-table">
-              <thead>
-                <tr>
-                  <th>{t.langNames.kk}</th>
-                  <th>{t.langNames.ru}</th>
-                  <th>{t.langNames.en}</th>
-                  <th>{t.form.categoryLabel}</th>
-                  <th className="col-actions"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td className="empty-state" colSpan={5}>
-                      {t.table.loading}
-                    </td>
-                  </tr>
-                )}
-                {!loading && visibleTerms.length === 0 && (
-                  <tr>
-                    <td className="empty-state" colSpan={5}>
-                      {terms.length === 0 ? t.table.emptyNoTerms : t.table.emptyNoResults}
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  visibleTerms.map((term) => {
-                    const isEditing = editingId === term.id
-                    return (
-                      <tr key={term.id}>
-                        {isEditing ? (
-                          <>
-                            <td>
-                              <input
-                                className="row-input"
-                                value={editForm.kk}
-                                onChange={(e) =>
-                                  setEditForm({ ...editForm, kk: e.target.value })
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                className="row-input"
-                                value={editForm.ru}
-                                onChange={(e) =>
-                                  setEditForm({ ...editForm, ru: e.target.value })
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                className="row-input"
-                                value={editForm.en}
-                                onChange={(e) =>
-                                  setEditForm({ ...editForm, en: e.target.value })
-                                }
-                              />
-                            </td>
-                            <td>
-                              <select
-                                className="row-input"
-                                value={editForm.category}
-                                onChange={(e) =>
-                                  setEditForm({ ...editForm, category: e.target.value })
-                                }
-                              >
-                                <option value="">{t.form.noCategory}</option>
-                                {CATEGORIES.map((cat) => (
-                                  <option key={cat.key} value={cat.key}>
-                                    {cat[lang]}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="col-actions">
-                              <div className="row-actions">
-                                <button
-                                  type="button"
-                                  className="btn-save"
-                                  onClick={() => handleEditSave(term.id)}
-                                >
-                                  {t.table.save}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn-cancel"
-                                  onClick={handleEditCancel}
-                                >
-                                  {t.table.cancel}
-                                </button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td>
-                              <span className="cell-text">{toSentenceCase(term.kk)}</span>
-                              <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
-                              {!term.audio_kk && (
-                                <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
-                              )}
-                            </td>
-                            <td>
-                              <span className="cell-text">{toSentenceCase(term.ru)}</span>
-                              <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
-                              {!term.audio_ru && (
-                                <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
-                              )}
-                            </td>
-                            <td>
-                              <span className="cell-text">{toSentenceCase(term.en)}</span>
-                              <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
-                              {!term.audio_en && (
-                                <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
-                              )}
-                            </td>
-                            <td>
-                              {term.category ? (
-                                <span className="category-badge">
-                                  {categoryLabel(term.category)}
-                                </span>
-                              ) : (
-                                <span className="cell-text">—</span>
-                              )}
-                            </td>
-                            <td className="col-actions">
-                              <div className="row-actions">
-                                <button
-                                  type="button"
-                                  className="btn-edit"
-                                  onClick={() => handleEditStart(term)}
-                                  aria-label={t.table.editAria(
-                                    toSentenceCase(term.kk || term.ru || term.en),
-                                  )}
-                                >
-                                  {t.table.edit}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn-delete"
-                                  onClick={() => handleDelete(term)}
-                                  aria-label={t.table.deleteAria(
-                                    toSentenceCase(term.kk || term.ru || term.en),
-                                  )}
-                                >
-                                  {t.table.delete}
-                                </button>
-                              </div>
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CategoryGrid
+          t={t}
+          lang={lang}
+          counts={categoryCounts}
+          countsReady={terms.length > 0}
+          onSelect={handleCategoryCardClick}
+        />
       </section>
 
       <StepsSection t={t} />

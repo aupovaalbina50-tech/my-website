@@ -2,6 +2,7 @@ import {
   Home,
   User,
   Star,
+  BookMarked,
   History,
   Eye,
   ClipboardList,
@@ -13,6 +14,7 @@ import {
 export const ACCOUNT_NAV_ITEMS = [
   { key: 'dashboard', to: '/account', end: true, Icon: Home },
   { key: 'profile', to: '/account/profile', Icon: User },
+  { key: 'myDictionary', to: '/account/my-dictionary', Icon: BookMarked },
   { key: 'favorites', to: '/account/favorites', Icon: Star },
   { key: 'searchHistory', to: '/account/search-history', Icon: History },
   { key: 'viewingHistory', to: '/account/viewing-history', Icon: Eye },

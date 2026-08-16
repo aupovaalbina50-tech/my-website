@@ -6,6 +6,8 @@ import AIAssistant from './components/ai-assistant/AIAssistant.jsx'
 import './App.css'
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'))
+const TermsNetworkPage = lazy(() => import('./pages/TermsNetworkPage.jsx'))
+const TermsListPage = lazy(() => import('./pages/TermsListPage.jsx'))
 const TermDetailPage = lazy(() => import('./pages/TermDetailPage.jsx'))
 const MinistryPage = lazy(() => import('./pages/MinistryPage.jsx'))
 const CommitteesPage = lazy(() => import('./pages/CommitteesPage.jsx'))
@@ -14,8 +16,11 @@ const QuoteDetailPage = lazy(() => import('./pages/quotes/QuoteDetailPage.jsx'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout.jsx'))
 const AccountHomePage = lazy(() => import('./pages/account/AccountHomePage.jsx'))
 const FavoriteQuotesPage = lazy(() => import('./pages/account/FavoriteQuotesPage.jsx'))
-const RecentlyViewedQuotesPage = lazy(() => import('./pages/account/RecentlyViewedQuotesPage.jsx'))
+const MyDictionaryPage = lazy(() => import('./pages/account/MyDictionaryPage.jsx'))
+const RecentlyViewedTermsPage = lazy(() => import('./pages/account/RecentlyViewedTermsPage.jsx'))
 const PlaceholderPage = lazy(() => import('./pages/account/PlaceholderPage.jsx'))
+const TestsPage = lazy(() => import('./pages/account/TestsPage.jsx'))
+const StatisticsPage = lazy(() => import('./pages/account/StatisticsPage.jsx'))
 const ForgotPasswordPage = lazy(() => import('./pages/account/auth/ForgotPasswordPage.jsx'))
 const ResetPasswordPage = lazy(() => import('./pages/account/auth/ResetPasswordPage.jsx'))
 
@@ -30,7 +35,9 @@ function App() {
           <div className="route-fade" key={location.pathname}>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/terms" element={<TermsNetworkPage />} />
               <Route path="/terms/:id" element={<TermDetailPage />} />
+              <Route path="/category/:key" element={<TermsListPage />} />
               <Route path="/ministry" element={<MinistryPage />} />
               <Route path="/committees" element={<CommitteesPage />} />
               <Route path="/quotes" element={<QuotesPage />} />
@@ -44,6 +51,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <PlaceholderPage titleKey="profile" />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="my-dictionary"
+                  element={
+                    <RequireAuth>
+                      <MyDictionaryPage />
                     </RequireAuth>
                   }
                 />
@@ -67,7 +82,7 @@ function App() {
                   path="viewing-history"
                   element={
                     <RequireAuth>
-                      <RecentlyViewedQuotesPage />
+                      <RecentlyViewedTermsPage />
                     </RequireAuth>
                   }
                 />
@@ -75,7 +90,7 @@ function App() {
                   path="tests"
                   element={
                     <RequireAuth>
-                      <PlaceholderPage titleKey="tests" />
+                      <TestsPage />
                     </RequireAuth>
                   }
                 />
@@ -83,7 +98,7 @@ function App() {
                   path="statistics"
                   element={
                     <RequireAuth>
-                      <PlaceholderPage titleKey="statistics" />
+                      <StatisticsPage />
                     </RequireAuth>
                   }
                 />

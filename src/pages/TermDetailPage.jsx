@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Star } from 'lucide-react'
 import { supabase } from '../supabaseClient'
+import { useAuth } from '../auth/AuthContext.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../i18n/translations'
 import { categoryIcon } from '../constants/categoryIcons.js'
@@ -10,13 +11,17 @@ import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
 import { PlayButton, AiSpeakButton } from '../components/TermAudio.jsx'
 import { toSentenceCase } from '../utils/textCase.js'
+import { useFavoriteTerms } from './account/useFavoriteTerms.js'
 
 function TermDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { lang, t } = useLanguage()
+  const { user } = useAuth()
   const [term, setTerm] = useState(null)
   const [loading, setLoading] = useState(true)
+  const recordedIdRef = useRef(null)
+  const { favoriteIds, toggleFavorite } = useFavoriteTerms()
 
   useEffect(() => {
     let cancelled = false
@@ -35,6 +40,17 @@ function TermDetailPage() {
       cancelled = true
     }
   }, [id])
+
+  useEffect(() => {
+    if (!user || !term || recordedIdRef.current === term.id) return
+    recordedIdRef.current = term.id
+    supabase
+      .from('term_views')
+      .upsert(
+        { user_id: user.id, term_id: term.id, viewed_at: new Date().toISOString() },
+        { onConflict: 'user_id,term_id' },
+      )
+  }, [user, term])
 
   const categoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.[lang] || key
 
@@ -74,6 +90,20 @@ function TermDetailPage() {
                 {!term.audio_kk && term.kk && (
                   <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
                 )}
+                <button
+                  type="button"
+                  className={`quote-icon-btn term-fav-btn${favoriteIds.has(term.id) ? ' active' : ''}`}
+                  onClick={() => toggleFavorite(term)}
+                  aria-label={
+                    favoriteIds.has(term.id) ? t.termDetail.favoriteRemove : t.termDetail.favoriteAdd
+                  }
+                  title={
+                    favoriteIds.has(term.id) ? t.termDetail.favoriteRemove : t.termDetail.favoriteAdd
+                  }
+                  aria-pressed={favoriteIds.has(term.id)}
+                >
+                  <Star size={18} aria-hidden="true" fill={favoriteIds.has(term.id) ? 'currentColor' : 'none'} />
+                </button>
               </h1>
 
               <dl className="term-detail-fields">

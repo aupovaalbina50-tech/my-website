@@ -48,7 +48,7 @@ function RegisterForm() {
     setUsernameStatus('checking')
     const handle = setTimeout(async () => {
       const available = await checkUsernameAvailable(username)
-      setUsernameStatus(available ? 'available' : 'taken')
+      setUsernameStatus(available === null ? 'error' : available ? 'available' : 'taken')
     }, DEBOUNCE_MS)
     return () => clearTimeout(handle)
   }, [username, checkUsernameAvailable])
@@ -65,7 +65,7 @@ function RegisterForm() {
     setEmailStatus('checking')
     const handle = setTimeout(async () => {
       const available = await checkEmailAvailable(email.trim())
-      setEmailStatus(available ? 'available' : 'taken')
+      setEmailStatus(available === null ? 'error' : available ? 'available' : 'taken')
     }, DEBOUNCE_MS)
     return () => clearTimeout(handle)
   }, [email, checkEmailAvailable])
@@ -241,6 +241,9 @@ function RegisterForm() {
         {!fieldErrors.username && usernameStatus === 'invalid' && (
           <p className="field-error">{t.auth.errors.usernameFormat}</p>
         )}
+        {!fieldErrors.username && usernameStatus === 'error' && (
+          <p className="field-hint">{t.auth.signUp.checkFailed}</p>
+        )}
       </div>
 
       <div className="field">
@@ -277,6 +280,9 @@ function RegisterForm() {
         )}
         {!fieldErrors.email && emailStatus === 'taken' && (
           <p className="field-error">❌ {t.auth.signUp.emailTaken}</p>
+        )}
+        {!fieldErrors.email && emailStatus === 'error' && (
+          <p className="field-hint">{t.auth.signUp.checkFailed}</p>
         )}
       </div>
 
