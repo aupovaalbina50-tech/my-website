@@ -446,13 +446,11 @@ export const translations = {
     alerts: {
       loadFailed: 'Терминдерді жүктеу мүмкін болмады. Байланысты тексеріңіз.',
       deleteFailed: 'Терминді жою мүмкін болмады. Қайталап көріңіз.',
-      wrongPassword: 'Құпия сөз қате. Термин жойылмады.',
       saveFailed: 'Өзгерістерді сақтау мүмкін болмады. Қайталап көріңіз.',
     },
     confirm: {
       deleteTerm: (label) =>
         `«${label}» терминін жою керек пе? Бұл әрекетті кері қайтару мүмкін емес.`,
-      deletePasswordPrompt: 'Терминді жою үшін құпия сөзді енгізіңіз:',
     },
     langSwitcher: { kk: 'ҚАЗ', ru: 'РУС', aria: 'Сайт тілі' },
     assistant: {
@@ -899,12 +897,10 @@ export const translations = {
     alerts: {
       loadFailed: 'Не удалось загрузить термины. Проверьте подключение.',
       deleteFailed: 'Не удалось удалить термин. Попробуйте ещё раз.',
-      wrongPassword: 'Неверный пароль. Термин не удалён.',
       saveFailed: 'Не удалось сохранить изменения. Попробуйте ещё раз.',
     },
     confirm: {
       deleteTerm: (label) => `Удалить термин "${label}"? Это действие нельзя отменить.`,
-      deletePasswordPrompt: 'Введите пароль для удаления термина:',
     },
     langSwitcher: { kk: 'ҚАЗ', ru: 'РУС', aria: 'Язык сайта' },
     assistant: {

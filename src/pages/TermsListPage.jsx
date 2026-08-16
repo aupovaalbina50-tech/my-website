@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, List, Star } from 'lucide-react'
 import { supabase } from '../supabaseClient'
+import { useAuth } from '../auth/AuthContext.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../i18n/translations'
 import { categoryLucideIcon } from '../constants/categoryIcons.js'
@@ -12,12 +13,12 @@ import { PlayButton, AiSpeakButton } from '../components/TermAudio.jsx'
 import { toSentenceCase } from '../utils/textCase.js'
 import { useFavoriteTerms } from './account/useFavoriteTerms.js'
 
-const DELETE_PASSWORD = 'termincom2026'
-
 function TermsListPage() {
   const { key } = useParams()
   const navigate = useNavigate()
   const { lang, t } = useLanguage()
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'admin'
   const [terms, setTerms] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -62,12 +63,6 @@ function TermsListPage() {
   const handleDelete = async (term) => {
     const label = toSentenceCase(term.kk || term.ru || term.en)
     if (!window.confirm(t.confirm.deleteTerm(label))) return
-    const password = window.prompt(t.confirm.deletePasswordPrompt)
-    if (password === null) return
-    if (password !== DELETE_PASSWORD) {
-      setError(t.alerts.wrongPassword)
-      return
-    }
 
     const { error: deleteError } = await supabase.from('terms').delete().eq('id', term.id)
     if (deleteError) {
@@ -297,26 +292,30 @@ function TermsListPage() {
                                             fill={favoriteIds.has(term.id) ? 'currentColor' : 'none'}
                                           />
                                         </button>
-                                        <button
-                                          type="button"
-                                          className="btn-edit"
-                                          onClick={() => handleEditStart(term)}
-                                          aria-label={t.table.editAria(
-                                            toSentenceCase(term.kk || term.ru || term.en),
-                                          )}
-                                        >
-                                          {t.table.edit}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="btn-delete"
-                                          onClick={() => handleDelete(term)}
-                                          aria-label={t.table.deleteAria(
-                                            toSentenceCase(term.kk || term.ru || term.en),
-                                          )}
-                                        >
-                                          {t.table.delete}
-                                        </button>
+                                        {isAdmin && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              className="btn-edit"
+                                              onClick={() => handleEditStart(term)}
+                                              aria-label={t.table.editAria(
+                                                toSentenceCase(term.kk || term.ru || term.en),
+                                              )}
+                                            >
+                                              {t.table.edit}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btn-delete"
+                                              onClick={() => handleDelete(term)}
+                                              aria-label={t.table.deleteAria(
+                                                toSentenceCase(term.kk || term.ru || term.en),
+                                              )}
+                                            >
+                                              {t.table.delete}
+                                            </button>
+                                          </>
+                                        )}
                                       </div>
                                     </td>
                                   </>
