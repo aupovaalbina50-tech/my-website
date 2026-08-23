@@ -18,6 +18,22 @@ function ruTermWord(n) {
   return 'терминов'
 }
 
+function ruConnectionWord(n) {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'связь'
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'связи'
+  return 'связей'
+}
+
+function ruHazardWord(n) {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'вид'
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'вида'
+  return 'видов'
+}
+
 export const translations = {
   kk: {
     langNames: { ru: 'Орысша', kk: 'Қазақша', en: 'Ағылшынша' },
@@ -241,7 +257,43 @@ export const translations = {
       lead: 'Төтенше жағдай түрлері арқылы азаматтық қорғаныстың кәсіби терминологиясын зерттеңіз.',
       centerLabel: 'ТЖ ТҮРЛЕРІ',
       centerLabelFull: 'Төтенше жағдайлардың түрлері',
-      hint: 'Таңдау үшін төтенше жағдай түрін басыңыз. Байланысты терминдер келесі кезеңде қосылады.',
+      hint: 'Терминдерін көру үшін төтенше жағдай түрін таңдаңыз.',
+      backToAll: 'Барлық ТЖ түрлері',
+      loading: 'Терминдер жүктелуде…',
+      loadingHazard: (label) => `«${label}» терминдері жүктелуде…`,
+      emptyTerms: 'Бұл төтенше жағдай түрі үшін терминдер әлі қосылмаған.',
+      shownCount: (shown, total) => `${total} терминнен ${shown} көрсетілді`,
+      viewModeAll: 'Барлық терминдер',
+      viewModeGroups: 'Топтар бойынша',
+      otherGroup: 'Басқа',
+      groupCount: (n) => `${n} термин`,
+      panel: {
+        close: 'Жабу',
+        detailsLink: 'Термин туралы толығырақ',
+        hazardLabel: 'Төтенше жағдай түрі',
+        groupLabel: 'Тақырыптық топ',
+        relatedLabel: 'Байланысты терминдер',
+      },
+      searchPlaceholder: 'Картадан терминді табу...',
+      searchClear: 'Іздеуді тазарту',
+      searchEmptyTitle: 'Термин табылмады',
+      searchEmptyNote: 'Сұранысты өзгертіп көріңіз немесе жазылуын тексеріңіз.',
+      crossHazardFound: (term, hazard) => `«${term}» термині «${hazard}» бөлімінде табылды. Терминге өту керек пе?`,
+      crossHazardGo: 'Өту',
+      crossHazardCancel: 'Бас тарту',
+      crossGroupFound: (groupLabel) => `Термин басқа топта табылды: «${groupLabel}»`,
+      filterAll: 'Барлығы',
+      viewMap: 'Карта',
+      viewList: 'Тізім',
+      crossHazardsLabel: 'Байланысты ТЖ түрлері',
+      crossCountBadge: (n) => `${n} ТЖ түрі`,
+      crossCountTooltip: (n) => `${n} төтенше жағдай түрімен байланысты`,
+      showConnections: 'Байланыстарды көрсету',
+      hideConnections: 'Байланыстарды жасыру',
+      connectionsHint: (term) => `«${term}»: өту үшін байланысты элементті таңдаңыз.`,
+      searchCrossHazards: (n) => `${n} ТЖ түрімен байланысты`,
+      relatedTermsCount: (n) => `${n} байланысты термин`,
+      showMoreConnections: (n) => `Тағы ${n} байланысты көрсету`,
     },
     committees: {
       title: 'Министрліктің комитеттері',
@@ -1012,7 +1064,43 @@ export const translations = {
       lead: 'Исследуйте профессиональную терминологию гражданской защиты через виды чрезвычайных ситуаций.',
       centerLabel: 'ВИДЫ ЧС',
       centerLabelFull: 'Виды чрезвычайных ситуаций',
-      hint: 'Нажмите на вид ЧС, чтобы выбрать его. Связанные термины появятся на следующем этапе.',
+      hint: 'Выберите вид ЧС, чтобы увидеть связанные термины.',
+      backToAll: 'Все виды ЧС',
+      loading: 'Загрузка терминов…',
+      loadingHazard: (label) => `Загрузка терминов «${label}»…`,
+      emptyTerms: 'Термины для этого вида ЧС пока не добавлены в базу.',
+      shownCount: (shown, total) => `Показано ${shown} из ${total} ${ruTermWord(total)}`,
+      viewModeAll: 'Все термины',
+      viewModeGroups: 'По группам',
+      otherGroup: 'Прочее',
+      groupCount: (n) => `${n} ${ruTermWord(n)}`,
+      panel: {
+        close: 'Закрыть',
+        detailsLink: 'Подробнее о термине',
+        hazardLabel: 'Вид ЧС',
+        groupLabel: 'Тематическая группа',
+        relatedLabel: 'Связанные термины',
+      },
+      searchPlaceholder: 'Найти термин на карте...',
+      searchClear: 'Очистить поиск',
+      searchEmptyTitle: 'Термин не найден',
+      searchEmptyNote: 'Попробуйте изменить запрос или проверить написание.',
+      crossHazardFound: (term, hazard) => `Термин «${term}» найден в разделе «${hazard}». Перейти к термину?`,
+      crossHazardGo: 'Перейти',
+      crossHazardCancel: 'Отмена',
+      crossGroupFound: (groupLabel) => `Термин найден в другой группе: «${groupLabel}»`,
+      filterAll: 'Все',
+      viewMap: 'Карта',
+      viewList: 'Список',
+      crossHazardsLabel: 'Связанные виды ЧС',
+      crossCountBadge: (n) => `${n} ${ruHazardWord(n)} ЧС`,
+      crossCountTooltip: (n) => `Связан с ${n} видами чрезвычайных ситуаций`,
+      showConnections: 'Показать связи',
+      hideConnections: 'Скрыть связи',
+      connectionsHint: (term) => `«${term}»: выберите связанный элемент, чтобы перейти к нему.`,
+      searchCrossHazards: (n) => `Связано с ${n} видами ЧС`,
+      relatedTermsCount: (n) => `${n} ${n === 1 ? 'связанный' : 'связанных'} ${ruTermWord(n)}`,
+      showMoreConnections: (n) => `Показать ещё ${n} ${ruConnectionWord(n)}`,
     },
     committees: {
       title: 'Комитеты Министерства',
