@@ -16,6 +16,13 @@ const QuotesPage = lazy(() => import('./pages/quotes/QuotesPage.jsx'))
 const QuoteDetailPage = lazy(() => import('./pages/quotes/QuoteDetailPage.jsx'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout.jsx'))
 const AccountHomePage = lazy(() => import('./pages/account/AccountHomePage.jsx'))
+const AccountTermsPage = lazy(() => import('./pages/account/AccountTermsPage.jsx'))
+const AccountTermDetailPage = lazy(() => import('./pages/account/AccountTermDetailPage.jsx'))
+const AccountCategoriesPage = lazy(() => import('./pages/account/AccountCategoriesPage.jsx'))
+const AccountAlphabetPage = lazy(() => import('./pages/account/AccountAlphabetPage.jsx'))
+const AccountNetworkPage = lazy(() => import('./pages/account/AccountNetworkPage.jsx'))
+const AccountDocsPage = lazy(() => import('./pages/account/AccountDocsPage.jsx'))
+const AccountCommitteesPage = lazy(() => import('./pages/account/AccountCommitteesPage.jsx'))
 const FavoriteQuotesPage = lazy(() => import('./pages/account/FavoriteQuotesPage.jsx'))
 const MyDictionaryPage = lazy(() => import('./pages/account/MyDictionaryPage.jsx'))
 const RecentlyViewedTermsPage = lazy(() => import('./pages/account/RecentlyViewedTermsPage.jsx'))
@@ -57,6 +64,46 @@ function App() {
                   }
                 />
                 <Route
+                  path="terms"
+                  element={
+                    <RequireAuth>
+                      <AccountTermsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="terms/:id"
+                  element={
+                    <RequireAuth>
+                      <AccountTermDetailPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="categories"
+                  element={
+                    <RequireAuth>
+                      <AccountCategoriesPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="alphabet"
+                  element={
+                    <RequireAuth>
+                      <AccountAlphabetPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="network"
+                  element={
+                    <RequireAuth>
+                      <AccountNetworkPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
                   path="my-dictionary"
                   element={
                     <RequireAuth>
@@ -77,6 +124,22 @@ function App() {
                   element={
                     <RequireAuth>
                       <RecentlyViewedTermsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="docs"
+                  element={
+                    <RequireAuth>
+                      <AccountDocsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="committees"
+                  element={
+                    <RequireAuth>
+                      <AccountCommitteesPage />
                     </RequireAuth>
                   }
                 />

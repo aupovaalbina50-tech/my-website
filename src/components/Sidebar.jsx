@@ -1,13 +1,13 @@
 import { memo, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, X, LogOut } from 'lucide-react'
+import { Menu, X, LogOut, User, UserCircle } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { ACCOUNT_NAV_ITEMS } from '../constants/accountNav.js'
 
 function Sidebar() {
   const { t } = useLanguage()
-  const { isAuthenticated, signOut } = useAuth()
+  const { isAuthenticated, user, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
@@ -16,6 +16,8 @@ function Sidebar() {
     await signOut()
     navigate('/account')
   }
+
+  const displayName = profile?.first_name || user?.email || ''
 
   return (
     <>
@@ -53,6 +55,15 @@ function Sidebar() {
           </button>
         </div>
 
+        {isAuthenticated && displayName && (
+          <div className="sidebar-user">
+            <span className="sidebar-user-icon" aria-hidden="true">
+              <UserCircle size={20} />
+            </span>
+            <span className="sidebar-user-name">{displayName}</span>
+          </div>
+        )}
+
         <nav className="sidebar-nav" aria-label={t.account.sidebar.aria}>
           {ACCOUNT_NAV_ITEMS.map(({ key, to, end, Icon }) => (
             <NavLink
@@ -68,15 +79,25 @@ function Sidebar() {
           ))}
         </nav>
 
-        <button
-          type="button"
-          className="sidebar-link sidebar-logout"
-          onClick={handleLogout}
-          disabled={!isAuthenticated}
-        >
-          <LogOut size={18} className="sidebar-link-icon" aria-hidden="true" />
-          <span>{t.account.sidebar.logout}</span>
-        </button>
+        <div className="sidebar-bottom">
+          <NavLink
+            to="/account/profile"
+            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+            onClick={() => setOpen(false)}
+          >
+            <User size={18} className="sidebar-link-icon" aria-hidden="true" />
+            <span>{t.account.sidebar.profile}</span>
+          </NavLink>
+          <button
+            type="button"
+            className="sidebar-link sidebar-logout"
+            onClick={handleLogout}
+            disabled={!isAuthenticated}
+          >
+            <LogOut size={18} className="sidebar-link-icon" aria-hidden="true" />
+            <span>{t.account.sidebar.logout}</span>
+          </button>
+        </div>
       </aside>
     </>
   )

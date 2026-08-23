@@ -51,7 +51,7 @@ function RecentlyViewedTermsPage() {
                       <button
                         type="button"
                         className="cell-text cell-text-link"
-                        onClick={() => navigate(`/terms/${term.id}`)}
+                        onClick={() => navigate(`/account/terms/${term.id}`)}
                       >
                         {toSentenceCase(term.kk)}
                       </button>

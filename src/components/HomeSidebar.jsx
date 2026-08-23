@@ -1,52 +1,12 @@
 import { memo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import {
-  Menu,
-  X,
-  Search,
-  List,
-  Quote,
-  Landmark,
-  Users,
-  FileText,
-  UserCircle,
-  ArrowLeftRight,
-} from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Menu, X, UserCircle } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
-import { SECTION_IDS } from '../constants/navigation.js'
-
-const SECTION_ICONS = {
-  search: Search,
-  terms: List,
-  confusable: ArrowLeftRight,
-  quotes: Quote,
-  ministry: Landmark,
-  committees: Users,
-  docs: FileText,
-}
-
-const ROUTE_SECTIONS = {
-  terms: '/terms',
-  confusable: '/not-to-confuse',
-  quotes: '/quotes',
-  ministry: '/ministry',
-  committees: '/committees',
-}
+import SiteSectionNav from './SiteSectionNav.jsx'
 
 function HomeSidebar({ activeSection, onSectionClick }) {
   const { t } = useLanguage()
-  const location = useLocation()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-
-  const handleClick = (id) => {
-    if (location.pathname === '/') {
-      onSectionClick(id)
-    } else {
-      navigate(`/#${id}`)
-    }
-    setOpen(false)
-  }
 
   return (
     <>
@@ -83,40 +43,11 @@ function HomeSidebar({ activeSection, onSectionClick }) {
         </div>
 
         <nav className="sidebar-nav" aria-label={t.nav.aria}>
-          {SECTION_IDS.map((id) => {
-            const Icon = SECTION_ICONS[id]
-            const routePath = ROUTE_SECTIONS[id]
-
-            if (routePath) {
-              const isActive =
-                location.pathname === routePath || location.pathname.startsWith(`${routePath}/`)
-              return (
-                <Link
-                  key={id}
-                  to={routePath}
-                  className={`sidebar-link${isActive ? ' active' : ''}`}
-                  onClick={() => setOpen(false)}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
-                  <span>{t.nav[id]}</span>
-                </Link>
-              )
-            }
-
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`sidebar-link${id === 'search' ? ' sidebar-link-search' : ''}${activeSection === id ? ' active' : ''}`}
-                onClick={() => handleClick(id)}
-                aria-current={activeSection === id ? 'page' : undefined}
-              >
-                <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
-                <span>{t.nav[id]}</span>
-              </button>
-            )
-          })}
+          <SiteSectionNav
+            activeSection={activeSection}
+            onSectionClick={onSectionClick}
+            onNavigate={() => setOpen(false)}
+          />
           <Link to="/account" className="sidebar-link" onClick={() => setOpen(false)}>
             <UserCircle size={18} className="sidebar-link-icon" aria-hidden="true" />
             <span>{t.nav.account}</span>

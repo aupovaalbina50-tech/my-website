@@ -110,14 +110,31 @@ export function useTestQuiz() {
     async (finalAnswers) => {
       if (!user || finalAnswers.length === 0) return
       const correctCount = finalAnswers.filter((a) => a.correct).length
-      const { error } = await supabase.from('test_attempts').insert({
-        user_id: user.id,
-        category: category || null,
-        total_questions: finalAnswers.length,
-        correct_answers: correctCount,
-        score_percent: Math.round((correctCount / finalAnswers.length) * 100),
-      })
-      if (error) setSaveError(true)
+      const { data: attempt, error } = await supabase
+        .from('test_attempts')
+        .insert({
+          user_id: user.id,
+          category: category || null,
+          total_questions: finalAnswers.length,
+          correct_answers: correctCount,
+          score_percent: Math.round((correctCount / finalAnswers.length) * 100),
+        })
+        .select()
+        .single()
+
+      if (error || !attempt) {
+        setSaveError(true)
+        return
+      }
+
+      await supabase.from('test_answers').insert(
+        finalAnswers.map((a) => ({
+          attempt_id: attempt.id,
+          user_id: user.id,
+          term_id: a.term.id,
+          is_correct: a.correct,
+        })),
+      )
     },
     [user, category],
   )

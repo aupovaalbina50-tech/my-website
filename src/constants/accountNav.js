@@ -1,9 +1,14 @@
 import {
   Home,
-  User,
+  BookOpen,
+  LayoutGrid,
+  ALargeSmall,
+  Share2,
   Star,
-  BookMarked,
   Eye,
+  FileText,
+  Landmark,
+  User,
   ClipboardList,
   BarChart3,
   Trophy,
@@ -12,10 +17,20 @@ import {
 
 export const ACCOUNT_NAV_ITEMS = [
   { key: 'dashboard', to: '/account', end: true, Icon: Home },
+  { key: 'terms', to: '/account/terms', Icon: BookOpen },
+  { key: 'categories', to: '/account/categories', Icon: LayoutGrid },
+  { key: 'alphabet', to: '/account/alphabet', Icon: ALargeSmall },
+  { key: 'network', to: '/account/network', Icon: Share2 },
+  { key: 'myDictionary', to: '/account/my-dictionary', Icon: Star },
+  { key: 'docs', to: '/account/docs', Icon: FileText },
+]
+
+// Not shown in the main sidebar (kept reachable by direct link).
+export const SECONDARY_ACCOUNT_NAV_ITEMS = [
   { key: 'profile', to: '/account/profile', Icon: User },
-  { key: 'myDictionary', to: '/account/my-dictionary', Icon: BookMarked },
   { key: 'favorites', to: '/account/favorites', Icon: Star },
   { key: 'viewingHistory', to: '/account/viewing-history', Icon: Eye },
+  { key: 'committees', to: '/account/committees', Icon: Landmark },
   { key: 'tests', to: '/account/tests', Icon: ClipboardList },
   { key: 'statistics', to: '/account/statistics', Icon: BarChart3 },
   { key: 'achievements', to: '/account/achievements', Icon: Trophy },

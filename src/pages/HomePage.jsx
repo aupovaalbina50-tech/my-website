@@ -20,6 +20,7 @@ import { categoryLucideIcon } from '../constants/categoryIcons.js'
 import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
+import DocsContent from './shared/DocsContent.jsx'
 import { toSentenceCase } from '../utils/textCase.js'
 
 const MAX_SUGGESTIONS = 8
@@ -138,17 +139,6 @@ const AudienceSection = memo(function AudienceSection({ t }) {
             </div>
           )
         })}
-      </div>
-    </section>
-  )
-})
-
-const DocsSection = memo(function DocsSection({ t }) {
-  return (
-    <section id="docs" className="section-static">
-      <div className="card">
-        <h2>{t.sections.docsTitle}</h2>
-        <p className="empty-state-text">{t.sections.comingSoon}</p>
       </div>
     </section>
   )
@@ -398,7 +388,7 @@ function HomePage() {
 
       <StepsSection t={t} />
       <AudienceSection t={t} />
-      <DocsSection t={t} />
+      <DocsContent />
         </div>
       </div>
 
