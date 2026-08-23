@@ -22,10 +22,15 @@ import {
   Flag,
   Award,
   Layers,
+  ShieldCheck,
+  CheckCircle2,
+  Mountain,
+  Trophy,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
+import { MISSIONS, TOTAL_MISSIONS } from '../../data/missions.js'
 import AuthCard from './auth/AuthCard.jsx'
 import { useFavoriteTerms } from './useFavoriteTerms.js'
 import { useRecentTerms } from './useRecentTerms.js'
@@ -33,10 +38,23 @@ import { useDashboardStats } from './useDashboardStats.js'
 import { useMastery } from './useMastery.js'
 import { useAllTermCategories } from './useAllTermCategories.js'
 import { useActivityStreak } from './useActivityStreak.js'
+import { useMissionsProgress } from './useMissionsProgress.js'
 import DashboardTermSearch from '../shared/DashboardTermSearch.jsx'
 import ProgressRing from './ProgressRing.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 import { computeStreak, computeWeekDots } from '../../utils/activityStreak.js'
+
+function formatCompletedDate(iso, lang) {
+  try {
+    return new Date(iso).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  } catch {
+    return iso
+  }
+}
 
 const TOOL_LINKS = [
   { key: 'terms', to: '/account/terms', Icon: BookOpen },
@@ -78,6 +96,7 @@ function AccountHomePage() {
   const { lang, t } = useLanguage()
   const navigate = useNavigate()
   const m = t.account.home.mastery
+  const mp = t.account.home.missionsPath
 
   useEffect(() => {
     document.body.classList.add('account-light-theme')
@@ -90,6 +109,7 @@ function AccountHomePage() {
   const { masteredIds, loading: masteryLoading } = useMastery()
   const { rows: categoryRows, loading: categoryRowsLoading } = useAllTermCategories()
   const { activeDays, loading: streakLoading } = useActivityStreak()
+  const { missionState, completedCount: missionsCompletedCount, loading: missionsLoading } = useMissionsProgress()
 
   const masteredCount = masteredIds.size
   const ringPercent = totalTerms ? Math.round((masteredCount / totalTerms) * 100) : 0
@@ -126,6 +146,22 @@ function AccountHomePage() {
     { key: 'categoryDone', unlocked: categoryCompleted },
   ]
   const unlockedCount = achievements.filter((a) => a.unlocked).length
+
+  const missionTermsTotal = useMemo(() => MISSIONS.reduce((sum, mission) => sum + mission.requiredTerms, 0), [])
+  const missionTermsStudied = useMemo(
+    () =>
+      Object.values(missionState)
+        .filter((s) => s.status === 'completed')
+        .reduce((sum, s) => sum + s.studied, 0),
+    [missionState],
+  )
+  const missionAvgScore = useMemo(() => {
+    const scores = Object.values(missionState)
+      .filter((s) => s.status === 'completed' && s.score !== null)
+      .map((s) => s.score)
+    if (scores.length === 0) return null
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+  }, [missionState])
 
   const goalWindowProgress = masteredCount % GOAL_STEP
   const goalRemaining = goalWindowProgress === 0 ? GOAL_STEP : GOAL_STEP - goalWindowProgress
@@ -174,6 +210,92 @@ function AccountHomePage() {
           <p className="dash-hero-greeting">{t.account.home.greeting(displayName)}</p>
         </div>
       </div>
+
+      <section className="dash-section">
+        <h2 className="dash-section-title">
+          <ShieldCheck size={20} aria-hidden="true" />
+          {mp.title}
+        </h2>
+
+        <div className="dash-mini-stats dash-missions-stats">
+          <StatCard
+            to="/account/missions"
+            label={mp.statMissions}
+            value={missionsLoading ? null : missionsCompletedCount}
+            error={false}
+            caption={mp.statMissionsCaption(TOTAL_MISSIONS)}
+            Icon={ShieldCheck}
+            accent="blue"
+          />
+          <StatCard
+            to="/account/missions"
+            label={mp.statTerms}
+            value={missionsLoading ? null : missionTermsStudied}
+            error={false}
+            caption={mp.statTermsCaption(missionTermsTotal)}
+            Icon={BookOpen}
+            accent="green"
+          />
+          <StatCard
+            to="/account/missions"
+            label={mp.statAvgScore}
+            value={missionsLoading ? null : missionAvgScore === null ? '—' : `${missionAvgScore}%`}
+            error={false}
+            caption={mp.statAvgScoreCaption}
+            Icon={BarChart3}
+            accent="yellow"
+          />
+          <StatCard
+            to="/account/missions"
+            label={mp.statAchievements}
+            value={missionsLoading ? null : missionsCompletedCount}
+            error={false}
+            caption={mp.statAchievementsCaption}
+            Icon={Trophy}
+            accent="red"
+          />
+        </div>
+
+        {missionsCompletedCount === 0 && !missionsLoading ? (
+          <p className="dash-empty-text">{mp.empty}</p>
+        ) : (
+          <div className="mission-route-widget">
+            <div className="mission-route-widget-endpoint">
+              <Flag size={15} aria-hidden="true" />
+              <span>{mp.routeStart}</span>
+            </div>
+            <ol className="mission-route-widget-list">
+              {MISSIONS.map((mission) => {
+                const state = missionState[mission.id]
+                const done = state.status === 'completed'
+                return (
+                  <li
+                    key={mission.id}
+                    className={`mission-route-widget-node${done ? ' mission-route-widget-node--done' : ''}`}
+                  >
+                    <Link to={`/account/missions/mission/${mission.id}`} className="mission-route-widget-dot">
+                      {done ? <CheckCircle2 size={13} aria-hidden="true" /> : mission.number}
+                    </Link>
+                    {done && (
+                      <div className="mission-route-widget-tooltip">
+                        <strong>{mission.title[lang]}</strong>
+                        <span>{mp.tooltipResult(state.score)}</span>
+                        {state.completedAt && (
+                          <span>{mp.tooltipDate(formatCompletedDate(state.completedAt, lang))}</span>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ol>
+            <div className="mission-route-widget-endpoint mission-route-widget-endpoint--peak">
+              <Mountain size={17} aria-hidden="true" />
+              <span>{mp.routePeak}</span>
+            </div>
+          </div>
+        )}
+      </section>
 
       <section className="dash-section">
         <h2 className="dash-section-title">

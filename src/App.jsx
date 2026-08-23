@@ -10,12 +10,18 @@ const TermsNetworkPage = lazy(() => import('./pages/TermsNetworkPage.jsx'))
 const TermsListPage = lazy(() => import('./pages/TermsListPage.jsx'))
 const TermDetailPage = lazy(() => import('./pages/TermDetailPage.jsx'))
 const ConfusableTermsPage = lazy(() => import('./pages/ConfusableTermsPage.jsx'))
+const TermMapPage = lazy(() => import('./pages/TermMapPage.jsx'))
 const MinistryPage = lazy(() => import('./pages/MinistryPage.jsx'))
 const CommitteesPage = lazy(() => import('./pages/CommitteesPage.jsx'))
 const QuotesPage = lazy(() => import('./pages/quotes/QuotesPage.jsx'))
 const QuoteDetailPage = lazy(() => import('./pages/quotes/QuoteDetailPage.jsx'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout.jsx'))
 const AccountHomePage = lazy(() => import('./pages/account/AccountHomePage.jsx'))
+const MissionsIntroPage = lazy(() => import('./pages/account/MissionsIntroPage.jsx'))
+const MissionDetailPage = lazy(() => import('./pages/account/MissionDetailPage.jsx'))
+const MissionStudyPage = lazy(() => import('./pages/account/MissionStudyPage.jsx'))
+const MissionTestPage = lazy(() => import('./pages/account/MissionTestPage.jsx'))
+const MissionExecutePage = lazy(() => import('./pages/account/MissionExecutePage.jsx'))
 const AccountTermsPage = lazy(() => import('./pages/account/AccountTermsPage.jsx'))
 const AccountTermDetailPage = lazy(() => import('./pages/account/AccountTermDetailPage.jsx'))
 const AccountCategoriesPage = lazy(() => import('./pages/account/AccountCategoriesPage.jsx'))
@@ -47,6 +53,7 @@ function App() {
               <Route path="/terms/:id" element={<TermDetailPage />} />
               <Route path="/category/:key" element={<TermsListPage />} />
               <Route path="/not-to-confuse" element={<ConfusableTermsPage />} />
+              <Route path="/term-map" element={<TermMapPage />} />
               <Route path="/ministry" element={<MinistryPage />} />
               <Route path="/committees" element={<CommitteesPage />} />
               <Route path="/quotes" element={<QuotesPage />} />
@@ -55,6 +62,46 @@ function App() {
               <Route path="/account/reset-password" element={<ResetPasswordPage />} />
               <Route path="/account" element={<AccountLayout />}>
                 <Route index element={<AccountHomePage />} />
+                <Route
+                  path="missions"
+                  element={
+                    <RequireAuth>
+                      <MissionsIntroPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="missions/mission/:missionId"
+                  element={
+                    <RequireAuth>
+                      <MissionDetailPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="missions/mission/:missionId/study"
+                  element={
+                    <RequireAuth>
+                      <MissionStudyPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="missions/mission/:missionId/test"
+                  element={
+                    <RequireAuth>
+                      <MissionTestPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="missions/mission/:missionId/execute"
+                  element={
+                    <RequireAuth>
+                      <MissionExecutePage />
+                    </RequireAuth>
+                  }
+                />
                 <Route
                   path="profile"
                   element={

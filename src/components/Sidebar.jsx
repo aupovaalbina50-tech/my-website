@@ -75,6 +75,11 @@ function Sidebar() {
             >
               <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
               <span>{t.account.sidebar[key]}</span>
+              {key === 'dashboard' && (
+                <span className="nav-tooltip nav-tooltip-sidebar" role="tooltip">
+                  {t.account.sidebar.dashboardTooltip}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

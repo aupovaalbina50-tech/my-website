@@ -98,6 +98,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Browsers give form controls their own UI font instead of inheriting the
+   page font — without this, every button/input/textarea/select site-wide
+   silently falls back to Arial/system-ui instead of Manrope. */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -140,11 +150,17 @@ body {
 
 /* Personal-cabinet home page ("Главное") opts into a bright, light theme —
    toggled on <body> only while AccountHomePage is mounted (see its
-   useEffect). The rest of the site keeps the dark command-center canvas. */
+   useEffect). Scoped to .account-content (everything below/right of the
+   shared Header) so the letterhead — its eyebrow/h1/subtitle are white,
+   sized for the dark canvas — stays on the normal dark background and
+   stays readable. The rest of the site keeps the dark command-center canvas. */
 body.account-light-theme {
-  --canvas-1: #eaf2fc;
-  --canvas-2: #f5f9ff;
-  --canvas-3: #ffffff;
+  /* Deliberately NOT --canvas-1/2/3 — the base body{} rule reads those
+     directly for its own (dark) background-color, and this class must not
+     touch that since <Header> sits on body outside .account-content. */
+  --acct-bg-1: #eaf2fc;
+  --acct-bg-2: #f5f9ff;
+  --acct-bg-3: #ffffff;
   --canvas-text: #16324f;
   --canvas-text-soft: #5b7a9a;
   --cyan: #1b63b8;
@@ -154,7 +170,10 @@ body.account-light-theme {
   --dash-panel-border: #dce8f7;
   --dash-shadow: 0 1px 2px rgba(27, 79, 140, 0.05), 0 10px 26px rgba(27, 79, 140, 0.09);
   --dash-accent-strong: var(--navy);
+}
 
+body.account-light-theme .account-content {
+  background-color: var(--acct-bg-3);
   background-image:
     repeating-linear-gradient(
       0deg,
@@ -171,7 +190,7 @@ body.account-light-theme {
       transparent 56px
     ),
     radial-gradient(ellipse at 50% 0%, rgba(126, 184, 255, 0.16) 0%, transparent 60%),
-    linear-gradient(160deg, var(--canvas-1) 0%, var(--canvas-2) 55%, var(--canvas-3) 100%);
+    linear-gradient(160deg, var(--acct-bg-1) 0%, var(--acct-bg-2) 55%, var(--acct-bg-3) 100%);
 }
 
 body.account-light-theme .bg-kz-outline {

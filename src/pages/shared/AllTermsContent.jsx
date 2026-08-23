@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, List, Search as SearchIcon, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, List, Search as SearchIcon, Star, X } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -24,6 +24,7 @@ function AllTermsContent({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedLetter, setSelectedLetter] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ ru: '', kk: '', en: '', category: '' })
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
@@ -63,6 +64,11 @@ function AllTermsContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryKey, categoryNotFound])
 
+  useEffect(() => {
+    setSelectedLetter(null)
+    setSearch('')
+  }, [categoryKey])
+
   const query = search.trim().toLowerCase()
   const visibleTerms = useMemo(() => {
     if (!query) return terms
@@ -73,6 +79,39 @@ function AllTermsContent({
         term.en?.toLowerCase().includes(query),
     )
   }, [terms, query])
+
+  const isCategoryMode = Boolean(categoryKey) && !categoryNotFound
+  const isSearching = query.length > 0
+
+  const letterGroups = useMemo(() => {
+    const groups = {}
+    terms.forEach((term) => {
+      const label = toSentenceCase(term.kk || term.ru || term.en)
+      const letter = label.charAt(0).toUpperCase()
+      if (!letter) return
+      if (!groups[letter]) groups[letter] = []
+      groups[letter].push(term)
+    })
+    return groups
+  }, [terms])
+
+  const letters = useMemo(
+    () => Object.keys(letterGroups).sort((a, b) => a.localeCompare(b, 'ru')),
+    [letterGroups],
+  )
+
+  useEffect(() => {
+    if (selectedLetter && !loading && !letterGroups[selectedLetter]) {
+      setSelectedLetter(null)
+    }
+  }, [selectedLetter, letterGroups, loading])
+
+  const showAlphabetGrid = isCategoryMode && !isSearching && !selectedLetter
+  const showLetterDetail = isCategoryMode && !isSearching && Boolean(selectedLetter)
+
+  const displayedTerms = showLetterDetail ? letterGroups[selectedLetter] || [] : visibleTerms
+
+  const headerCount = showAlphabetGrid ? terms.length : displayedTerms.length
 
   const categoryLabel = (catKey) => CATEGORIES.find((c) => c.key === catKey)?.[lang] || catKey
 
@@ -124,11 +163,18 @@ function AllTermsContent({
     <section className="terms-list-section">
       {error && <div className="alert">{error}</div>}
 
-      {showBack && (
-        <button type="button" className="quote-back-link" onClick={() => navigate(-1)}>
+      {showLetterDetail ? (
+        <button type="button" className="quote-back-link" onClick={() => setSelectedLetter(null)}>
           <ArrowLeft size={16} aria-hidden="true" />
-          {t.termsList.back}
+          {t.termsList.backToCategory}
         </button>
+      ) : (
+        showBack && (
+          <button type="button" className="quote-back-link" onClick={() => navigate(-1)}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            {t.termsList.back}
+          </button>
+        )
       )}
 
       {categoryNotFound ? (
@@ -142,9 +188,12 @@ function AllTermsContent({
               <Icon strokeWidth={1.75} />
             </span>
             <div>
-              <h1 className="terms-list-title">{category ? category[lang] : t.termsList.allTitle}</h1>
+              <h1 className="terms-list-title">
+                {category ? category[lang] : t.termsList.allTitle}
+                {showLetterDetail && <span className="terms-list-title-letter"> — {selectedLetter}</span>}
+              </h1>
               <p className="terms-list-count">
-                {loading ? t.table.loading : t.categorySection.count(visibleTerms.length)}
+                {loading ? t.table.loading : t.categorySection.count(headerCount)}
               </p>
             </div>
           </div>
@@ -173,16 +222,55 @@ function AllTermsContent({
             </div>
           )}
 
-          <div className="card term-entries-card">
-            {loading && <p className="empty-state-text">{t.table.loading}</p>}
-            {!loading && visibleTerms.length === 0 && (
-              <p className="empty-state-text">
-                {query ? t.termsMap.noResults : category ? t.termsList.empty : t.table.emptyNoTerms}
-              </p>
+          {showAlphabetGrid ? (
+            <div className="card">
+              {loading && <p className="empty-state-text">{t.table.loading}</p>}
+              {!loading && letters.length === 0 && (
+                <p className="empty-state-text">{t.termsList.empty}</p>
+              )}
+              {!loading && letters.length > 0 && (
+                <>
+                  <h2 className="alphabet-grid-heading">{t.termsList.byLetterHeading}</h2>
+                  <div className="letter-grid">
+                    {letters.map((letter) => (
+                      <button
+                        key={letter}
+                        type="button"
+                        className="letter-card"
+                        onClick={() => setSelectedLetter(letter)}
+                      >
+                        <span className="letter-card-glyph" aria-hidden="true">
+                          {letter}
+                        </span>
+                        <span className="letter-card-right">
+                          <span className="letter-card-count">
+                            {t.categorySection.count(letterGroups[letter].length)}
+                          </span>
+                          <ArrowRight className="letter-card-arrow" strokeWidth={2} aria-hidden="true" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+          <div className="term-entries-card">
+            {loading && (
+              <div className="card">
+                <p className="empty-state-text">{t.table.loading}</p>
+              </div>
             )}
-            {!loading && visibleTerms.length > 0 && (
+            {!loading && displayedTerms.length === 0 && (
+              <div className="card">
+                <p className="empty-state-text">
+                  {query ? t.termsMap.noResults : category ? t.termsList.empty : t.table.emptyNoTerms}
+                </p>
+              </div>
+            )}
+            {!loading && displayedTerms.length > 0 && (
               <ul className="term-entries">
-                {visibleTerms.map((term) => {
+                {displayedTerms.map((term) => {
                   const isEditing = editingId === term.id
                   const label = toSentenceCase(term.kk || term.ru || term.en)
 
@@ -340,6 +428,7 @@ function AllTermsContent({
               </ul>
             )}
           </div>
+          )}
         </>
       )}
     </section>

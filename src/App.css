@@ -19,6 +19,93 @@
   }
 }
 
+.lang-bar-inner-split {
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---- "На главную" — account header link back to the public site home ---- */
+
+.header-home-link-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.header-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: var(--ls-label);
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: color 0.2s ease, background-color 0.2s ease;
+
+  &:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.12);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+  }
+}
+
+/* ---- shared compact hover tooltip — "Главное" sidebar item + "На главную"
+   header link. Kept desktop-only via (hover: hover) so touch devices never
+   get a tooltip stuck open; tapping just navigates as normal. ---- */
+
+.nav-tooltip {
+  position: absolute;
+  z-index: 30;
+  padding: 6px 11px;
+  border-radius: 8px;
+  background: rgba(9, 28, 51, 0.96);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(4, 16, 36, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.nav-tooltip-header {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.nav-tooltip-sidebar {
+  top: calc(100% + 4px);
+  left: 18px;
+  max-width: calc(100% - 36px);
+  white-space: normal;
+  transform: translateY(-4px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header-home-link-wrap:hover .nav-tooltip-header,
+  .header-home-link-wrap:focus-within .nav-tooltip-header {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .sidebar-link:hover .nav-tooltip-sidebar,
+  .sidebar-link:focus-visible .nav-tooltip-sidebar {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+}
+
 .lang-switcher {
   display: flex;
   align-items: center;
@@ -847,7 +934,8 @@
 .steps-section,
 .audience-section,
 .section-committees,
-.section-ministry {
+.section-ministry,
+.section-term-map {
   max-width: 1120px;
   width: calc(100% - 64px);
   margin: var(--space-8) auto;
@@ -1770,6 +1858,250 @@
 }
 
 /* ============================================================
+   Terminological map - interactive radial network of emergency
+   types. A center node ("EMERGENCY TYPES") with eight satellite
+   nodes on a circle, connected by SVG lines. Clicking a satellite
+   only toggles a visual "selected" state for now — expanding into
+   related terms is a later phase.
+   ============================================================ */
+
+.term-map-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+
+  @media (max-width: 640px) {
+    padding: var(--space-5) var(--space-2);
+  }
+}
+
+.term-map-network {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 1 / 1;
+  margin: var(--space-2) auto;
+}
+
+.term-map-network-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.term-map-edge {
+  stroke: var(--accent-border);
+  stroke-width: 0.4;
+  transition:
+    stroke 0.25s ease,
+    stroke-width 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.term-map-edge.active {
+  stroke: var(--navy);
+  stroke-width: 0.7;
+}
+
+.term-map-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.term-map-node-center {
+  z-index: 2;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  background: linear-gradient(160deg, var(--navy-2) 0%, var(--navy) 100%);
+  color: #fff;
+  box-shadow:
+    0 12px 28px rgba(27, 79, 140, 0.32),
+    0 0 0 8px var(--accent-bg);
+  text-align: center;
+
+  @media (max-width: 640px) {
+    width: 108px;
+    height: 108px;
+    gap: 4px;
+  }
+}
+
+.term-map-node-center-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+
+  @media (max-width: 640px) {
+    font-size: 10.5px;
+  }
+}
+
+.term-map-node-satellite {
+  z-index: 1;
+  gap: 9px;
+  width: 128px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease;
+
+  @media (max-width: 640px) {
+    width: 88px;
+    gap: 5px;
+  }
+}
+
+.term-map-node-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-border);
+  color: var(--navy);
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    background-color 0.3s ease,
+    color 0.3s ease;
+
+  @media (max-width: 640px) {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+.term-map-node-icon {
+  display: flex;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.term-map-node-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+  text-align: center;
+
+  @media (max-width: 640px) {
+    font-size: 10.5px;
+  }
+}
+
+.term-map-node-satellite.dimmed {
+  opacity: 0.4;
+}
+
+.term-map-node-satellite.selected .term-map-node-circle {
+  border-color: var(--red);
+  background: var(--red-bg);
+  color: var(--red);
+  box-shadow:
+    0 0 0 8px rgba(200, 31, 46, 0.1),
+    var(--shadow);
+}
+
+.term-map-node-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 3;
+  padding: 6px 11px;
+  border-radius: 8px;
+  background: rgba(9, 28, 51, 0.96);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(4, 16, 36, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .term-map-node-satellite:hover,
+  .term-map-node-satellite:focus-visible {
+    z-index: 4;
+  }
+
+  .term-map-node-satellite:hover .term-map-node-circle,
+  .term-map-node-satellite:focus-visible .term-map-node-circle {
+    transform: scale(1.08);
+    border-color: var(--navy);
+    background: var(--accent-bg);
+    box-shadow:
+      0 0 0 8px rgba(27, 79, 140, 0.12),
+      var(--shadow);
+  }
+
+  .term-map-node-satellite:hover .term-map-node-icon,
+  .term-map-node-satellite:focus-visible .term-map-node-icon {
+    transform: scale(1.12);
+  }
+
+  .term-map-node-satellite:hover .term-map-node-tooltip,
+  .term-map-node-satellite:focus-visible .term-map-node-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.term-map-node-satellite:focus-visible .term-map-node-circle {
+  outline: 2px solid var(--navy);
+  outline-offset: 3px;
+}
+
+.term-map-hint {
+  margin: 0;
+  max-width: 480px;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-map-node,
+  .term-map-node-circle,
+  .term-map-node-icon,
+  .term-map-node-tooltip,
+  .term-map-edge {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Detail meta panels (committee/ministry contact rows)
    ============================================================ */
 
@@ -2225,6 +2557,2411 @@
   gap: var(--space-5);
   max-width: 720px;
   margin: 0 auto;
+}
+
+/* ============================================================
+   Missions — briefing/instruction screen
+   ============================================================ */
+
+.mission-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.mission-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-steps-card {
+  padding: var(--space-5);
+}
+
+.mission-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mission-step {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  opacity: 0;
+  animation: mission-step-in 0.5s ease forwards;
+  animation-delay: calc(var(--i) * 0.12s);
+}
+
+.mission-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 27px;
+  top: 56px;
+  width: 1px;
+  height: calc(100% - 24px);
+  background: linear-gradient(var(--border), transparent);
+}
+
+.mission-step-marker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 56px;
+}
+
+.mission-step-number {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+.mission-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--navy);
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mission-step:hover .mission-step-icon {
+  border-color: var(--red);
+  color: var(--red);
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px var(--red-bg);
+}
+
+.mission-step-body {
+  padding-top: 4px;
+  min-width: 0;
+}
+
+.mission-step-title {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.mission-step-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-soft);
+}
+
+.mission-rule {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 2px solid var(--red);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(200, 31, 46, 0.16);
+  animation: mission-rule-pulse 2.8s ease-in-out infinite;
+
+  @media (max-width: 640px) {
+    padding: var(--space-4);
+  }
+}
+
+.mission-rule-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(200, 31, 46, 0.4);
+
+  @media (max-width: 640px) {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.mission-rule-title {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--red);
+
+  @media (max-width: 640px) {
+    font-size: 16px;
+  }
+}
+
+.mission-rule-text {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+@keyframes mission-rule-pulse {
+  0%,
+  100% {
+    box-shadow: 0 10px 28px rgba(200, 31, 46, 0.16);
+  }
+  50% {
+    box-shadow: 0 10px 34px rgba(200, 31, 46, 0.3);
+  }
+}
+
+.mission-cta {
+  align-self: center;
+  min-width: 340px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 480px) {
+  .mission-cta {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+.mission-stub {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  animation: account-card-in 0.4s ease both;
+}
+
+.mission-stub-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--space-3);
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-stub-title {
+  margin: 0 0 var(--space-2);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-stub-text {
+  margin: 0 0 var(--space-4);
+  font-size: 15px;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.mission-stub-back {
+  margin: 0 auto;
+}
+
+@keyframes mission-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Missions — motivational "path to the peak" hero ---- */
+
+.mission-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 420px;
+  padding: var(--space-6) var(--space-5);
+  border-radius: 20px;
+  background: linear-gradient(165deg, var(--canvas-1) 0%, var(--canvas-2) 55%, var(--canvas-3) 100%);
+  border: 1px solid var(--dash-panel-border);
+  box-shadow: 0 24px 60px rgba(6, 20, 38, 0.35);
+  animation: account-card-in 0.5s ease both;
+
+  @media (max-width: 640px) {
+    min-height: 480px;
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+.mission-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(148, 197, 227, 0.06) 0,
+      rgba(148, 197, 227, 0.06) 1px,
+      transparent 1px,
+      transparent 44px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(148, 197, 227, 0.06) 0,
+      rgba(148, 197, 227, 0.06) 1px,
+      transparent 1px,
+      transparent 44px
+    );
+  pointer-events: none;
+}
+
+.mission-hero-visual {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.mission-hero-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mission-hero-ridge {
+  fill: rgba(148, 197, 227, 0.07);
+  stroke: rgba(148, 197, 227, 0.22);
+  stroke-width: 1;
+}
+
+.mission-hero-route {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.55));
+  animation: mission-route-draw 1.8s ease-out 0.2s forwards;
+}
+
+.mission-hero-ticks line {
+  stroke: rgba(148, 197, 227, 0.35);
+  stroke-width: 1;
+}
+
+.mission-hero-node {
+  fill: var(--cyan);
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.6));
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mission-node-in 0.5s ease 0.4s forwards;
+}
+
+.mission-hero-waypoint {
+  fill: var(--canvas-1);
+  stroke: var(--cyan);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mission-node-in 0.4s ease forwards;
+
+  &:nth-of-type(1) {
+    animation-delay: 0.8s;
+  }
+  &:nth-of-type(2) {
+    animation-delay: 1.2s;
+  }
+  &:nth-of-type(3) {
+    animation-delay: 1.6s;
+  }
+}
+
+.mission-hero-summit {
+  opacity: 0;
+  animation: mission-node-in 0.5s ease 2s forwards, mission-peak-pulse 2.6s ease-in-out 2.6s infinite;
+}
+
+.mission-hero-summit-pole {
+  stroke: rgba(238, 244, 251, 0.8);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.mission-hero-summit-flag {
+  fill: var(--red);
+  filter: drop-shadow(0 0 8px rgba(200, 31, 46, 0.7));
+}
+
+.mission-hero-summit-base {
+  fill: var(--red);
+}
+
+.mission-hero-dot {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 10px rgba(34, 211, 238, 0.7));
+}
+
+.mission-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(100deg, rgba(6, 20, 38, 0.86) 0%, rgba(6, 20, 38, 0.6) 40%, rgba(6, 20, 38, 0.08) 70%);
+  pointer-events: none;
+}
+
+.mission-hero-body {
+  position: relative;
+  z-index: 3;
+  max-width: 520px;
+}
+
+.mission-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.mission-hero-title {
+  margin: 0 0 var(--space-2);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--canvas-text);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+
+  @media (max-width: 640px) {
+    font-size: 28px;
+  }
+}
+
+.mission-hero-lead {
+  margin: 0 0 var(--space-2);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--canvas-text);
+}
+
+.mission-hero-sub {
+  margin: 0 0 var(--space-4);
+  max-width: 460px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--canvas-text-soft);
+}
+
+.mission-hero-path-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: fit-content;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background: rgba(6, 20, 38, 0.55);
+  border: 1px solid var(--dash-panel-border);
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+}
+
+.mission-hero-path-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mission-hero-path-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(34, 211, 238, 0.14);
+  color: var(--cyan);
+}
+
+.mission-hero-path-stat-row--final .mission-hero-path-stat-icon {
+  background: rgba(200, 31, 46, 0.16);
+  color: var(--red);
+}
+
+.mission-hero-path-stat {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--canvas-text);
+}
+
+.mission-hero-path-stat--final {
+  color: var(--red);
+}
+
+.mission-hero-path-arrow {
+  padding-left: 5px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--cyan);
+  opacity: 0.7;
+}
+
+.mission-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 32px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--red) 0%, #e0384a 100%);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(200, 31, 46, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 36px rgba(200, 31, 46, 0.48);
+    filter: brightness(1.05);
+  }
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 16px rgba(200, 31, 46, 0.3);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.mission-progress-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--dash-panel-bg-soft);
+  border: 1px solid var(--dash-panel-border);
+  border-radius: 10px;
+}
+
+.mission-progress-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--canvas-text-soft);
+}
+
+.mission-progress-count {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dash-accent-strong);
+  white-space: nowrap;
+}
+
+@keyframes mission-route-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes mission-node-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes mission-peak-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(200, 31, 46, 0.7));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(200, 31, 46, 0.95));
+  }
+}
+
+/* ---- Missions — 9-mission route map (light, MES-branded) ---- */
+
+.mission-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.mission-list-head-text {
+  flex: 1;
+  min-width: 240px;
+}
+
+.mission-list-title {
+  margin: 4px 0 6px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--navy);
+
+  @media (max-width: 640px) {
+    font-size: 23px;
+  }
+}
+
+.mission-list-subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.mission-list-progress-badge {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--red-bg);
+  border: 1px solid rgba(200, 31, 46, 0.24);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.mission-route {
+  position: relative;
+  padding: var(--space-6) var(--space-3);
+
+  @media (max-width: 640px) {
+    padding: var(--space-5) var(--space-1);
+  }
+}
+
+.mission-route-svg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mission-route-line {
+  fill: none;
+  stroke: var(--navy);
+  stroke-opacity: 0.28;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mission-route-draw 0.9s ease-out forwards;
+  transition: stroke-opacity 0.2s ease;
+}
+
+.mission-route:hover .mission-route-line,
+.mission-route:focus-within .mission-route-line {
+  stroke-opacity: 0.55;
+}
+
+.mission-route-list {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mission-route-row {
+  display: flex;
+  opacity: 0;
+  animation: mission-step-in 0.45s ease forwards;
+  animation-delay: calc(0.4s + var(--i) * 0.06s);
+}
+
+.mission-route-row--start {
+  justify-content: flex-start;
+}
+
+.mission-route-row--center {
+  justify-content: center;
+}
+
+.mission-route-row--end {
+  justify-content: flex-end;
+}
+
+.mission-node {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(340px, 92%);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--red);
+    transform: translateY(-3px) scale(1.015);
+    box-shadow: 0 14px 34px rgba(200, 31, 46, 0.14);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 3px;
+  }
+}
+
+.mission-node--in_progress {
+  border-color: rgba(27, 79, 140, 0.3);
+}
+
+.mission-node--completed {
+  background: var(--green-bg);
+  border-color: rgba(21, 128, 61, 0.3);
+}
+
+.mission-node--not_started {
+  .mission-node-icon {
+    background: var(--bg-soft);
+    color: var(--text-soft);
+  }
+}
+
+.mission-node-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mission-node-number {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+.mission-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--red-bg);
+  color: var(--red);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.mission-node-title {
+  margin: 0;
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.mission-node-category {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.mission-node-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.mission-node-status--completed {
+  color: var(--green);
+}
+
+.mission-node-status--in-progress {
+  color: var(--navy);
+}
+
+.mission-node-score {
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(21, 128, 61, 0.14);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.mission-node-progress-text {
+  margin-left: 2px;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.mission-node-status-ring {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+
+  & svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+}
+
+.mission-node-status-ring-track {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 2.4;
+}
+
+.mission-node-status-ring-fill {
+  fill: none;
+  stroke: var(--navy);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 50.27;
+  stroke-dashoffset: calc(50.27 - (50.27 * var(--percent, 0)) / 100);
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.mission-node-meta {
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--text-soft);
+  opacity: 0;
+  transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
+}
+
+.mission-node:hover .mission-node-meta,
+.mission-node:focus-visible .mission-node-meta {
+  max-height: 40px;
+  margin-top: 2px;
+  opacity: 1;
+}
+
+.mission-list-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.mission-list-footer-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-list-footer-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.mission-list-footer-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mission-list-footer-arrow {
+  color: var(--text-soft);
+  opacity: 0.5;
+}
+
+.mission-list-footer-count {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+/* ---- Missions — single mission briefing screen ---- */
+
+.mission-brief-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: color 0.18s ease;
+
+  &:hover {
+    color: var(--red);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+.mission-brief-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.mission-brief-head-text {
+  flex: 1;
+  min-width: 260px;
+}
+
+.mission-brief-crumb {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-brief-title {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--navy);
+
+  @media (max-width: 640px) {
+    font-size: 24px;
+  }
+}
+
+.mission-brief-subtitle {
+  margin: 0;
+  max-width: 560px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+.mission-brief-status {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.mission-brief-status-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.mission-brief-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.mission-brief-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-soft);
+}
+
+.mission-brief-status-badge--in_progress {
+  border-color: rgba(27, 79, 140, 0.3);
+  color: var(--navy);
+
+  .mission-brief-status-dot {
+    background: var(--navy);
+  }
+}
+
+.mission-brief-status-badge--completed {
+  border-color: rgba(21, 128, 61, 0.3);
+  background: var(--green-bg);
+  color: var(--green);
+
+  .mission-brief-status-dot {
+    background: var(--green);
+  }
+}
+
+.mission-brief-hero {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-5);
+  background: linear-gradient(160deg, #fbfdff 0%, #f2f7fd 55%, #eef4fb 100%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  animation: account-card-in 0.45s ease both;
+}
+
+.mission-brief-visual {
+  position: relative;
+  min-height: 200px;
+
+  @media (max-width: 640px) {
+    min-height: 160px;
+  }
+}
+
+.mission-brief-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mission-brief-ground {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.mission-brief-facility rect:not(.mission-brief-window) {
+  fill: var(--bg-soft);
+  stroke: var(--text-soft);
+  stroke-width: 1.4;
+}
+
+.mission-brief-window {
+  fill: rgba(27, 79, 140, 0.16);
+}
+
+.mission-brief-beacon {
+  fill: var(--red);
+  filter: drop-shadow(0 0 5px rgba(200, 31, 46, 0.7));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mission-beacon-pulse 2.2s ease-in-out infinite;
+}
+
+.mission-brief-core {
+  fill: var(--red);
+}
+
+.mission-brief-ring {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 1.6;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mission-ring-ping 2.8s ease-out infinite;
+}
+
+.mission-brief-ring--2 {
+  animation-delay: 1.4s;
+}
+
+.mission-brief-containment {
+  fill: none;
+  stroke: var(--red);
+  stroke-opacity: 0.32;
+  stroke-width: 1.4;
+  stroke-dasharray: 6 7;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mission-spin-slow 30s linear infinite;
+}
+
+.mission-brief-scanline {
+  position: absolute;
+  inset: 0;
+  width: 26%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(200, 31, 46, 0.08) 45%,
+    rgba(200, 31, 46, 0.18) 50%,
+    rgba(200, 31, 46, 0.08) 55%,
+    transparent 100%
+  );
+  transform: translateX(-60%);
+  animation: mission-scan-sweep 5.5s ease-in-out infinite;
+}
+
+.mission-goal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--red);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.mission-goal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-goal-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-goal-mission {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-goal-note {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-soft);
+}
+
+.mission-stages-card .mission-steps {
+  gap: var(--space-4);
+}
+
+.mission-step--active .mission-step-icon {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+.mission-step--active .mission-step-title {
+  color: var(--red);
+}
+
+.mission-step--future {
+  opacity: 0.55;
+}
+
+.mission-step--future .mission-step-icon {
+  background: var(--bg-soft);
+  color: var(--text-soft);
+}
+
+.mission-ahead-title {
+  margin: 0 0 var(--space-3);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-ahead-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.mission-ahead-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  color: var(--text);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.mission-ahead-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent-bg);
+  color: var(--navy);
+}
+
+.mission-ahead-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mission-ahead-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.mission-ahead-note {
+  margin: 0;
+}
+
+@keyframes mission-beacon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes mission-ring-ping {
+  0% {
+    r: 18;
+    opacity: 0.6;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    r: 60;
+    opacity: 0;
+  }
+}
+
+@keyframes mission-spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mission-scan-sweep {
+  0% {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(160%);
+    opacity: 0;
+  }
+}
+
+/* ---- Missions — Step 1: term study screen ---- */
+
+.mission-study-mission-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-progress-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mission-progress-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mission-progress-number {
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+
+  @media (max-width: 480px) {
+    font-size: 26px;
+  }
+}
+
+.mission-progress-status {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mission-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  &:not(:disabled):hover {
+    border-color: var(--navy);
+    transform: translateY(-1px);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
+}
+
+.mission-dot--done {
+  background: var(--green-bg);
+  border-color: rgba(21, 128, 61, 0.4);
+  color: var(--green);
+}
+
+.mission-dot--current {
+  border-color: var(--red);
+  color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-bg);
+}
+
+.mission-dot--current.mission-dot--done {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-bg);
+}
+
+.mission-term-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: account-card-in 0.35s ease both;
+}
+
+.mission-term-tabs {
+  display: inline-flex;
+  gap: 4px;
+  width: fit-content;
+  padding: 4px;
+  background: var(--bg-soft);
+  border-radius: 10px;
+}
+
+.mission-term-tab {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+
+  &:hover:not(.mission-term-tab--active) {
+    color: var(--text);
+  }
+}
+
+.mission-term-tab--active {
+  background: var(--surface);
+  color: var(--red);
+  box-shadow: var(--shadow);
+}
+
+.mission-term-langs {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.mission-term-lang-row {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.mission-term-lang-row--active {
+  background: var(--accent-bg);
+}
+
+.mission-term-lang-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mission-term-lang-label {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+.mission-term-lang-audio {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mission-term-lang-text {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--navy);
+
+  @media (max-width: 480px) {
+    font-size: 18px;
+  }
+}
+
+.mission-term-confirm,
+.mission-term-confirmed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  border-radius: 11px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mission-term-confirm {
+  border: 1.5px solid var(--red);
+  background: var(--surface);
+  color: var(--red);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+
+  &:hover {
+    background: var(--red);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
+}
+
+.mission-term-confirmed {
+  border: 1.5px solid rgba(21, 128, 61, 0.35);
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.mission-term-nav {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.mission-term-nav-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.mission-complete-card {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  animation: account-card-in 0.4s ease both;
+}
+
+.mission-complete-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-3);
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-complete-title {
+  margin: 0 0 var(--space-2);
+  font-size: 24px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.mission-complete-text {
+  margin: 0 0 var(--space-4);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+/* ---- Missions — Step 2: quiz screen ---- */
+
+.mission-test-intro-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+}
+
+.mission-test-intro-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mission-quiz-score {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-quiz-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: var(--space-2);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+}
+
+.quiz-option.selected {
+  border-color: var(--navy);
+  background: var(--accent-bg);
+}
+
+.mission-quiz-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.mission-quiz-feedback--correct {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.mission-quiz-feedback--wrong {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-results-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.mission-results-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: var(--space-2);
+  border-radius: 50%;
+}
+
+.mission-results-icon--good {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.mission-results-icon--mid {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+.mission-results-icon--low {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-results-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-soft);
+
+  & span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.mission-results-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mission-results-status--good {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.mission-results-status--mid {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+.mission-results-status--low {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-results-tier-title {
+  margin: 0 0 0;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-results-confirm {
+  width: 100%;
+  margin: var(--space-3) 0;
+  text-align: left;
+}
+
+/* ---- Missions — Step 2 results: score ring + readiness + transition ---- */
+
+.mission-score-ring-wrap {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  margin: var(--space-2) auto;
+}
+
+.mission-score-ring {
+  display: block;
+}
+
+.mission-score-ring-track {
+  stroke: var(--border);
+}
+
+.mission-score-ring-fill {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.mission-score-ring-fill--good {
+  stroke: var(--green);
+}
+
+.mission-score-ring-fill--mid {
+  stroke: var(--yellow);
+}
+
+.mission-score-ring-fill--low {
+  stroke: var(--red);
+}
+
+.mission-score-ring-percent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 25px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.mission-results-fraction {
+  margin: 0 0 var(--space-2);
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.mission-readiness-block {
+  width: 100%;
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  background: var(--bg-soft);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.mission-readiness-intro {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.mission-readiness-title {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-readiness-ready {
+  margin: var(--space-2) 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.mission-transition-chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: var(--space-3) 0;
+}
+
+.mission-transition-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0;
+  animation: mission-step-in 0.4s ease forwards;
+  animation-delay: calc(var(--i) * 0.15s);
+
+  & svg {
+    color: var(--green);
+    flex-shrink: 0;
+  }
+}
+
+.mission-transition-node--operation {
+  background: var(--red-bg);
+  border-color: rgba(200, 31, 46, 0.3);
+  color: var(--red);
+}
+
+.mission-transition-value {
+  font-family: var(--mono);
+  font-weight: 800;
+}
+
+.mission-transition-arrow {
+  color: var(--border);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  animation: mission-step-in 0.3s ease forwards;
+  animation-delay: calc(var(--i) * 0.15s);
+}
+
+/* ---- Missions — Step 3: operation screen ---- */
+
+.mission-op-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mission-op-visual {
+  width: 100%;
+}
+
+.mission-op-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mission-op-containment {
+  fill: none;
+  stroke: var(--red);
+  stroke-opacity: 0.32;
+  stroke-width: 1.4;
+  stroke-dasharray: 6 7;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mission-spin-slow 30s linear infinite;
+  transition: stroke 0.5s ease, stroke-opacity 0.5s ease;
+}
+
+.mission-op-containment--stabilized {
+  stroke: var(--green);
+  stroke-opacity: 0.45;
+  animation: none;
+}
+
+.mission-op-core {
+  fill: var(--red);
+  transition: fill 0.5s ease;
+}
+
+.mission-op-core--stabilized {
+  fill: var(--green);
+  filter: drop-shadow(0 0 6px rgba(21, 128, 61, 0.6));
+}
+
+.mission-op-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-soft);
+  border-radius: 12px;
+}
+
+.mission-op-readout-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.mission-op-readout-value {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.mission-op-readout-state {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.mission-op-stage-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mission-op-stage-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  min-width: 92px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  opacity: 0.55;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.mission-op-stage-dot--current {
+  opacity: 1;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-bg);
+}
+
+.mission-op-stage-dot--done {
+  opacity: 1;
+  border-color: rgba(21, 128, 61, 0.4);
+  background: var(--green-bg);
+}
+
+.mission-op-stage-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.mission-op-stage-dot--done .mission-op-stage-number {
+  color: var(--green);
+}
+
+.mission-op-stage-dot--current .mission-op-stage-number {
+  color: var(--red);
+}
+
+.mission-op-stage-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+}
+
+.mission-op-check-card {
+  animation: account-card-in 0.35s ease both;
+}
+
+.mission-op-hero--final {
+  padding-bottom: var(--space-4);
+}
+
+.mission-op-final-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.mission-complete-op-card {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  animation: account-card-in 0.45s ease both;
+}
+
+.mission-complete-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--green-bg);
+  border-radius: 12px;
+  list-style: none;
+
+  & li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--green);
+  }
+}
+
+.mission-achievement-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-4);
+  background: linear-gradient(160deg, rgba(200, 31, 46, 0.06) 0%, rgba(27, 79, 140, 0.06) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.mission-achievement-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-achievement-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-achievement-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-achievement-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.mission-achievement-card--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: var(--space-3);
+  background: var(--surface);
+  text-align: left;
+
+  & .mission-achievement-icon {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+  }
+  & .mission-achievement-label {
+    font-size: 14.5px;
+  }
+}
+
+.mission-achievement-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--red);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  animation: account-card-in 0.4s ease both;
+}
+
+.mission-achievement-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-achievement-toast-body {
+  flex: 1;
+}
+
+.mission-achievement-toast-title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-achievement-toast-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mission-achievement-toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-soft);
+    color: var(--text);
+  }
+}
+
+/* ---- Missions — completed-mission view (mission detail page) ---- */
+
+.mission-completed-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--green-bg);
+  border: 1px solid rgba(21, 128, 61, 0.3);
+  border-left: 4px solid var(--green);
+  border-radius: 12px;
+}
+
+.mission-completed-banner-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mission-completed-banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+}
+
+.mission-completed-banner-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-completed-banner-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.mission-completed-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.mission-completed-stat {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.mission-completed-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.mission-completed-stat-value {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+/* ---- Dashboard — missions path widget ---- */
+
+.mission-route-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.mission-route-widget-endpoint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--canvas-text-soft);
+}
+
+.mission-route-widget-endpoint--peak {
+  color: var(--red);
+}
+
+.mission-route-widget-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 10px;
+  margin: 0;
+  padding: 10px 0;
+  list-style: none;
+}
+
+.mission-route-widget-node {
+  position: relative;
+}
+
+.mission-route-widget-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--dash-panel-border);
+  background: var(--dash-panel-bg-soft);
+  color: var(--canvas-text-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+
+  &:hover {
+    border-color: var(--dash-accent-strong);
+    transform: translateY(-1px);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--dash-accent-strong);
+    outline-offset: 2px;
+  }
+}
+
+.mission-route-widget-node--done .mission-route-widget-dot {
+  background: var(--green-bg);
+  border-color: rgba(21, 128, 61, 0.4);
+  color: var(--green);
+}
+
+.mission-route-widget-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  padding: 10px 12px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 10px 24px rgba(20, 45, 80, 0.25);
+
+  & strong {
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    border: 5px solid transparent;
+    border-top-color: var(--navy);
+    transform: translateX(-50%);
+  }
+}
+
+.mission-route-widget-node--done:hover .mission-route-widget-tooltip,
+.mission-route-widget-node--done:focus-within .mission-route-widget-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* ============================================================
@@ -4298,28 +7035,155 @@
   margin-bottom: var(--space-4);
 }
 
-/* ---- term entries (readable list, replaces the old dense table) ---- */
-
-.term-entries-card {
-  padding: var(--space-2) var(--space-4);
+.terms-list-title-letter {
+  color: var(--canvas-text-soft);
+  font-weight: 600;
 }
+
+/* ---- alphabet grid (category → letter step) ----
+   Sits inside the white `.card` surface, so — unlike `.category-card` on
+   the dark homepage canvas — it needs the light-surface text tokens
+   (--text/--text-soft), not --canvas-text/--canvas-text-soft. */
+
+.alphabet-grid-heading {
+  margin: 0 0 var(--space-3);
+  font-family: var(--heading);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.letter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.letter-card {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-soft);
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-3px) scale(1.02);
+    border-color: var(--navy);
+    background-color: var(--blue-light);
+    box-shadow:
+      0 14px 28px rgba(20, 45, 80, 0.18),
+      0 0 0 3px rgba(27, 79, 140, 0.12);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
+  &:active {
+    transform: translateY(-1px) scale(1.01);
+  }
+}
+
+.letter-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.letter-card-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.letter-card-arrow {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--text-soft);
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.letter-card:hover .letter-card-arrow,
+.letter-card:focus-visible .letter-card-arrow {
+  color: var(--navy);
+  transform: translateX(4px);
+}
+
+.letter-card:hover .letter-card-glyph,
+.letter-card:focus-visible .letter-card-glyph {
+  color: var(--navy-2);
+}
+
+.letter-card-glyph {
+  font-family: var(--heading);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--navy);
+  transition: color 0.18s ease;
+}
+
+/* ---- term entries (readable list, replaces the old dense table) ---- */
 
 .term-entries {
   list-style: none;
-  margin: 0;
+  margin: var(--space-4) auto 0;
   padding: 0;
+  max-width: 1120px;
+  width: calc(100% - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  @media (max-width: 640px) {
+    width: calc(100% - 40px);
+  }
 }
 
 .term-entry {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: var(--space-3) 4px;
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  box-sizing: border-box;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(27, 79, 140, 0.35);
+  }
 }
 
-.term-entries li:last-child {
-  border-bottom: none;
+.term-entry-editing:hover {
+  transform: none;
 }
 
 .term-entry-head {

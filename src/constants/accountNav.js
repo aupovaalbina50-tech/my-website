@@ -13,10 +13,12 @@ import {
   BarChart3,
   Trophy,
   Settings,
+  Siren,
 } from 'lucide-react'
 
 export const ACCOUNT_NAV_ITEMS = [
   { key: 'dashboard', to: '/account', end: true, Icon: Home },
+  { key: 'missions', to: '/account/missions', Icon: Siren },
   { key: 'terms', to: '/account/terms', Icon: BookOpen },
   { key: 'categories', to: '/account/categories', Icon: LayoutGrid },
   { key: 'alphabet', to: '/account/alphabet', Icon: ALargeSmall },

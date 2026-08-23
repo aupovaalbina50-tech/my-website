@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Search, List, Quote, Landmark, Users, FileText, ArrowLeftRight } from 'lucide-react'
+import { Search, List, Quote, Landmark, Users, FileText, ArrowLeftRight, Map } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { SECTION_IDS, ROUTE_SECTIONS } from '../constants/navigation.js'
 
@@ -8,6 +8,7 @@ const SECTION_ICONS = {
   search: Search,
   terms: List,
   confusable: ArrowLeftRight,
+  termMap: Map,
   quotes: Quote,
   ministry: Landmark,
   committees: Users,
