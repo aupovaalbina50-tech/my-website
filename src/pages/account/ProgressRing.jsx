@@ -4,7 +4,6 @@ function ProgressRing({ percent, mastered, total, label, tooltipMastered, toolti
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (Math.min(percent, 100) / 100) * circumference
-  const remaining = Math.max(total - mastered, 0)
 
   return (
     <div className="progress-ring-wrap">

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -19,6 +19,9 @@ import {
   Flame,
   Target,
   BarChart3,
+  Flag,
+  Award,
+  Layers,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -49,7 +52,7 @@ const MATERIAL_LINKS = [
 ]
 
 const GOAL_STEP = 5
-const ACHIEVEMENT_EMOJI = { firstTerm: '🏅', tenTerms: '⭐', streak3: '🔥', categoryDone: '📚' }
+const ACHIEVEMENT_ICON = { firstTerm: Flag, tenTerms: Award, streak3: Flame, categoryDone: Layers }
 
 function StatCard({ to, label, value, error, caption, errorLabel, Icon, accent }) {
   return (
@@ -76,10 +79,15 @@ function AccountHomePage() {
   const navigate = useNavigate()
   const m = t.account.home.mastery
 
+  useEffect(() => {
+    document.body.classList.add('account-light-theme')
+    return () => document.body.classList.remove('account-light-theme')
+  }, [])
+
   const { terms: favoriteTerms, loading: favoritesLoading } = useFavoriteTerms()
   const { terms: recentTerms, loading: recentLoading } = useRecentTerms()
-  const { totalTerms, totalTermsError, historyCount, historyError } = useDashboardStats()
-  const { masteredIds, terms: masteredTerms, loading: masteryLoading } = useMastery()
+  const { totalTerms, historyCount } = useDashboardStats()
+  const { masteredIds, loading: masteryLoading } = useMastery()
   const { rows: categoryRows, loading: categoryRowsLoading } = useAllTermCategories()
   const { activeDays, loading: streakLoading } = useActivityStreak()
 
@@ -169,7 +177,7 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <BarChart3 size={18} aria-hidden="true" />
+          <BarChart3 size={20} aria-hidden="true" />
           {t.account.home.progressTitle}
         </h2>
         <div className="dash-progress-layout">
@@ -184,32 +192,29 @@ function AccountHomePage() {
           />
           <div className="dash-mini-stats">
             <StatCard
-              to="/account/terms"
+              to="/account/my-dictionary"
               label={m.statMastered}
               value={masteryLoading ? null : masteredCount}
               error={false}
-              errorLabel={t.account.home.statError}
               caption={m.ringLabel}
               Icon={BookOpen}
-              accent="navy"
+              accent="blue"
             />
             <StatCard
               to="/account/my-dictionary"
-              label={t.account.home.statFavorites}
+              label={m.statFavorites}
               value={favoritesLoading ? null : favoriteTerms.length}
               error={false}
-              errorLabel={t.account.home.statError}
-              caption={t.account.home.statFavoritesCaption}
+              caption={m.statFavoritesCaption}
               Icon={Star}
               accent="red"
             />
             <StatCard
               to="/account/viewing-history"
-              label={t.account.home.statHistory}
+              label={m.statHistory}
               value={historyCount}
-              error={historyError}
-              errorLabel={t.account.home.statError}
-              caption={t.account.home.statHistoryCaption}
+              error={false}
+              caption={m.statHistoryCaption}
               Icon={Clock}
               accent="yellow"
             />
@@ -218,7 +223,6 @@ function AccountHomePage() {
               label={m.statGoals}
               value={`${unlockedCount}/${achievements.length}`}
               error={false}
-              errorLabel={t.account.home.statError}
               caption={m.achievementsTitle}
               Icon={Target}
               accent="green"
@@ -229,7 +233,15 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <LayoutGrid size={18} aria-hidden="true" />
+          <Search size={20} aria-hidden="true" />
+          {t.account.home.searchTitle}
+        </h2>
+        <DashboardTermSearch termBasePath="/account/terms" />
+      </section>
+
+      <section className="dash-section">
+        <h2 className="dash-section-title">
+          <LayoutGrid size={20} aria-hidden="true" />
           {m.categoryTitle}
         </h2>
         {categoryRowsLoading ? (
@@ -237,7 +249,7 @@ function AccountHomePage() {
         ) : (
           <div className="category-progress-list">
             {categoryProgress.map((c) => (
-              <Link key={c.key} to={`/account/categories`} className="category-progress-row">
+              <Link key={c.key} to="/account/categories" className="category-progress-row">
                 <span className="category-progress-head">
                   <span className="category-progress-label">{c.label}</span>
                   <span className="category-progress-percent">{c.percent}%</span>
@@ -250,11 +262,11 @@ function AccountHomePage() {
                     style={{ width: `${c.percent}%` }}
                   />
                 </div>
-                <span className="category-progress-detail">
+                <p className="category-progress-detail">
                   {c.total > 0
                     ? `${m.categoryDetail(c.mastered, c.total)} · ${m.categoryRemaining(c.total - c.mastered)}`
                     : t.table.emptyNoTerms}
-                </span>
+                </p>
               </Link>
             ))}
           </div>
@@ -263,7 +275,7 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <Target size={18} aria-hidden="true" />
+          <Target size={20} aria-hidden="true" />
           {m.goalTitle}
         </h2>
         <div className="goal-card">
@@ -280,7 +292,7 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <Flame size={18} aria-hidden="true" />
+          <Flame size={20} aria-hidden="true" />
           {m.streakTitle}
         </h2>
         {streakLoading ? (
@@ -309,31 +321,34 @@ function AccountHomePage() {
 
       <section className="dash-section" id="achievements">
         <h2 className="dash-section-title">
-          <Target size={18} aria-hidden="true" />
+          <Award size={20} aria-hidden="true" />
           {m.achievementsTitle}
         </h2>
         <div className="achievements-grid">
-          {achievements.map((a) => (
-            <div
-              key={a.key}
-              className={`achievement-badge${a.unlocked ? ' achievement-badge--unlocked' : ''}`}
-            >
-              <span className="achievement-badge-icon" aria-hidden="true">
-                {ACHIEVEMENT_EMOJI[a.key]}
-              </span>
-              <span>
-                <span className="achievement-badge-title">{m.achievements[a.key].title}</span>
-                <span className="achievement-badge-desc">{m.achievements[a.key].desc}</span>
-              </span>
-            </div>
-          ))}
+          {achievements.map((a) => {
+            const AchievementIcon = ACHIEVEMENT_ICON[a.key]
+            return (
+              <div
+                key={a.key}
+                className={`achievement-badge${a.unlocked ? ' achievement-badge--unlocked' : ''}`}
+              >
+                <span className="achievement-badge-icon" aria-hidden="true">
+                  <AchievementIcon size={19} strokeWidth={1.75} />
+                </span>
+                <span>
+                  <span className="achievement-badge-title">{m.achievements[a.key].title}</span>
+                  <span className="achievement-badge-desc">{m.achievements[a.key].desc}</span>
+                </span>
+              </div>
+            )
+          })}
         </div>
       </section>
 
       {lastViewedTerm && (
         <section className="dash-section">
           <h2 className="dash-section-title">
-            <Eye size={18} aria-hidden="true" />
+            <Eye size={20} aria-hidden="true" />
             {m.continueTitle}
           </h2>
           <div className="continue-learning-card">
@@ -359,15 +374,7 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <Search size={18} aria-hidden="true" />
-          {t.account.home.searchTitle}
-        </h2>
-        <DashboardTermSearch termBasePath="/account/terms" />
-      </section>
-
-      <section className="dash-section">
-        <h2 className="dash-section-title">
-          <Eye size={18} aria-hidden="true" />
+          <Eye size={20} aria-hidden="true" />
           {t.account.home.continueTitle}
         </h2>
         {recentLoading ? (
@@ -383,7 +390,7 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <Star size={18} aria-hidden="true" />
+          <Star size={20} aria-hidden="true" />
           {t.account.home.favoriteTermsTitle}
         </h2>
         {favoritesLoading ? (
@@ -399,13 +406,13 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <Wrench size={18} aria-hidden="true" />
+          <Wrench size={20} aria-hidden="true" />
           {t.account.home.toolsTitle}
         </h2>
         <div className="dash-secondary-grid">
           {TOOL_LINKS.map(({ key, to, Icon }) => (
             <Link key={key} to={to} className="dash-secondary-card">
-              <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
+              <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
               <span>{t.account.sidebar[key]}</span>
             </Link>
           ))}
@@ -414,13 +421,13 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <Library size={18} aria-hidden="true" />
+          <Library size={20} aria-hidden="true" />
           {t.account.home.materialsTitle}
         </h2>
         <div className="dash-secondary-grid">
           {MATERIAL_LINKS.map(({ key, to, Icon }) => (
             <Link key={key} to={to} className="dash-secondary-card">
-              <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
+              <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
               <span>{key === 'quotes' ? t.nav.quotes : t.account.sidebar[key]}</span>
             </Link>
           ))}

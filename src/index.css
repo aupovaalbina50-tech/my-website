@@ -25,6 +25,14 @@
   --canvas-text: #eef4fb;
   --canvas-text-soft: rgba(238, 244, 251, 0.75);
 
+  /* Account dashboard panel tokens — dark by default, overridden light
+     under body.account-light-theme (see below the body{} rule). */
+  --dash-panel-bg: rgba(7, 24, 45, 0.92);
+  --dash-panel-bg-soft: rgba(255, 255, 255, 0.035);
+  --dash-panel-border: rgba(148, 197, 227, 0.16);
+  --dash-shadow: none;
+  --dash-accent-strong: var(--cyan);
+
   /* legacy aliases used across components */
   --text-h: var(--text);
   --bg-soft: #eef2f5;
@@ -51,8 +59,8 @@
   /* IBM Plex Sans is the primary UI face; Noto Sans is the declared fallback —
      between the two, every glyph needed for kk/ru/en (incl. Ә Ғ Қ Ң Ө Ұ Ү Һ І)
      is covered, and the browser falls back per-character automatically. */
-  --sans: 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Manrope', 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Manrope', 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
   /* Typography scale — single source of truth, referenced instead of
@@ -111,15 +119,15 @@ body {
     /* blueprint grid */
     repeating-linear-gradient(
       0deg,
-      rgba(148, 197, 227, 0.036) 0,
-      rgba(148, 197, 227, 0.036) 1px,
+      rgba(148, 197, 227, 0.018) 0,
+      rgba(148, 197, 227, 0.018) 1px,
       transparent 1px,
       transparent 56px
     ),
     repeating-linear-gradient(
       90deg,
-      rgba(148, 197, 227, 0.036) 0,
-      rgba(148, 197, 227, 0.036) 1px,
+      rgba(148, 197, 227, 0.018) 0,
+      rgba(148, 197, 227, 0.018) 1px,
       transparent 1px,
       transparent 56px
     ),
@@ -128,6 +136,101 @@ body {
     /* base gradient */
       linear-gradient(160deg, var(--canvas-1) 0%, var(--canvas-2) 52%, var(--canvas-3) 100%);
   background-attachment: fixed;
+}
+
+/* Personal-cabinet home page ("Главное") opts into a bright, light theme —
+   toggled on <body> only while AccountHomePage is mounted (see its
+   useEffect). The rest of the site keeps the dark command-center canvas. */
+body.account-light-theme {
+  --canvas-1: #eaf2fc;
+  --canvas-2: #f5f9ff;
+  --canvas-3: #ffffff;
+  --canvas-text: #16324f;
+  --canvas-text-soft: #5b7a9a;
+  --cyan: #1b63b8;
+
+  --dash-panel-bg: #ffffff;
+  --dash-panel-bg-soft: #f5f9ff;
+  --dash-panel-border: #dce8f7;
+  --dash-shadow: 0 1px 2px rgba(27, 79, 140, 0.05), 0 10px 26px rgba(27, 79, 140, 0.09);
+  --dash-accent-strong: var(--navy);
+
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(27, 79, 140, 0.035) 0,
+      rgba(27, 79, 140, 0.035) 1px,
+      transparent 1px,
+      transparent 56px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(27, 79, 140, 0.035) 0,
+      rgba(27, 79, 140, 0.035) 1px,
+      transparent 1px,
+      transparent 56px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(126, 184, 255, 0.16) 0%, transparent 60%),
+    linear-gradient(160deg, var(--canvas-1) 0%, var(--canvas-2) 55%, var(--canvas-3) 100%);
+}
+
+body.account-light-theme .bg-kz-outline {
+  stroke: var(--navy);
+  opacity: 0.16;
+  filter: none;
+}
+
+body.account-light-theme .bg-kz-provinces path {
+  stroke: var(--navy);
+  opacity: 0.07;
+}
+
+body.account-light-theme .bg-kz-edge {
+  stroke: var(--navy-2);
+  opacity: 0.14;
+}
+
+body.account-light-theme .bg-kz-edge-pulse {
+  stroke: var(--navy);
+  opacity: 0.4;
+}
+
+body.account-light-theme .bg-kz-node {
+  fill: var(--navy-2);
+  opacity: 0.4;
+  filter: drop-shadow(0 0 2px rgba(27, 79, 140, 0.3));
+}
+
+body.account-light-theme .bg-kz-node-capital {
+  fill: var(--red);
+  filter: drop-shadow(0 0 3px rgba(200, 31, 46, 0.4));
+}
+
+body.account-light-theme .bg-kz-glow {
+  background: radial-gradient(ellipse at 50% 50%, rgba(27, 79, 140, 0.06), transparent 72%);
+}
+
+body.account-light-theme .bg-network-edge {
+  stroke: var(--navy);
+  opacity: 0.05;
+}
+
+body.account-light-theme .bg-network-node {
+  fill: var(--navy);
+  opacity: 0.12;
+}
+
+body.account-light-theme .bg-dash-line-h {
+  background: linear-gradient(90deg, transparent, rgba(200, 31, 46, 0.16), transparent);
+}
+
+body.account-light-theme .bg-dash-line-v {
+  background: linear-gradient(180deg, transparent, rgba(200, 31, 46, 0.12), transparent);
+}
+
+body.account-light-theme .bg-side {
+  color: var(--navy);
+  opacity: 0.05;
 }
 
 #root {

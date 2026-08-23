@@ -16,16 +16,11 @@ const EDGES = [
 const PULSE_NODES = new Set([2, 5, 9, 12, 16])
 
 const PARTICLES = [
-  { top: '12%', left: '18%', size: 3, delay: '0s', duration: '16s' },
-  { top: '22%', left: '68%', size: 2, delay: '2s', duration: '20s' },
-  { top: '38%', left: '42%', size: 2.5, delay: '4s', duration: '18s' },
+  { top: '12%', left: '18%', size: 2.5, delay: '0s', duration: '16s' },
   { top: '55%', left: '12%', size: 2, delay: '1s', duration: '22s' },
-  { top: '64%', left: '80%', size: 3, delay: '6s', duration: '17s' },
-  { top: '74%', left: '30%', size: 2, delay: '3s', duration: '19s' },
-  { top: '18%', left: '88%', size: 2.5, delay: '5s', duration: '21s' },
+  { top: '64%', left: '80%', size: 2.5, delay: '6s', duration: '17s' },
   { top: '85%', left: '58%', size: 2, delay: '2.5s', duration: '18s' },
-  { top: '46%', left: '92%', size: 2, delay: '7s', duration: '20s' },
-  { top: '8%', left: '46%', size: 2.5, delay: '1.5s', duration: '19s' },
+  { top: '18%', left: '88%', size: 2, delay: '5s', duration: '21s' },
 ]
 
 /* High-detail outline of Kazakhstan's national border (369 vertices),
