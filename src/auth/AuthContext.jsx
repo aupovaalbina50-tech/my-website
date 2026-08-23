@@ -24,6 +24,18 @@ function classifySignInError(error) {
   return 'generic'
 }
 
+function classifySignUpError(error) {
+  const message = (error.message || '').toLowerCase()
+  if (error.status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
+    return 'rate_limited'
+  }
+  if (message.includes('already registered') || message.includes('already been registered')) {
+    return 'email_taken'
+  }
+  if (message.includes('password')) return 'weak_password'
+  return 'generic'
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -34,7 +46,8 @@ export function AuthProvider({ children }) {
       setProfile(null)
       return
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    if (error) console.error('Failed to load profile', error)
     setProfile(data ?? null)
   }, [])
 
@@ -73,11 +86,12 @@ export function AuthProvider({ children }) {
       return { error: { code: classifySignInError(error), message: error.message } }
     }
 
-    const { data: profileRow } = await supabase
+    const { data: profileRow, error: profileError } = await supabase
       .from('profiles')
       .select('first_name, account_status')
       .eq('id', data.user.id)
       .maybeSingle()
+    if (profileError) console.error('Failed to load profile after sign-in', profileError)
 
     if (profileRow?.account_status === 'suspended') {
       await supabase.auth.signOut()
@@ -108,7 +122,7 @@ export function AuthProvider({ children }) {
         },
       })
       if (error) {
-        return { error: { code: error.code || error.message, message: error.message } }
+        return { error: { code: classifySignUpError(error), message: error.message } }
       }
       return { data }
     },

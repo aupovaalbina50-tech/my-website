@@ -30,8 +30,9 @@ function TermDetailContent() {
       .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
       .eq('id', id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
+        if (error) console.error('Failed to load term', error)
         setTerm(data)
         setLoading(false)
       })
@@ -49,6 +50,9 @@ function TermDetailContent() {
         { user_id: user.id, term_id: term.id, viewed_at: new Date().toISOString() },
         { onConflict: 'user_id,term_id' },
       )
+      .then(({ error }) => {
+        if (error) console.error('Failed to record term view', error)
+      })
   }, [user, term])
 
   const categoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.[lang] || key

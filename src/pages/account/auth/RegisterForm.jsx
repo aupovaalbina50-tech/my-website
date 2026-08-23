@@ -119,7 +119,12 @@ function RegisterForm() {
     setSubmitting(false)
 
     if (error) {
-      setFormError(t.auth.errors.genericSignUp)
+      const messages = {
+        rate_limited: t.auth.errors.rateLimitedSignUp,
+        email_taken: t.auth.signUp.emailTaken,
+        weak_password: t.auth.errors.passwordRequirements,
+      }
+      setFormError(messages[error.code] || t.auth.errors.genericSignUp)
       return
     }
 

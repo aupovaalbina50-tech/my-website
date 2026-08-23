@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. Set them in the deployment environment (e.g. Vercel Project Settings -> Environment Variables) and redeploy.',
+  )
+}
+
 export const REMEMBER_ME_KEY = 'cd_remember_me'
 
 function resolveAuthStorage() {
