@@ -39,7 +39,6 @@ function Header() {
       </div>
 
       <header className="letterhead" ref={letterheadRef}>
-        <div className="letterhead-scanline" aria-hidden="true"></div>
         <div className="letterhead-inner">
           <div className="hero-emblems-row">
             <picture>

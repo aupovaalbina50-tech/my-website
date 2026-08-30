@@ -200,41 +200,6 @@
   background: linear-gradient(90deg, var(--red) 0%, var(--red) 64px, transparent 64px);
 }
 
-.letterhead-scanline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -60px;
-  height: 60px;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, rgba(200, 31, 46, 0.4) 48%, transparent 100%);
-  filter: blur(1px);
-  opacity: 0;
-  animation: letterhead-scan 11s linear infinite;
-  animation-delay: 1.4s;
-}
-
-@keyframes letterhead-scan {
-  0% {
-    top: -60px;
-    opacity: 0;
-  }
-  6% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.3;
-  }
-  92% {
-    opacity: 0.6;
-  }
-  100% {
-    top: 100%;
-    opacity: 0;
-  }
-}
-
 .letterhead-inner {
   position: relative;
   z-index: 2;
