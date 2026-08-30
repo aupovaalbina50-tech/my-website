@@ -317,18 +317,18 @@
 
 .emblem {
   flex-shrink: 0;
-  width: 108px;
-  height: 108px;
+  width: 168px;
+  height: 168px;
   object-fit: contain;
-  filter: drop-shadow(0 0 16px rgba(110, 180, 255, 0.4)) drop-shadow(0 6px 18px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 0 20px rgba(110, 180, 255, 0.45)) drop-shadow(0 8px 22px rgba(0, 0, 0, 0.35));
 
   @media (max-width: 760px) {
-    width: 84px;
-    height: 84px;
+    width: 120px;
+    height: 120px;
   }
   @media (max-width: 480px) {
-    width: 64px;
-    height: 64px;
+    width: 84px;
+    height: 84px;
   }
 }
 
