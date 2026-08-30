@@ -4343,7 +4343,7 @@
   font-weight: 800;
   letter-spacing: -0.01em;
   text-transform: uppercase;
-  color: var(--navy);
+  color: #fff;
 
   @media (max-width: 640px) {
     font-size: 23px;
@@ -4353,7 +4353,7 @@
 .mission-list-subtitle {
   margin: 0;
   font-size: 15px;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .mission-list-progress-badge {
@@ -4662,7 +4662,7 @@
   font: inherit;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   transition: color 0.18s ease;
 
@@ -4670,7 +4670,7 @@
     color: var(--red);
   }
   &:focus-visible {
-    outline: 2px solid var(--navy);
+    outline: 2px solid #fff;
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -4718,7 +4718,7 @@
   max-width: 560px;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .mission-brief-status {
@@ -4735,7 +4735,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .mission-brief-status-badge {
@@ -5057,7 +5057,7 @@
 .mission-study-mission-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--navy);
+  color: #fff;
 }
 
 .mission-progress-block {
@@ -5079,7 +5079,7 @@
   font-size: 34px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: var(--navy);
+  color: #fff;
 
   @media (max-width: 480px) {
     font-size: 26px;
