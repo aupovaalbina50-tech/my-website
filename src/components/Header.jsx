@@ -5,7 +5,7 @@ import LanguageSwitcher from './LanguageSwitcher.jsx'
 import CivilDefenseMapGraphic from './CivilDefenseMapGraphic.jsx'
 
 function Header() {
-  const { t, lang } = useLanguage()
+  const { t } = useLanguage()
   const { pathname } = useLocation()
   const isAccountArea = pathname.startsWith('/account')
   const hero = t.header.hero
@@ -64,9 +64,6 @@ function Header() {
           </div>
 
           <div className="hero-grid hero-grid-map">
-            <div className="hero-visual">
-              <CivilDefenseMapGraphic lang={lang} centerLabel={hero.mapCenterLabel} />
-            </div>
             <div className="hero-copy">
               <p className="hero-label">
                 <span className="hero-label-mark" aria-hidden="true"></span>
@@ -82,6 +79,9 @@ function Header() {
                 <span>{hero.cta}</span>
                 <ArrowRight size={16} className="hero-cta-arrow" aria-hidden="true" />
               </Link>
+            </div>
+            <div className="hero-visual">
+              <CivilDefenseMapGraphic centerLabel={hero.mapCenterLabel} />
             </div>
           </div>
         </div>

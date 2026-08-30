@@ -1,6 +1,3 @@
-import { Flame, LifeBuoy, Radio, Hospital, AlertTriangle, ShieldCheck } from 'lucide-react'
-import { CATEGORIES } from '../i18n/translations'
-
 // Kazakhstan's real border, simplified from public boundary data
 // (johan/world.geo.json) and projected with an equirectangular
 // (cos-latitude-corrected) projection into a 0-200 x 0-100 box.
@@ -22,24 +19,7 @@ const MAP_OUTLINE =
 // Lake Balkhash, roughly where it sits inside the real outline above.
 const LAKE_PATH = 'M126.9,58.1 Q137.7,54 151.0,62.4 Q137.7,68 126.9,58.1 Z'
 
-// Five hazard nodes placed on real cities around the capital (Astana),
-// each carrying one civil-defense domain from the site's own category list.
-const HAZARD_NODES = [
-  { city: 'Almaty', x: 66.7, y: 73.4, key: 'emergencies', Icon: AlertTriangle },
-  { city: 'Atyrau', x: 17, y: 58, key: 'fire_safety', Icon: Flame },
-  { city: 'Aktobe', x: 24, y: 30, key: 'rescue_ops', Icon: LifeBuoy },
-  { city: 'Oskemen', x: 76.1, y: 40.6, key: 'disaster_medicine', Icon: Hospital },
-  { city: 'Kostanay', x: 50, y: 15, key: 'alerting_comms', Icon: Radio },
-]
-
-const CENTER = { x: 57.5, y: 34.6 }
-
-function CivilDefenseMapGraphic({ lang, centerLabel }) {
-  const nodes = HAZARD_NODES.map((n, i) => {
-    const category = CATEGORIES.find((c) => c.key === n.key)
-    return { ...n, label: category?.[lang] || n.key, delay: i }
-  })
-
+function CivilDefenseMapGraphic({ centerLabel }) {
   return (
     <div className="kzmap" role="img" aria-label={centerLabel}>
       <p className="kzmap-tag kzmap-tag-top">CIVIL PROTECTION</p>
@@ -49,38 +29,6 @@ function CivilDefenseMapGraphic({ lang, centerLabel }) {
         <path d={LAKE_PATH} className="kzmap-lake" />
         <path d={MAP_OUTLINE} className="kzmap-outline-stroke" />
       </svg>
-
-      <svg className="kzmap-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        {nodes.map((n, i) => (
-          <g key={n.city} style={{ '--line-delay': `${0.55 + i * 0.12}s`, '--pulse-delay': `${i * 1.6}s` }}>
-            <line x1={CENTER.x} y1={CENTER.y} x2={n.x} y2={n.y} className="kzmap-line" />
-            <line x1={CENTER.x} y1={CENTER.y} x2={n.x} y2={n.y} className="kzmap-line-pulse" />
-          </g>
-        ))}
-      </svg>
-
-      <div className="kzmap-node kzmap-node-center" style={{ left: `${CENTER.x}%`, top: `${CENTER.y}%` }}>
-        <span className="kzmap-node-inner">
-          <span className="kzmap-badge kzmap-badge-center" aria-hidden="true">
-            <ShieldCheck size={20} strokeWidth={2} aria-hidden="true" />
-          </span>
-        </span>
-      </div>
-
-      {nodes.map((n, i) => (
-        <div
-          key={n.city}
-          className="kzmap-node"
-          style={{ left: `${n.x}%`, top: `${n.y}%`, '--node-delay': `${0.85 + i * 0.1}s` }}
-        >
-          <span className="kzmap-node-inner">
-            <span className="kzmap-badge" aria-hidden="true">
-              <n.Icon size={15} strokeWidth={2} aria-hidden="true" />
-            </span>
-            <span className="kzmap-node-label">{n.label}</span>
-          </span>
-        </div>
-      ))}
 
       <p className="kzmap-tag kzmap-tag-online">
         <span className="kzmap-tag-dot" aria-hidden="true" />
