@@ -2726,6 +2726,13 @@
   border-bottom: 1px solid var(--border);
 }
 
+.term-map-panel-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
 .term-map-panel-title {
   margin: 0;
   font-size: 20px;
@@ -2765,35 +2772,8 @@
   padding: 18px 20px 28px;
 }
 
-.term-map-panel-langs {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.term-map-panel-lang-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14.5px;
-}
-
-.term-map-panel-lang-flag {
-  flex-shrink: 0;
-  font-size: 16px;
-}
-
-.term-map-panel-lang-name {
-  flex-shrink: 0;
-  min-width: 84px;
-  font-weight: 600;
-  color: var(--text-soft);
-}
-
-.term-map-panel-lang-value {
-  flex: 1;
-  min-width: 0;
-  color: var(--text);
+.term-map-panel-translations {
+  padding-bottom: 16px;
 }
 
 .term-map-panel-section {
@@ -8594,7 +8574,7 @@
 }
 
 .route-fade {
-  animation: route-fade-in 260ms ease both;
+  animation: route-fade-in 260ms ease;
 }
 
 @keyframes route-fade-in {
