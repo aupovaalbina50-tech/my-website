@@ -302,7 +302,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
 }
 
 .brand-emblems::before {
@@ -317,14 +317,18 @@
 
 .emblem {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 108px;
+  height: 108px;
   object-fit: contain;
-  filter: drop-shadow(0 0 14px rgba(110, 180, 255, 0.4)) drop-shadow(0 6px 16px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 0 16px rgba(110, 180, 255, 0.4)) drop-shadow(0 6px 18px rgba(0, 0, 0, 0.3));
 
+  @media (max-width: 760px) {
+    width: 84px;
+    height: 84px;
+  }
   @media (max-width: 480px) {
-    width: 52px;
-    height: 52px;
+    width: 64px;
+    height: 64px;
   }
 }
 
@@ -334,19 +338,22 @@
 
 .brand-org-line {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 16.5px;
   font-weight: 600;
   line-height: 1.45;
   letter-spacing: 0.01em;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.72);
 
-  @media (max-width: 640px) {
-    font-size: 11.5px;
+  @media (max-width: 760px) {
+    font-size: 14px;
+  }
+  @media (max-width: 480px) {
+    font-size: 12.5px;
   }
 }
 
 .brand-org-line-sub {
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.5);
   font-weight: 500;
 }
 
