@@ -6,7 +6,7 @@ import AIAssistant from './components/ai-assistant/AIAssistant.jsx'
 import './App.css'
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'))
-const TermsNetworkPage = lazy(() => import('./pages/TermsNetworkPage.jsx'))
+const TermsCategoriesPage = lazy(() => import('./pages/TermsCategoriesPage.jsx'))
 const TermsListPage = lazy(() => import('./pages/TermsListPage.jsx'))
 const TermDetailPage = lazy(() => import('./pages/TermDetailPage.jsx'))
 const ConfusableTermsPage = lazy(() => import('./pages/ConfusableTermsPage.jsx'))
@@ -49,7 +49,7 @@ function App() {
           <div className="route-fade" key={location.pathname}>
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/terms" element={<TermsNetworkPage />} />
+              <Route path="/terms" element={<TermsCategoriesPage />} />
               <Route path="/terms/:id" element={<TermDetailPage />} />
               <Route path="/category/:key" element={<TermsListPage />} />
               <Route path="/not-to-confuse" element={<ConfusableTermsPage />} />
