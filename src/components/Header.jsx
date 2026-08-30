@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, ArrowRight, ChevronDown } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
@@ -9,6 +10,14 @@ function Header() {
   const { pathname } = useLocation()
   const isAccountArea = pathname.startsWith('/account')
   const hero = t.header.hero
+  const letterheadRef = useRef(null)
+
+  const scrollPastHero = () => {
+    const el = letterheadRef.current
+    if (!el) return
+    const bottom = el.getBoundingClientRect().bottom + window.scrollY
+    window.scrollTo({ top: bottom, behavior: 'smooth' })
+  }
 
   return (
     <>
@@ -29,7 +38,7 @@ function Header() {
         </div>
       </div>
 
-      <header className="letterhead">
+      <header className="letterhead" ref={letterheadRef}>
         <div className="letterhead-scanline" aria-hidden="true"></div>
         <div className="letterhead-inner">
           <div className="hero-emblems-row">
@@ -80,7 +89,14 @@ function Header() {
             </div>
           </div>
 
-          <ChevronDown className="hero-scroll-hint" aria-hidden="true" />
+          <button
+            type="button"
+            className="hero-scroll-hint"
+            onClick={scrollPastHero}
+            aria-label={hero.scrollHintLabel}
+          >
+            <ChevronDown aria-hidden="true" />
+          </button>
 
           <div className="hero-official-footer">
             <p className="hero-official-line">{t.header.eyebrow}</p>
