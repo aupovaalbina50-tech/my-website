@@ -2,10 +2,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { Home, ArrowRight } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import LanguageSwitcher from './LanguageSwitcher.jsx'
-import TermNetworkGraphic from './TermNetworkGraphic.jsx'
+import CivilDefenseMapGraphic from './CivilDefenseMapGraphic.jsx'
 
 function Header() {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const { pathname } = useLocation()
   const isAccountArea = pathname.startsWith('/account')
   const hero = t.header.hero
@@ -63,27 +63,25 @@ function Header() {
             </div>
           </div>
 
-          <div className="hero-grid">
+          <div className="hero-grid hero-grid-map">
+            <div className="hero-visual">
+              <CivilDefenseMapGraphic lang={lang} centerLabel={hero.mapCenterLabel} />
+            </div>
             <div className="hero-copy">
               <p className="hero-label">
                 <span className="hero-label-mark" aria-hidden="true"></span>
                 {hero.label}
               </p>
-              <h1 className="hero-title">
-                {hero.titleLine1}
-                <span className="hero-title-line2">
-                  {hero.titleLine2Prefix}
-                  <span className="hero-title-accent">{hero.titleLine2Accent}</span>
-                </span>
+              <h1 className="hero-title hero-title-stacked">
+                <span className="hero-title-lead">{hero.titleLine1}</span>
+                <span className="hero-title-sub">{hero.titleLine2}</span>
+                <span className="hero-title-sub">{hero.titleLine3}</span>
               </h1>
               <p className="hero-desc">{hero.lead}</p>
               <Link to="/terms" className="hero-cta">
                 <span>{hero.cta}</span>
                 <ArrowRight size={16} className="hero-cta-arrow" aria-hidden="true" />
               </Link>
-            </div>
-            <div className="hero-visual">
-              <TermNetworkGraphic labels={hero.network} />
             </div>
           </div>
         </div>
