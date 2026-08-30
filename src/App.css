@@ -8177,9 +8177,9 @@
 
 .tnm-view-switch {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(10, 40, 75, 0.4);
 }
@@ -8187,13 +8187,13 @@
 .tnm-view-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 12px 22px;
   border: none;
-  border-radius: 9px;
+  border-radius: 10px;
   background: transparent;
   color: rgba(238, 244, 251, 0.65);
   cursor: pointer;
@@ -8206,6 +8206,23 @@
     background: rgba(126, 184, 255, 0.18);
     color: #fff;
     box-shadow: 0 0 0 1px rgba(126, 184, 255, 0.3);
+  }
+}
+
+@media (max-width: 480px) {
+  .tnm-view-switch {
+    gap: 4px;
+    padding: 4px;
+  }
+  .tnm-view-btn {
+    gap: 5px;
+    font-size: 13px;
+    padding: 9px 10px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 }
 
