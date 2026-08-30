@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home } from 'lucide-react'
+import { Home, ArrowRight } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import LanguageSwitcher from './LanguageSwitcher.jsx'
+import TermNetworkGraphic from './TermNetworkGraphic.jsx'
 
 function Header() {
   const { t } = useLanguage()
   const { pathname } = useLocation()
   const isAccountArea = pathname.startsWith('/account')
+  const hero = t.header.hero
 
   return (
     <>
@@ -28,39 +30,61 @@ function Header() {
       </div>
 
       <header className="letterhead">
+        <div className="letterhead-scanline" aria-hidden="true"></div>
         <div className="letterhead-inner">
-          <div className="brand-emblems">
-            <picture>
-              <source srcSet="/emblems/academy.webp" type="image/webp" />
-              <img
-                src="/emblems/academy.png"
-                alt={t.header.academyAlt}
-                className="emblem"
-                width="240"
-                height="240"
-                decoding="async"
-              />
-            </picture>
-            <picture>
-              <source srcSet="/emblems/ministry.webp" type="image/webp" />
-              <img
-                src="/emblems/ministry.png"
-                alt={t.header.ministryAlt}
-                className="emblem"
-                width="240"
-                height="240"
-                decoding="async"
-              />
-            </picture>
+          <div className="letterhead-brandrow">
+            <div className="brand-emblems">
+              <picture>
+                <source srcSet="/emblems/academy.webp" type="image/webp" />
+                <img
+                  src="/emblems/academy.png"
+                  alt={t.header.academyAlt}
+                  className="emblem"
+                  width="240"
+                  height="240"
+                  decoding="async"
+                />
+              </picture>
+              <picture>
+                <source srcSet="/emblems/ministry.webp" type="image/webp" />
+                <img
+                  src="/emblems/ministry.png"
+                  alt={t.header.ministryAlt}
+                  className="emblem"
+                  width="240"
+                  height="240"
+                  decoding="async"
+                />
+              </picture>
+            </div>
+            <div className="brand-org-text">
+              <p className="brand-org-line">{t.header.eyebrow}</p>
+              <p className="brand-org-line brand-org-line-sub">{t.header.subtitle}</p>
+            </div>
           </div>
-          <div className="brand-rule" aria-hidden="true"></div>
-          <div className="letterhead-text">
-            <p className="site-eyebrow">
-              <span className="eyebrow-mark" aria-hidden="true"></span>
-              {t.header.eyebrow}
-            </p>
-            <h1>{t.header.title}</h1>
-            <p className="site-subtitle">{t.header.subtitle}</p>
+
+          <div className="hero-grid">
+            <div className="hero-copy">
+              <p className="hero-label">
+                <span className="hero-label-mark" aria-hidden="true"></span>
+                {hero.label}
+              </p>
+              <h1 className="hero-title">
+                {hero.titleLine1}
+                <span className="hero-title-line2">
+                  {hero.titleLine2Prefix}
+                  <span className="hero-title-accent">{hero.titleLine2Accent}</span>
+                </span>
+              </h1>
+              <p className="hero-desc">{hero.lead}</p>
+              <Link to="/terms" className="hero-cta">
+                <span>{hero.cta}</span>
+                <ArrowRight size={16} className="hero-cta-arrow" aria-hidden="true" />
+              </Link>
+            </div>
+            <div className="hero-visual">
+              <TermNetworkGraphic labels={hero.network} />
+            </div>
           </div>
         </div>
       </header>
