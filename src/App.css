@@ -3918,9 +3918,11 @@
 .mission-cta {
   align-self: center;
   min-width: 340px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  text-align: center;
 }
 
 @media (max-width: 480px) {
@@ -5319,7 +5321,7 @@
 
 .mission-complete-title {
   margin: 0 0 var(--space-2);
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
   text-transform: uppercase;
   color: var(--navy);
@@ -5327,9 +5329,9 @@
 
 .mission-complete-text {
   margin: 0 0 var(--space-4);
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-soft);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--text);
 }
 
 /* ---- Missions — Step 2: quiz screen ---- */
