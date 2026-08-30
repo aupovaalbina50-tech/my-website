@@ -97,6 +97,7 @@ function TermMapPage() {
   const [exploreExpanded, setExploreExpanded] = useState(false)
   const [pinnedTermId, setPinnedTermId] = useState(null)
   const [mapOffset, setMapOffset] = useState(0)
+  const viewedIdsRef = useRef(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [pendingResult, setPendingResult] = useState(null) // { kind: 'hazard'|'group', term, hazardId, groupLabel? }
@@ -273,6 +274,7 @@ function TermMapPage() {
     setShowConnections(false)
     setPinnedTermId(null)
     setMapOffset(0)
+    viewedIdsRef.current = new Set()
   }
 
   function selectFilter(groupId) {
@@ -281,6 +283,7 @@ function TermMapPage() {
     setSelectedTermId(null)
     setShowConnections(false)
     setMapOffset(0)
+    viewedIdsRef.current = new Set()
   }
 
   function backToOverview() {
@@ -292,6 +295,7 @@ function TermMapPage() {
     setShowConnections(false)
     setPinnedTermId(null)
     setMapOffset(0)
+    viewedIdsRef.current = new Set()
   }
 
   // Cycles the map ring to the next batch of MAX_MAP_TERMS terms from the
@@ -325,6 +329,7 @@ function TermMapPage() {
     setExploreExpanded(false)
     setPinnedTermId(term.id)
     setMapOffset(0)
+    viewedIdsRef.current = new Set()
     setSearchQuery('')
     setSearchFocused(false)
     setPendingResult(null)
@@ -345,6 +350,7 @@ function TermMapPage() {
     setPinnedTermId(term.id)
     setExploreExpanded(false)
     setMapOffset(0)
+    viewedIdsRef.current = new Set()
   }
 
   function toggleConnections() {
@@ -412,6 +418,14 @@ function TermMapPage() {
     }
     return withPinned(windowed, listItems, pinnedTermId)
   }, [listItems, mapOffset, pinnedTermId])
+
+  // Running count of distinct terms the "Other terms" button has cycled
+  // through for this hazard/group, so the hint can say "studied 20 of 234"
+  // instead of resetting to "10" on every batch. Mutating the ref here
+  // (rather than an effect) keeps it in sync with the very render that
+  // shows the new batch, no one-tick lag.
+  activeTermItems.forEach((term) => viewedIdsRef.current.add(term.id))
+  const viewedCount = viewedIdsRef.current.size
 
   let ringNodes
   if (!selectedHazard) ringNodes = EMERGENCY_HAZARDS
@@ -882,7 +896,7 @@ function TermMapPage() {
 
           {!showConnectionsView && hazardTermsReady && viewDisplay === 'map' && activeTermItems.length > 0 && (
             <div className="term-map-more">
-              <p className="term-map-hint">{t.termMap.shownCount(activeTermItems.length, activeTermTotal)}</p>
+              <p className="term-map-hint">{t.termMap.viewedCount(viewedCount, activeTermTotal)}</p>
               {activeTermTotal > MAX_MAP_TERMS && (
                 <button type="button" className="term-map-more-btn" onClick={showOtherMapTerms}>
                   {t.termMap.otherTerms}
