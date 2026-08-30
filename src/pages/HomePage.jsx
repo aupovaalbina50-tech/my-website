@@ -1,22 +1,9 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  ArrowRight,
-  Search,
-  BookOpen,
-  Bookmark,
-  Flame,
-  GraduationCap,
-  Languages,
-  Presentation,
-  HandHeart,
-  Globe,
-} from 'lucide-react'
+import { Search, BookOpen, Bookmark, Flame, GraduationCap, Languages, Presentation, HandHeart, Globe } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
-import { CATEGORIES } from '../i18n/translations'
 import { SECTION_IDS } from '../constants/navigation.js'
-import { categoryLucideIcon } from '../constants/categoryIcons.js'
 import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
@@ -51,38 +38,6 @@ function HighlightedText({ text, query }) {
   parts.push(text.slice(lastIndex))
   return parts
 }
-
-const CategoryGrid = memo(function CategoryGrid({ t, lang, counts, countsReady, onSelect }) {
-  return (
-    <section className="category-section">
-      <h2 className="category-section-title">{t.categorySection.title}</h2>
-      <div className="category-grid">
-        {CATEGORIES.map((cat, index) => {
-          const Icon = categoryLucideIcon(cat.key)
-          const count = counts[cat.key] || 0
-          return (
-            <button
-              key={cat.key}
-              type="button"
-              className="category-card"
-              onClick={() => onSelect(cat.key)}
-            >
-              <span className="category-card-top">
-                <Icon className="category-card-icon" strokeWidth={1.75} aria-hidden="true" />
-                <span className="category-card-number">{String(index + 1).padStart(2, '0')}</span>
-              </span>
-              <span className="category-card-name">{cat[lang]}</span>
-              <span className="category-card-bottom">
-                {countsReady && <span className="category-card-count">{t.categorySection.count(count)}</span>}
-                <ArrowRight className="category-card-arrow" strokeWidth={2} aria-hidden="true" />
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </section>
-  )
-})
 
 const STEP_ICONS = [Search, BookOpen, Bookmark]
 
@@ -218,10 +173,6 @@ function HomePage() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  const handleCategoryCardClick = (key) => {
-    navigate(`/category/${key}`)
-  }
-
   const handleHeroSearchAction = () => {
     searchInputRef.current?.focus()
   }
@@ -248,14 +199,6 @@ function HomePage() {
       a.en.localeCompare(b.en, 'en'),
     )
   }, [terms, deferredSearch, lang])
-
-  const categoryCounts = useMemo(() => {
-    const counts = {}
-    terms.forEach((term) => {
-      if (term.category) counts[term.category] = (counts[term.category] || 0) + 1
-    })
-    return counts
-  }, [terms])
 
   const searchSuggestions = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -376,14 +319,6 @@ function HomePage() {
             <span className="hero-coords">KZ · 48°N 68°E</span>
           </div>
         </div>
-
-        <CategoryGrid
-          t={t}
-          lang={lang}
-          counts={categoryCounts}
-          countsReady={terms.length > 0}
-          onSelect={handleCategoryCardClick}
-        />
       </section>
 
       <StepsSection t={t} />
