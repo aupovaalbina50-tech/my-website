@@ -82,6 +82,7 @@ export const translations = {
       notFoundCategory: 'Санат табылмады.',
       empty: 'Бұл санатта әлі термин жоқ.',
       emptyViewed: 'Сіз әлі ешбір терминді қарамадыңыз.',
+      langSwitchAria: 'Тілді таңдау',
     },
     termsMap: {
       searchPlaceholder: 'Терминді немесе санатты іздеу...',
@@ -874,6 +875,7 @@ export const translations = {
       notFoundCategory: 'Категория не найдена.',
       empty: 'В этой категории пока нет терминов.',
       emptyViewed: 'Вы ещё не просматривали термины.',
+      langSwitchAria: 'Выбор языка',
     },
     termsMap: {
       searchPlaceholder: 'Поиск термина или категории...',
