@@ -39,7 +39,7 @@ function TermsCategoriesPage() {
                 className={`tnm-view-btn${view === 'categories' ? ' active' : ''}`}
                 onClick={() => setView('categories')}
               >
-                <LayoutGrid size={16} aria-hidden="true" />
+                <LayoutGrid size={19} aria-hidden="true" />
                 {t.termsMap.viewCategories}
               </button>
               <button
@@ -49,7 +49,7 @@ function TermsCategoriesPage() {
                 className={`tnm-view-btn${view === 'alphabet' ? ' active' : ''}`}
                 onClick={() => setView('alphabet')}
               >
-                <ALargeSmall size={16} aria-hidden="true" />
+                <ALargeSmall size={19} aria-hidden="true" />
                 {t.termsMap.viewAlphabet}
               </button>
               <button
@@ -59,7 +59,7 @@ function TermsCategoriesPage() {
                 className={`tnm-view-btn${view === 'list' ? ' active' : ''}`}
                 onClick={() => setView('list')}
               >
-                <List size={16} aria-hidden="true" />
+                <List size={19} aria-hidden="true" />
                 {t.termsMap.viewList}
               </button>
             </div>
