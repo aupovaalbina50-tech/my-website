@@ -9,9 +9,7 @@ import { categoryLucideIcon } from '../../constants/categoryIcons.js'
 import { CopyButton } from '../../components/CopyButton.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 import { useFavoriteTerms } from '../account/useFavoriteTerms.js'
-
-const LANG_TAG = { kk: 'KZ', ru: 'RU', en: 'EN' }
-const LANG_ORDER = ['kk', 'ru', 'en']
+import { LANG_TAG, LANG_ORDER } from '../../constants/langTags.js'
 
 function AllTermsContent({
   categoryKey = null,

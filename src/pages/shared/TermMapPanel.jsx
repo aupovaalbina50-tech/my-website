@@ -1,13 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ArrowRight } from 'lucide-react'
 import { CATEGORIES } from '../../i18n/translations'
+import { categoryLucideIcon } from '../../constants/categoryIcons.js'
+import { LANG_TAG, LANG_ORDER } from '../../constants/langTags.js'
 import { toSentenceCase } from '../../utils/textCase.js'
-
-const LANG_ROWS = [
-  { key: 'kk', flag: '🇰🇿' },
-  { key: 'ru', flag: '🇷🇺' },
-  { key: 'en', flag: '🇬🇧' },
-]
 
 function TermMapPanel({
   term,
@@ -25,17 +22,31 @@ function TermMapPanel({
   showConnections = false,
   onToggleConnections,
 }) {
-  const categoryLabel = term.category
-    ? CATEGORIES.find((c) => c.key === term.category)?.[lang] || term.category
-    : null
+  const [activeLang, setActiveLang] = useState('kk')
+  const category = term.category ? CATEGORIES.find((c) => c.key === term.category) : null
+  const categoryLabel = category?.[lang] || term.category || null
+  const CategoryIcon = term.category ? categoryLucideIcon(term.category) : null
   const title = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
+  const translationRows = LANG_ORDER.filter((code) => term[code]).map((code) => ({
+    code,
+    label: t.langNames[code],
+    value: toSentenceCase(term[code]),
+  }))
 
   return (
     <>
       <div className="term-map-panel-backdrop" onClick={onClose} />
       <aside className="term-map-panel" role="dialog" aria-label={title}>
         <div className="term-map-panel-header">
-          <h2 className="term-map-panel-title">{title}</h2>
+          <div className="term-map-panel-header-text">
+            {category && CategoryIcon && (
+              <span className="term-entry-category">
+                <CategoryIcon size={13} strokeWidth={2.5} aria-hidden="true" />
+                {categoryLabel}
+              </span>
+            )}
+            <h2 className="term-map-panel-title">{title}</h2>
+          </div>
           <button
             type="button"
             className="term-map-panel-close"
@@ -48,24 +59,30 @@ function TermMapPanel({
         </div>
 
         <div className="term-map-panel-body">
-          <div className="term-map-panel-langs">
-            {LANG_ROWS.filter((row) => term[row.key]).map((row) => (
-              <div className="term-map-panel-lang-row" key={row.key}>
-                <span className="term-map-panel-lang-flag" aria-hidden="true">
-                  {row.flag}
-                </span>
-                <span className="term-map-panel-lang-name">{t.langNames[row.key]}</span>
-                <span className="term-map-panel-lang-value">{toSentenceCase(term[row.key])}</span>
-              </div>
-            ))}
+          <div className="term-entry-translations term-map-panel-translations">
+            {translationRows.map((row) => {
+              const isActive = row.code === activeLang
+              return (
+                <div
+                  key={row.code}
+                  className={`term-entry-translation${isActive ? ' active' : ''}`}
+                  data-lang={row.code}
+                >
+                  <button
+                    type="button"
+                    className="term-entry-lang-tag"
+                    title={row.label}
+                    onClick={() => setActiveLang(row.code)}
+                    aria-pressed={isActive}
+                  >
+                    {LANG_TAG[row.code]}
+                  </button>
+                  <span className="term-entry-divider" aria-hidden="true" />
+                  <span className="term-entry-value">{row.value}</span>
+                </div>
+              )
+            })}
           </div>
-
-          {categoryLabel && (
-            <div className="term-map-panel-section">
-              <span className="term-map-panel-section-label">{t.form.categoryLabel}</span>
-              <span className="category-badge">{categoryLabel}</span>
-            </div>
-          )}
 
           {hazardLabel && (
             <div className="term-map-panel-section">
