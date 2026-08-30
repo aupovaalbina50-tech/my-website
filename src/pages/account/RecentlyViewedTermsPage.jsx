@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { useRecentTerms } from './useRecentTerms.js'
-import { PlayButton, AiSpeakButton } from '../../components/TermAudio.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 
 function RecentlyViewedTermsPage() {
@@ -55,24 +54,12 @@ function RecentlyViewedTermsPage() {
                       >
                         {toSentenceCase(term.kk)}
                       </button>
-                      <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
-                      {!term.audio_kk && (
-                        <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
-                      )}
                     </td>
                     <td>
                       <span className="cell-text">{toSentenceCase(term.ru)}</span>
-                      <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
-                      {!term.audio_ru && (
-                        <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
-                      )}
                     </td>
                     <td>
                       <span className="cell-text">{toSentenceCase(term.en)}</span>
-                      <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
-                      {!term.audio_en && (
-                        <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
-                      )}
                     </td>
                     <td>
                       {term.category ? (

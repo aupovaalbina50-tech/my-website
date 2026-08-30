@@ -39,9 +39,13 @@ function TermsExplorerContent({ initialView = 'categories', lockView = false, te
     terms.forEach((term) => {
       if (map[term.category]) map[term.category].push(term)
     })
-    Object.values(map).forEach((list) => list.sort((a, b) => a.kk.localeCompare(b.kk, 'ru')))
+    Object.values(map).forEach((list) =>
+      list.sort((a, b) =>
+        (a[lang] || a.ru || a.kk || a.en).localeCompare(b[lang] || b.ru || b.kk || b.en, lang),
+      ),
+    )
     return map
-  }, [terms])
+  }, [terms, lang])
 
   const query = search.trim().toLowerCase()
   const isSearching = query.length > 0
@@ -83,14 +87,18 @@ function TermsExplorerContent({ initialView = 'categories', lockView = false, te
     const list = isSearching ? terms.filter((term) => matchedTermIds.has(term.id)) : terms
     const groups = {}
     list.forEach((term) => {
-      const label = toSentenceCase(term.kk || term.ru || term.en)
+      const label = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
       const letter = label.charAt(0).toUpperCase()
       if (!groups[letter]) groups[letter] = []
       groups[letter].push(term)
     })
-    Object.values(groups).forEach((arr) => arr.sort((a, b) => a.kk.localeCompare(b.kk, 'ru')))
+    Object.values(groups).forEach((arr) =>
+      arr.sort((a, b) =>
+        (a[lang] || a.ru || a.kk || a.en).localeCompare(b[lang] || b.ru || b.kk || b.en, lang),
+      ),
+    )
     return groups
-  }, [terms, isSearching, matchedTermIds])
+  }, [terms, isSearching, matchedTermIds, lang])
 
   const alphabetLetters = Object.keys(alphabetGroups).sort((a, b) => a.localeCompare(b, 'ru'))
 
@@ -202,7 +210,7 @@ function TermsExplorerContent({ initialView = 'categories', lockView = false, te
                           className="tnm-term-chip"
                           onClick={() => openTerm(term.id)}
                         >
-                          {toSentenceCase(term.kk)}
+                          {toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
                         </button>
                       ))}
                   </div>
@@ -239,7 +247,7 @@ function TermsExplorerContent({ initialView = 'categories', lockView = false, te
                         className="tnm-term-chip"
                         onClick={() => openTerm(term.id)}
                       >
-                        {toSentenceCase(term.kk)}
+                        {toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
                       </button>
                     ))}
                   </div>

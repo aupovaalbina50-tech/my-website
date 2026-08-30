@@ -35,7 +35,8 @@ function HighlightedText({ text, query }) {
 }
 
 function DashboardTermSearch({ termBasePath = '/account/terms' }) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
+  const otherLang = lang === 'kk' ? 'ru' : 'kk'
   const navigate = useNavigate()
   const [terms, setTerms] = useState([])
   const [search, setSearch] = useState('')
@@ -74,9 +75,11 @@ function DashboardTermSearch({ termBasePath = '/account/terms' }) {
         startsWithQuery(term.ru, query) ||
         startsWithQuery(term.en, query),
     )
-    matches.sort((a, b) => a.kk.localeCompare(b.kk, 'ru'))
+    matches.sort((a, b) =>
+      (a[lang] || a[otherLang] || a.en).localeCompare(b[lang] || b[otherLang] || b.en, lang),
+    )
     return matches.slice(0, MAX_SUGGESTIONS)
-  }, [terms, query])
+  }, [terms, query, lang, otherLang])
 
   const showSuggestions = focused && query.length > 0
 
@@ -118,10 +121,13 @@ function DashboardTermSearch({ termBasePath = '/account/terms' }) {
                   <span className="search-suggestion-accent" aria-hidden="true"></span>
                   <span className="search-suggestion-text">
                     <span className="search-suggestion-primary">
-                      <HighlightedText text={toSentenceCase(term.kk)} query={query} />
+                      <HighlightedText
+                        text={toSentenceCase(term[lang] || term[otherLang] || term.en)}
+                        query={query}
+                      />
                     </span>
                     <span className="search-suggestion-secondary">
-                      <HighlightedText text={toSentenceCase(term.ru)} query={query} />
+                      <HighlightedText text={toSentenceCase(term[otherLang])} query={query} />
                       {' · '}
                       <HighlightedText text={toSentenceCase(term.en)} query={query} />
                     </span>

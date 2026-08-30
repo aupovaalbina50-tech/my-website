@@ -12,10 +12,8 @@ import {
   UserCircle,
   Search,
   Eye,
-  Star,
   Wrench,
   Library,
-  Clock,
   Flame,
   Target,
   BarChart3,
@@ -32,7 +30,6 @@ import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { MISSIONS, TOTAL_MISSIONS } from '../../data/missions.js'
 import AuthCard from './auth/AuthCard.jsx'
-import { useFavoriteTerms } from './useFavoriteTerms.js'
 import { useRecentTerms } from './useRecentTerms.js'
 import { useDashboardStats } from './useDashboardStats.js'
 import { useMastery } from './useMastery.js'
@@ -103,11 +100,10 @@ function AccountHomePage() {
     return () => document.body.classList.remove('account-light-theme')
   }, [])
 
-  const { terms: favoriteTerms, loading: favoritesLoading } = useFavoriteTerms()
   const { terms: recentTerms, loading: recentLoading } = useRecentTerms()
   const { totalTerms, historyCount } = useDashboardStats()
-  const { masteredIds, loading: masteryLoading } = useMastery()
-  const { rows: categoryRows, loading: categoryRowsLoading } = useAllTermCategories()
+  const { masteredIds } = useMastery()
+  const { rows: categoryRows } = useAllTermCategories()
   const { activeDays, loading: streakLoading } = useActivityStreak()
   const { missionState, completedCount: missionsCompletedCount, loading: missionsLoading } = useMissionsProgress()
 
@@ -145,7 +141,6 @@ function AccountHomePage() {
     { key: 'streak3', unlocked: streak >= 3 },
     { key: 'categoryDone', unlocked: categoryCompleted },
   ]
-  const unlockedCount = achievements.filter((a) => a.unlocked).length
 
   const missionTermsTotal = useMemo(() => MISSIONS.reduce((sum, mission) => sum + mission.requiredTerms, 0), [])
   const missionTermsStudied = useMemo(
@@ -181,7 +176,6 @@ function AccountHomePage() {
 
   const displayName = profile?.first_name || user?.email || ''
   const categoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.[lang] || key
-  const lastViewedTerm = recentTerms[0]
 
   const renderTermCard = (term, basePath) => (
     <button
@@ -191,10 +185,12 @@ function AccountHomePage() {
       onClick={() => navigate(`${basePath}/${term.id}`)}
     >
       <span className="dash-recent-card-top">
-        <span className="dash-recent-card-lang">{t.langNames.kk}</span>
+        <span className="dash-recent-card-lang">{t.langNames[lang]}</span>
         {term.category && <span className="category-badge">{categoryLabel(term.category)}</span>}
       </span>
-      <span className="dash-recent-card-name">{toSentenceCase(term.kk)}</span>
+      <span className="dash-recent-card-name">
+        {toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
+      </span>
       <ArrowRight className="dash-recent-card-arrow" size={16} aria-hidden="true" />
     </button>
   )
@@ -217,43 +213,54 @@ function AccountHomePage() {
           {mp.title}
         </h2>
 
-        <div className="dash-mini-stats dash-missions-stats">
-          <StatCard
-            to="/account/missions"
-            label={mp.statMissions}
-            value={missionsLoading ? null : missionsCompletedCount}
-            error={false}
-            caption={mp.statMissionsCaption(TOTAL_MISSIONS)}
-            Icon={ShieldCheck}
-            accent="blue"
+        <div className="dash-progress-layout">
+          <ProgressRing
+            percent={ringPercent}
+            mastered={masteredCount}
+            total={totalTerms ?? 0}
+            label={m.ringLabel}
+            tooltipMastered={m.tooltipMastered(masteredCount)}
+            tooltipRemaining={m.tooltipRemaining(Math.max((totalTerms ?? 0) - masteredCount, 0))}
+            tooltipProgress={m.tooltipProgress(ringPercent)}
           />
-          <StatCard
-            to="/account/missions"
-            label={mp.statTerms}
-            value={missionsLoading ? null : missionTermsStudied}
-            error={false}
-            caption={mp.statTermsCaption(missionTermsTotal)}
-            Icon={BookOpen}
-            accent="green"
-          />
-          <StatCard
-            to="/account/missions"
-            label={mp.statAvgScore}
-            value={missionsLoading ? null : missionAvgScore === null ? '—' : `${missionAvgScore}%`}
-            error={false}
-            caption={mp.statAvgScoreCaption}
-            Icon={BarChart3}
-            accent="yellow"
-          />
-          <StatCard
-            to="/account/missions"
-            label={mp.statAchievements}
-            value={missionsLoading ? null : missionsCompletedCount}
-            error={false}
-            caption={mp.statAchievementsCaption}
-            Icon={Trophy}
-            accent="red"
-          />
+          <div className="dash-mini-stats dash-mini-stats--stacked">
+            <StatCard
+              to="/account/missions"
+              label={mp.statMissions}
+              value={missionsLoading ? null : missionsCompletedCount}
+              error={false}
+              caption={mp.statMissionsCaption(TOTAL_MISSIONS)}
+              Icon={ShieldCheck}
+              accent="blue"
+            />
+            <StatCard
+              to="/account/missions"
+              label={mp.statTerms}
+              value={missionsLoading ? null : missionTermsStudied}
+              error={false}
+              caption={mp.statTermsCaption(missionTermsTotal)}
+              Icon={BookOpen}
+              accent="green"
+            />
+            <StatCard
+              to="/account/missions"
+              label={mp.statAvgScore}
+              value={missionsLoading ? null : missionAvgScore === null ? '—' : `${missionAvgScore}%`}
+              error={false}
+              caption={mp.statAvgScoreCaption}
+              Icon={BarChart3}
+              accent="yellow"
+            />
+            <StatCard
+              to="/account/missions"
+              label={mp.statAchievements}
+              value={missionsLoading ? null : missionsCompletedCount}
+              error={false}
+              caption={mp.statAchievementsCaption}
+              Icon={Trophy}
+              accent="red"
+            />
+          </div>
         </div>
 
         {missionsCompletedCount === 0 && !missionsLoading ? (
@@ -299,100 +306,10 @@ function AccountHomePage() {
 
       <section className="dash-section">
         <h2 className="dash-section-title">
-          <BarChart3 size={20} aria-hidden="true" />
-          {t.account.home.progressTitle}
-        </h2>
-        <div className="dash-progress-layout">
-          <ProgressRing
-            percent={ringPercent}
-            mastered={masteredCount}
-            total={totalTerms ?? 0}
-            label={m.ringLabel}
-            tooltipMastered={m.tooltipMastered(masteredCount)}
-            tooltipRemaining={m.tooltipRemaining(Math.max((totalTerms ?? 0) - masteredCount, 0))}
-            tooltipProgress={m.tooltipProgress(ringPercent)}
-          />
-          <div className="dash-mini-stats">
-            <StatCard
-              to="/account/my-dictionary"
-              label={m.statMastered}
-              value={masteryLoading ? null : masteredCount}
-              error={false}
-              caption={m.ringLabel}
-              Icon={BookOpen}
-              accent="blue"
-            />
-            <StatCard
-              to="/account/my-dictionary"
-              label={m.statFavorites}
-              value={favoritesLoading ? null : favoriteTerms.length}
-              error={false}
-              caption={m.statFavoritesCaption}
-              Icon={Star}
-              accent="red"
-            />
-            <StatCard
-              to="/account/viewing-history"
-              label={m.statHistory}
-              value={historyCount}
-              error={false}
-              caption={m.statHistoryCaption}
-              Icon={Clock}
-              accent="yellow"
-            />
-            <StatCard
-              to="#achievements"
-              label={m.statGoals}
-              value={`${unlockedCount}/${achievements.length}`}
-              error={false}
-              caption={m.achievementsTitle}
-              Icon={Target}
-              accent="green"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="dash-section">
-        <h2 className="dash-section-title">
           <Search size={20} aria-hidden="true" />
           {t.account.home.searchTitle}
         </h2>
         <DashboardTermSearch termBasePath="/account/terms" />
-      </section>
-
-      <section className="dash-section">
-        <h2 className="dash-section-title">
-          <LayoutGrid size={20} aria-hidden="true" />
-          {m.categoryTitle}
-        </h2>
-        {categoryRowsLoading ? (
-          <p className="dash-empty-text">{t.table.loading}</p>
-        ) : (
-          <div className="category-progress-list">
-            {categoryProgress.map((c) => (
-              <Link key={c.key} to="/account/categories" className="category-progress-row">
-                <span className="category-progress-head">
-                  <span className="category-progress-label">{c.label}</span>
-                  <span className="category-progress-percent">{c.percent}%</span>
-                </span>
-                <div className="quiz-progress-track">
-                  <div
-                    className={`quiz-progress-fill quiz-progress-fill--${
-                      c.percent >= 80 ? 'good' : c.percent >= 50 ? 'mid' : 'low'
-                    }`}
-                    style={{ width: `${c.percent}%` }}
-                  />
-                </div>
-                <p className="category-progress-detail">
-                  {c.total > 0
-                    ? `${m.categoryDetail(c.mastered, c.total)} · ${m.categoryRemaining(c.total - c.mastered)}`
-                    : t.table.emptyNoTerms}
-                </p>
-              </Link>
-            ))}
-          </div>
-        )}
       </section>
 
       <section className="dash-section">
@@ -467,33 +384,6 @@ function AccountHomePage() {
         </div>
       </section>
 
-      {lastViewedTerm && (
-        <section className="dash-section">
-          <h2 className="dash-section-title">
-            <Eye size={20} aria-hidden="true" />
-            {m.continueTitle}
-          </h2>
-          <div className="continue-learning-card">
-            <div className="continue-learning-info">
-              <p className="continue-learning-eyebrow">{m.continueLastTerm}</p>
-              <p className="continue-learning-term">{toSentenceCase(lastViewedTerm.kk)}</p>
-              {lastViewedTerm.category && (
-                <p className="continue-learning-category">
-                  {t.form.categoryLabel}: {categoryLabel(lastViewedTerm.category)}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              className="btn-auth-primary quiz-start-btn"
-              onClick={() => navigate(`/account/terms/${lastViewedTerm.id}`)}
-            >
-              {m.continueButton}
-            </button>
-          </div>
-        </section>
-      )}
-
       <section className="dash-section">
         <h2 className="dash-section-title">
           <Eye size={20} aria-hidden="true" />
@@ -506,22 +396,6 @@ function AccountHomePage() {
         ) : (
           <div className="dash-recent-grid">
             {recentTerms.slice(0, 6).map((term) => renderTermCard(term, '/account/terms'))}
-          </div>
-        )}
-      </section>
-
-      <section className="dash-section">
-        <h2 className="dash-section-title">
-          <Star size={20} aria-hidden="true" />
-          {t.account.home.favoriteTermsTitle}
-        </h2>
-        {favoritesLoading ? (
-          <p className="dash-empty-text">{t.termFavorites.loading}</p>
-        ) : favoriteTerms.length === 0 ? (
-          <p className="dash-empty-text">{t.termFavorites.empty}</p>
-        ) : (
-          <div className="dash-recent-grid">
-            {favoriteTerms.slice(0, 6).map((term) => renderTermCard(term, '/account/terms'))}
           </div>
         )}
       </section>

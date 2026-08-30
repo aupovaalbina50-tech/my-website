@@ -4,7 +4,7 @@ import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { COMMITTEES, COMMITTEES_SOURCE_URL } from '../../data/committees'
 
 function CommitteesContent() {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [selectedId, setSelectedId] = useState(COMMITTEES[0].id)
   const selected = COMMITTEES.find((committee) => committee.id === selectedId) || COMMITTEES[0]
 
@@ -25,7 +25,7 @@ function CommitteesContent() {
               aria-current={committee.id === selectedId ? 'true' : undefined}
             >
               <Building2 size={16} className="committees-nav-item-icon" aria-hidden="true" />
-              <span>{committee.name.kk}</span>
+              <span>{committee.name[lang]}</span>
             </button>
           ))}
         </nav>
@@ -35,14 +35,14 @@ function CommitteesContent() {
             <span className="committees-detail-eyebrow-mark" aria-hidden="true"></span>
             {t.committees.detailEyebrow}
           </p>
-          <h2 className="committees-detail-title">{selected.name.kk}</h2>
+          <h2 className="committees-detail-title">{selected.name[lang]}</h2>
 
           <div className="committees-detail-section">
             <h3 className="committees-detail-heading">
               <Info size={16} aria-hidden="true" />
               {t.committees.sectionGeneral}
             </h3>
-            <p className="committees-detail-text">{selected.description.kk}</p>
+            <p className="committees-detail-text">{selected.description[lang]}</p>
           </div>
 
           <div className="committees-detail-section">
@@ -53,12 +53,12 @@ function CommitteesContent() {
             <div className="modal-meta">
               <div className="modal-meta-row">
                 <span className="modal-meta-label">{t.committees.chairLabel}</span>
-                <span>{selected.chair.kk}</span>
+                <span>{selected.chair[lang]}</span>
               </div>
               {selected.phone && (
                 <div className="modal-meta-row">
                   <span className="modal-meta-label">{t.committees.phoneLabel}</span>
-                  <span>{selected.phone.kk}</span>
+                  <span>{selected.phone[lang]}</span>
                 </div>
               )}
               {selected.email && (
@@ -91,7 +91,7 @@ function CommitteesContent() {
               )}
               <a
                 className="modal-source-link"
-                href={COMMITTEES_SOURCE_URL.kk}
+                href={COMMITTEES_SOURCE_URL[lang]}
                 target="_blank"
                 rel="noreferrer"
               >

@@ -14,22 +14,24 @@ import {
   Trophy,
   Settings,
   Siren,
+  Quote,
 } from 'lucide-react'
 
 export const ACCOUNT_NAV_ITEMS = [
   { key: 'dashboard', to: '/account', end: true, Icon: Home },
-  { key: 'missions', to: '/account/missions', Icon: Siren },
   { key: 'terms', to: '/account/terms', Icon: BookOpen },
-  { key: 'categories', to: '/account/categories', Icon: LayoutGrid },
-  { key: 'alphabet', to: '/account/alphabet', Icon: ALargeSmall },
-  { key: 'network', to: '/account/network', Icon: Share2 },
   { key: 'myDictionary', to: '/account/my-dictionary', Icon: Star },
+  { key: 'quotes', to: '/quotes', Icon: Quote },
+  { key: 'missions', to: '/account/missions', Icon: Siren },
   { key: 'docs', to: '/account/docs', Icon: FileText },
 ]
 
 // Not shown in the main sidebar (kept reachable by direct link).
 export const SECONDARY_ACCOUNT_NAV_ITEMS = [
   { key: 'profile', to: '/account/profile', Icon: User },
+  { key: 'categories', to: '/account/categories', Icon: LayoutGrid },
+  { key: 'alphabet', to: '/account/alphabet', Icon: ALargeSmall },
+  { key: 'network', to: '/account/network', Icon: Share2 },
   { key: 'favorites', to: '/account/favorites', Icon: Star },
   { key: 'viewingHistory', to: '/account/viewing-history', Icon: Eye },
   { key: 'committees', to: '/account/committees', Icon: Landmark },

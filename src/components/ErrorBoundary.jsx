@@ -1,5 +1,16 @@
 import { Component } from 'react'
 
+const MESSAGES = {
+  kk: { text: 'Бірдеңе дұрыс болмады. Бетті жаңартып көріңіз.', button: 'Жаңарту' },
+  ru: { text: 'Что-то пошло не так. Попробуйте обновить страницу.', button: 'Обновить' },
+}
+
+function readStoredLang() {
+  if (typeof window === 'undefined') return 'kk'
+  const saved = window.localStorage.getItem('site_lang')
+  return saved === 'ru' || saved === 'kk' ? saved : 'kk'
+}
+
 class ErrorBoundary extends Component {
   state = { hasError: false }
 
@@ -13,6 +24,7 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const m = MESSAGES[readStoredLang()]
       return (
         <div
           style={{
@@ -26,10 +38,9 @@ class ErrorBoundary extends Component {
             textAlign: 'center',
           }}
         >
-          <p>Бірдеңе дұрыс болмады. Бетті жаңартып көріңіз.</p>
-          <p>Что-то пошло не так. Попробуйте обновить страницу.</p>
+          <p>{m.text}</p>
           <button type="button" onClick={() => window.location.reload()}>
-            Жаңарту / Обновить
+            {m.button}
           </button>
         </div>
       )

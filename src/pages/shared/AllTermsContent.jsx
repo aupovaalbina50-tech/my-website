@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, List, Search as SearchIcon, Star, X } from 'lucide-react'
+import { ArrowLeft, GraduationCap, List, Search as SearchIcon, X } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { categoryLucideIcon } from '../../constants/categoryIcons.js'
-import { PlayButton, AiSpeakButton } from '../../components/TermAudio.jsx'
+import { CopyButton } from '../../components/CopyButton.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 import { useFavoriteTerms } from '../account/useFavoriteTerms.js'
 
@@ -24,7 +24,6 @@ function AllTermsContent({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [selectedLetter, setSelectedLetter] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ ru: '', kk: '', en: '', category: '' })
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
@@ -65,7 +64,6 @@ function AllTermsContent({
   }, [categoryKey, categoryNotFound])
 
   useEffect(() => {
-    setSelectedLetter(null)
     setSearch('')
   }, [categoryKey])
 
@@ -80,43 +78,14 @@ function AllTermsContent({
     )
   }, [terms, query])
 
-  const isCategoryMode = Boolean(categoryKey) && !categoryNotFound
-  const isSearching = query.length > 0
+  const displayedTerms = visibleTerms
 
-  const letterGroups = useMemo(() => {
-    const groups = {}
-    terms.forEach((term) => {
-      const label = toSentenceCase(term.kk || term.ru || term.en)
-      const letter = label.charAt(0).toUpperCase()
-      if (!letter) return
-      if (!groups[letter]) groups[letter] = []
-      groups[letter].push(term)
-    })
-    return groups
-  }, [terms])
-
-  const letters = useMemo(
-    () => Object.keys(letterGroups).sort((a, b) => a.localeCompare(b, 'ru')),
-    [letterGroups],
-  )
-
-  useEffect(() => {
-    if (selectedLetter && !loading && !letterGroups[selectedLetter]) {
-      setSelectedLetter(null)
-    }
-  }, [selectedLetter, letterGroups, loading])
-
-  const showAlphabetGrid = isCategoryMode && !isSearching && !selectedLetter
-  const showLetterDetail = isCategoryMode && !isSearching && Boolean(selectedLetter)
-
-  const displayedTerms = showLetterDetail ? letterGroups[selectedLetter] || [] : visibleTerms
-
-  const headerCount = showAlphabetGrid ? terms.length : displayedTerms.length
+  const headerCount = displayedTerms.length
 
   const categoryLabel = (catKey) => CATEGORIES.find((c) => c.key === catKey)?.[lang] || catKey
 
   const handleDelete = async (term) => {
-    const label = toSentenceCase(term.kk || term.ru || term.en)
+    const label = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
     if (!window.confirm(t.confirm.deleteTerm(label))) return
 
     const { error: deleteError } = await supabase.from('terms').delete().eq('id', term.id)
@@ -163,18 +132,11 @@ function AllTermsContent({
     <section className="terms-list-section">
       {error && <div className="alert">{error}</div>}
 
-      {showLetterDetail ? (
-        <button type="button" className="quote-back-link" onClick={() => setSelectedLetter(null)}>
+      {showBack && (
+        <button type="button" className="quote-back-link" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} aria-hidden="true" />
-          {t.termsList.backToCategory}
+          {t.termsList.back}
         </button>
-      ) : (
-        showBack && (
-          <button type="button" className="quote-back-link" onClick={() => navigate(-1)}>
-            <ArrowLeft size={16} aria-hidden="true" />
-            {t.termsList.back}
-          </button>
-        )
       )}
 
       {categoryNotFound ? (
@@ -190,7 +152,6 @@ function AllTermsContent({
             <div>
               <h1 className="terms-list-title">
                 {category ? category[lang] : t.termsList.allTitle}
-                {showLetterDetail && <span className="terms-list-title-letter"> — {selectedLetter}</span>}
               </h1>
               <p className="terms-list-count">
                 {loading ? t.table.loading : t.categorySection.count(headerCount)}
@@ -222,39 +183,6 @@ function AllTermsContent({
             </div>
           )}
 
-          {showAlphabetGrid ? (
-            <div className="card">
-              {loading && <p className="empty-state-text">{t.table.loading}</p>}
-              {!loading && letters.length === 0 && (
-                <p className="empty-state-text">{t.termsList.empty}</p>
-              )}
-              {!loading && letters.length > 0 && (
-                <>
-                  <h2 className="alphabet-grid-heading">{t.termsList.byLetterHeading}</h2>
-                  <div className="letter-grid">
-                    {letters.map((letter) => (
-                      <button
-                        key={letter}
-                        type="button"
-                        className="letter-card"
-                        onClick={() => setSelectedLetter(letter)}
-                      >
-                        <span className="letter-card-glyph" aria-hidden="true">
-                          {letter}
-                        </span>
-                        <span className="letter-card-right">
-                          <span className="letter-card-count">
-                            {t.categorySection.count(letterGroups[letter].length)}
-                          </span>
-                          <ArrowRight className="letter-card-arrow" strokeWidth={2} aria-hidden="true" />
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
           <div className="term-entries-card">
             {loading && (
               <div className="card">
@@ -272,7 +200,7 @@ function AllTermsContent({
               <ul className="term-entries">
                 {displayedTerms.map((term) => {
                   const isEditing = editingId === term.id
-                  const label = toSentenceCase(term.kk || term.ru || term.en)
+                  const label = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
 
                   if (isEditing) {
                     return (
@@ -338,45 +266,7 @@ function AllTermsContent({
 
                   return (
                     <li key={term.id} className="term-entry">
-                      <div className="term-entry-head">
-                        <button
-                          type="button"
-                          className="term-entry-headword"
-                          onClick={() => navigate(`${termBasePath}/${term.id}`)}
-                        >
-                          {toSentenceCase(term.kk)}
-                        </button>
-                        <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
-                        {!term.audio_kk && (
-                          <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
-                        )}
-                        {term.category && (
-                          <span className="category-badge term-entry-badge">
-                            {categoryLabel(term.category)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="term-entry-translations">
-                        <div className="term-entry-translation">
-                          <span className="term-entry-lang">{t.langNames.ru}</span>
-                          <span className="term-entry-value">{toSentenceCase(term.ru)}</span>
-                          <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
-                          {!term.audio_ru && (
-                            <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
-                          )}
-                        </div>
-                        <div className="term-entry-translation">
-                          <span className="term-entry-lang">{t.langNames.en}</span>
-                          <span className="term-entry-value">{toSentenceCase(term.en)}</span>
-                          <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
-                          {!term.audio_en && (
-                            <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="term-entry-actions">
+                      <span className="term-entry-corner-actions">
                         <button
                           type="button"
                           className={`quote-icon-btn term-fav-btn${
@@ -395,40 +285,78 @@ function AllTermsContent({
                           }
                           aria-pressed={favoriteIds.has(term.id)}
                         >
-                          <Star
-                            size={16}
-                            aria-hidden="true"
-                            fill={favoriteIds.has(term.id) ? 'currentColor' : 'none'}
-                          />
+                          <GraduationCap size={18} aria-hidden="true" />
                         </button>
-                        {isAdmin && (
-                          <>
+                        <CopyButton
+                          text={toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
+                          label={label}
+                          t={t}
+                        />
+                      </span>
+
+                      <dl className="term-detail-fields">
+                        <div className="term-detail-field">
+                          <dt>{t.langNames.kk}</dt>
+                          <dd>
                             <button
                               type="button"
-                              className="btn-edit"
-                              onClick={() => handleEditStart(term)}
-                              aria-label={t.table.editAria(label)}
+                              className="cell-text cell-text-link"
+                              onClick={() => navigate(`${termBasePath}/${term.id}`)}
                             >
-                              {t.table.edit}
+                              {toSentenceCase(term.kk)}
                             </button>
-                            <button
-                              type="button"
-                              className="btn-delete"
-                              onClick={() => handleDelete(term)}
-                              aria-label={t.table.deleteAria(label)}
-                            >
-                              {t.table.delete}
-                            </button>
-                          </>
-                        )}
-                      </div>
+                          </dd>
+                        </div>
+                        <div className="term-detail-field">
+                          <dt>{t.langNames.ru}</dt>
+                          <dd>
+                            <span className="cell-text">{toSentenceCase(term.ru) || '—'}</span>
+                          </dd>
+                        </div>
+                        <div className="term-detail-field">
+                          <dt>{t.langNames.en}</dt>
+                          <dd>
+                            <span className="cell-text">{toSentenceCase(term.en) || '—'}</span>
+                          </dd>
+                        </div>
+                        <div className="term-detail-field">
+                          <dt>{t.form.categoryLabel}</dt>
+                          <dd>
+                            {term.category ? (
+                              <span className="category-badge">{categoryLabel(term.category)}</span>
+                            ) : (
+                              <span className="cell-text">{t.form.noCategory}</span>
+                            )}
+                          </dd>
+                        </div>
+                      </dl>
+
+                      {isAdmin && (
+                        <div className="term-entry-actions">
+                          <button
+                            type="button"
+                            className="btn-edit"
+                            onClick={() => handleEditStart(term)}
+                            aria-label={t.table.editAria(label)}
+                          >
+                            {t.table.edit}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-delete"
+                            onClick={() => handleDelete(term)}
+                            aria-label={t.table.deleteAria(label)}
+                          >
+                            {t.table.delete}
+                          </button>
+                        </div>
+                      )}
                     </li>
                   )
                 })}
               </ul>
             )}
           </div>
-          )}
         </>
       )}
     </section>

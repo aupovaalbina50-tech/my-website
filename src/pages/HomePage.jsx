@@ -53,7 +53,6 @@ function HighlightedText({ text, query }) {
 }
 
 const CategoryGrid = memo(function CategoryGrid({ t, lang, counts, countsReady, onSelect }) {
-  const lastIndex = CATEGORIES.length - 1
   return (
     <section className="category-section">
       <h2 className="category-section-title">{t.categorySection.title}</h2>
@@ -61,12 +60,11 @@ const CategoryGrid = memo(function CategoryGrid({ t, lang, counts, countsReady, 
         {CATEGORIES.map((cat, index) => {
           const Icon = categoryLucideIcon(cat.key)
           const count = counts[cat.key] || 0
-          const isWide = index === lastIndex
           return (
             <button
               key={cat.key}
               type="button"
-              className={`category-card${isWide ? ' category-card-wide' : ''}`}
+              className="category-card"
               onClick={() => onSelect(cat.key)}
             >
               <span className="category-card-top">
@@ -246,11 +244,10 @@ function HomePage() {
       : terms
 
     return [...filtered].sort((a, b) =>
-      a.kk.localeCompare(b.kk, 'ru') ||
-      a.ru.localeCompare(b.ru, 'ru') ||
+      (a[lang] || a.ru || a.kk).localeCompare(b[lang] || b.ru || b.kk, lang) ||
       a.en.localeCompare(b.en, 'en'),
     )
-  }, [terms, deferredSearch])
+  }, [terms, deferredSearch, lang])
 
   const categoryCounts = useMemo(() => {
     const counts = {}
@@ -270,12 +267,11 @@ function HomePage() {
         startsWithQuery(term.en, query),
     )
     matches.sort((a, b) =>
-      a.kk.localeCompare(b.kk, 'ru') ||
-      a.ru.localeCompare(b.ru, 'ru') ||
+      (a[lang] || a.ru || a.kk).localeCompare(b[lang] || b.ru || b.kk, lang) ||
       a.en.localeCompare(b.en, 'en'),
     )
     return matches.slice(0, MAX_SUGGESTIONS)
-  }, [terms, search])
+  }, [terms, search, lang])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -287,6 +283,7 @@ function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const otherLang = lang === 'kk' ? 'ru' : 'kk'
   const suggestionQuery = search.trim().toLowerCase()
   const showSuggestions = isSearchFocused && suggestionQuery.length > 0
 
@@ -340,10 +337,13 @@ function HomePage() {
                         <span className="search-suggestion-accent" aria-hidden="true"></span>
                         <span className="search-suggestion-text">
                           <span className="search-suggestion-primary">
-                            <HighlightedText text={toSentenceCase(term.kk)} query={suggestionQuery} />
+                            <HighlightedText
+                              text={toSentenceCase(term[lang] || term[otherLang] || term.en)}
+                              query={suggestionQuery}
+                            />
                           </span>
                           <span className="search-suggestion-secondary">
-                            <HighlightedText text={toSentenceCase(term.ru)} query={suggestionQuery} />
+                            <HighlightedText text={toSentenceCase(term[otherLang])} query={suggestionQuery} />
                             {' · '}
                             <HighlightedText text={toSentenceCase(term.en)} query={suggestionQuery} />
                           </span>

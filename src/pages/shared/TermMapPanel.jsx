@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom'
 import { X, ArrowRight } from 'lucide-react'
 import { CATEGORIES } from '../../i18n/translations'
-import { PlayButton, AiSpeakButton } from '../../components/TermAudio.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 
 const LANG_ROWS = [
-  { key: 'kk', flag: '🇰🇿', speechLang: 'kk-KZ' },
-  { key: 'ru', flag: '🇷🇺', speechLang: 'ru-RU' },
-  { key: 'en', flag: '🇬🇧', speechLang: 'en-US' },
+  { key: 'kk', flag: '🇰🇿' },
+  { key: 'ru', flag: '🇷🇺' },
+  { key: 'en', flag: '🇬🇧' },
 ]
 
 function TermMapPanel({
@@ -57,10 +56,6 @@ function TermMapPanel({
                 </span>
                 <span className="term-map-panel-lang-name">{t.langNames[row.key]}</span>
                 <span className="term-map-panel-lang-value">{toSentenceCase(term[row.key])}</span>
-                <PlayButton src={term[`audio_${row.key}`]} label={toSentenceCase(term[row.key])} t={t} />
-                {!term[`audio_${row.key}`] && (
-                  <AiSpeakButton text={toSentenceCase(term[row.key])} lang={row.speechLang} t={t} />
-                )}
               </div>
             ))}
           </div>

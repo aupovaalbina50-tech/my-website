@@ -4,21 +4,14 @@ import { ArrowLeft, ArrowRight, Check, Target } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionTermStudy } from './useMissionTermStudy.js'
-import { PlayButton, AiSpeakButton } from '../../components/TermAudio.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 
-const TTS_LANG = { kk: 'kk-KZ', ru: 'ru-RU', en: 'en-US' }
-
-function TermLangRow({ code, label, text, audioSrc, active, t }) {
+function TermLangRow({ label, text, active }) {
   if (!text) return null
   return (
     <div className={`mission-term-lang-row${active ? ' mission-term-lang-row--active' : ''}`}>
       <div className="mission-term-lang-head">
         <span className="mission-term-lang-label">{label}</span>
-        <span className="mission-term-lang-audio">
-          <PlayButton src={audioSrc} label={text} t={t} />
-          {!audioSrc && <AiSpeakButton text={text} lang={TTS_LANG[code]} t={t} />}
-        </span>
       </div>
       <p className="mission-term-lang-text">{toSentenceCase(text)}</p>
     </div>
@@ -211,30 +204,9 @@ function MissionStudyPage() {
             </div>
 
             <div className="mission-term-langs">
-              <TermLangRow
-                code="kk"
-                label={s.langKk}
-                text={currentTerm.kk}
-                audioSrc={currentTerm.audio_kk}
-                active={activeLang === 'kk'}
-                t={t}
-              />
-              <TermLangRow
-                code="ru"
-                label={s.langRu}
-                text={currentTerm.ru}
-                audioSrc={currentTerm.audio_ru}
-                active={activeLang === 'ru'}
-                t={t}
-              />
-              <TermLangRow
-                code="en"
-                label={s.langEn}
-                text={currentTerm.en}
-                audioSrc={currentTerm.audio_en}
-                active={activeLang === 'en'}
-                t={t}
-              />
+              <TermLangRow label={s.langKk} text={currentTerm.kk} active={activeLang === 'kk'} />
+              <TermLangRow label={s.langRu} text={currentTerm.ru} active={activeLang === 'ru'} />
+              <TermLangRow label={s.langEn} text={currentTerm.en} active={activeLang === 'en'} />
             </div>
 
             {isCurrentStudied ? (

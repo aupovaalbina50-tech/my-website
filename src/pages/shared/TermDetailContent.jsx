@@ -6,7 +6,7 @@ import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { categoryIcon } from '../../constants/categoryIcons.js'
-import { PlayButton, AiSpeakButton } from '../../components/TermAudio.jsx'
+import { CopyButton } from '../../components/CopyButton.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 import { useFavoriteTerms } from '../account/useFavoriteTerms.js'
 import { useMastery } from '../account/useMastery.js'
@@ -84,11 +84,7 @@ function TermDetailContent() {
             {categoryIcon(term.category)}
           </div>
           <h1 className="term-detail-title">
-            {toSentenceCase(term.kk || term.ru || term.en)}
-            <PlayButton src={term.audio_kk} label={toSentenceCase(term.kk)} t={t} />
-            {!term.audio_kk && term.kk && (
-              <AiSpeakButton text={toSentenceCase(term.kk)} lang="kk-KZ" t={t} />
-            )}
+            {toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
             <button
               type="button"
               className={`quote-icon-btn term-fav-btn${favoriteIds.has(term.id) ? ' active' : ''}`}
@@ -121,6 +117,11 @@ function TermDetailContent() {
             >
               <GraduationCap size={18} aria-hidden="true" />
             </button>
+            <CopyButton
+              text={toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
+              label={toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
+              t={t}
+            />
           </h1>
 
           <dl className="term-detail-fields">
@@ -128,20 +129,12 @@ function TermDetailContent() {
               <dt>{t.langNames.ru}</dt>
               <dd>
                 <span className="cell-text">{toSentenceCase(term.ru) || '—'}</span>
-                <PlayButton src={term.audio_ru} label={toSentenceCase(term.ru)} t={t} />
-                {!term.audio_ru && term.ru && (
-                  <AiSpeakButton text={toSentenceCase(term.ru)} lang="ru-RU" t={t} />
-                )}
               </dd>
             </div>
             <div className="term-detail-field">
               <dt>{t.langNames.en}</dt>
               <dd>
                 <span className="cell-text">{toSentenceCase(term.en) || '—'}</span>
-                <PlayButton src={term.audio_en} label={toSentenceCase(term.en)} t={t} />
-                {!term.audio_en && term.en && (
-                  <AiSpeakButton text={toSentenceCase(term.en)} lang="en-US" t={t} />
-                )}
               </dd>
             </div>
             <div className="term-detail-field">
