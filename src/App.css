@@ -2592,6 +2592,34 @@
   color: var(--red);
 }
 
+.term-map-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.term-map-more-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 18px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--navy);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background: var(--blue-light);
+    border-color: var(--navy-2);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
 @keyframes term-map-zoom-in {
   from {
     opacity: 0;

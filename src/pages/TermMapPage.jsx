@@ -96,6 +96,7 @@ function TermMapPage() {
   const [showConnections, setShowConnections] = useState(false)
   const [exploreExpanded, setExploreExpanded] = useState(false)
   const [pinnedTermId, setPinnedTermId] = useState(null)
+  const [mapOffset, setMapOffset] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [pendingResult, setPendingResult] = useState(null) // { kind: 'hazard'|'group', term, hazardId, groupLabel? }
@@ -271,6 +272,7 @@ function TermMapPage() {
     setSelectedTermId(null)
     setShowConnections(false)
     setPinnedTermId(null)
+    setMapOffset(0)
   }
 
   function selectFilter(groupId) {
@@ -278,6 +280,7 @@ function TermMapPage() {
     setHoveredId(null)
     setSelectedTermId(null)
     setShowConnections(false)
+    setMapOffset(0)
   }
 
   function backToOverview() {
@@ -288,6 +291,15 @@ function TermMapPage() {
     setSelectedTermId(null)
     setShowConnections(false)
     setPinnedTermId(null)
+    setMapOffset(0)
+  }
+
+  // Cycles the map ring to the next batch of MAX_MAP_TERMS terms from the
+  // current (uncapped) list, wrapping back to the start once it runs out —
+  // the ring can only show so many nodes at once, so this is how the rest
+  // of a hazard's terms become reachable from the map view.
+  function showOtherMapTerms() {
+    setMapOffset((offset) => offset + MAX_MAP_TERMS)
   }
 
   // Selects a term without changing hazard/group — used by map/list nodes
@@ -312,6 +324,7 @@ function TermMapPage() {
     setShowConnections(false)
     setExploreExpanded(false)
     setPinnedTermId(term.id)
+    setMapOffset(0)
     setSearchQuery('')
     setSearchFocused(false)
     setPendingResult(null)
@@ -331,6 +344,7 @@ function TermMapPage() {
     setSelectedTermId(term.id)
     setPinnedTermId(term.id)
     setExploreExpanded(false)
+    setMapOffset(0)
   }
 
   function toggleConnections() {
@@ -383,11 +397,21 @@ function TermMapPage() {
     setSearchQuery('')
   }
 
-  const activeTermItems = selectedGroup
-    ? withPinned(selectedGroup.items.slice(0, MAX_MAP_TERMS), selectedGroup.items, pinnedTermId)
-    : hazardFlatTerms.items
-  const activeTermTotal = selectedGroup ? selectedGroup.items.length : hazardFlatTerms.total
   const listItems = selectedGroup ? selectedGroup.items : hazardAllTerms
+  const activeTermTotal = selectedGroup ? selectedGroup.items.length : hazardFlatTerms.total
+
+  // Windows the ring down to MAX_MAP_TERMS nodes at a time, cycling through
+  // the rest via mapOffset (see showOtherMapTerms) instead of always
+  // showing the same alphabetical first page.
+  const activeTermItems = useMemo(() => {
+    if (listItems.length <= MAX_MAP_TERMS) return withPinned(listItems, listItems, pinnedTermId)
+    const start = mapOffset % listItems.length
+    let windowed = listItems.slice(start, start + MAX_MAP_TERMS)
+    if (windowed.length < MAX_MAP_TERMS) {
+      windowed = windowed.concat(listItems.slice(0, MAX_MAP_TERMS - windowed.length))
+    }
+    return withPinned(windowed, listItems, pinnedTermId)
+  }, [listItems, mapOffset, pinnedTermId])
 
   let ringNodes
   if (!selectedHazard) ringNodes = EMERGENCY_HAZARDS
@@ -857,7 +881,14 @@ function TermMapPage() {
           )}
 
           {!showConnectionsView && hazardTermsReady && viewDisplay === 'map' && activeTermItems.length > 0 && (
-            <p className="term-map-hint">{t.termMap.shownCount(activeTermItems.length, activeTermTotal)}</p>
+            <div className="term-map-more">
+              <p className="term-map-hint">{t.termMap.shownCount(activeTermItems.length, activeTermTotal)}</p>
+              {activeTermTotal > MAX_MAP_TERMS && (
+                <button type="button" className="term-map-more-btn" onClick={showOtherMapTerms}>
+                  {t.termMap.otherTerms}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
