@@ -211,7 +211,7 @@ function MissionExecutePage() {
       ) : (
         op.currentCheck && (
           <div className="card mission-op-check-card">
-            <p className="quiz-prompt-label">{e.checkPrompt}</p>
+            <p className="quiz-prompt-label">{e.checkPrompt(op.currentCheck.fromLang, op.currentCheck.toLang)}</p>
             <h2 className="quiz-term">{op.currentCheck.prompt}</h2>
 
             <div className="quiz-options">

@@ -125,7 +125,7 @@ function MissionTestPage() {
           <div className="mission-quiz-tag">
             {LANG_TAG[q.fromLang]} &rarr; {LANG_TAG[q.toLang]}
           </div>
-          <p className="quiz-prompt-label">{s.quiz.instruction}</p>
+          <p className="quiz-prompt-label">{s.quiz.instruction(q.fromLang, q.toLang)}</p>
           <h2 className="quiz-term">{q.prompt}</h2>
 
           <div className="quiz-options">

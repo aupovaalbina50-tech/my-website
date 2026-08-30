@@ -550,7 +550,10 @@ export const translations = {
           quiz: {
             questionLabel: (current, total) => `${String(current).padStart(2, '0')}-сұрақ / ${total}`,
             correctCount: (n) => `${n} дұрыс`,
-            instruction: 'Дұрыс аударманы таңдаңыз',
+            instruction: (fromLang, toLang) => {
+              const label = { kk: 'қазақ', ru: 'орыс', en: 'ағылшын' }
+              return `Терминді ${label[fromLang]} тілінен ${label[toLang]} тіліне аударыңыз`
+            },
             answerCta: 'Жауап беру →',
             nextCta: 'Келесі сұрақ →',
             correctTitle: 'Дұрыс',
@@ -622,7 +625,10 @@ export const translations = {
             identify: { number: '02', title: 'Аймақты анықтау' },
             control: { number: '04', title: 'Бақылау' },
           },
-          checkPrompt: 'Жағдайға сәйкес терминді таңдаңыз.',
+          checkPrompt: (fromLang, toLang) => {
+            const label = { kk: 'қазақ', ru: 'орыс', en: 'ағылшын' }
+            return `Терминді ${label[fromLang]} тілінен ${label[toLang]} тіліне аударыңыз`
+          },
           wrongHint: 'Тиісті терминді қайталаңыз.',
           confirmCta: 'Растау',
           nextCta: 'Келесі →',
@@ -1362,7 +1368,11 @@ export const translations = {
           quiz: {
             questionLabel: (current, total) => `Вопрос ${String(current).padStart(2, '0')} / ${total}`,
             correctCount: (n) => `${n} правильных`,
-            instruction: 'Выберите правильный перевод',
+            instruction: (fromLang, toLang) => {
+              const from = { kk: 'казахского', ru: 'русского', en: 'английского' }
+              const to = { kk: 'казахский', ru: 'русский', en: 'английский' }
+              return `Переведите термин с ${from[fromLang]} на ${to[toLang]}`
+            },
             answerCta: 'Ответить →',
             nextCta: 'Следующий вопрос →',
             correctTitle: 'Правильно',
@@ -1434,7 +1444,11 @@ export const translations = {
             identify: { number: '02', title: 'Определение зоны' },
             control: { number: '04', title: 'Контроль' },
           },
-          checkPrompt: 'Выберите термин, соответствующий ситуации.',
+          checkPrompt: (fromLang, toLang) => {
+            const from = { kk: 'казахского', ru: 'русского', en: 'английского' }
+            const to = { kk: 'казахский', ru: 'русский', en: 'английский' }
+            return `Переведите термин с ${from[fromLang]} на ${to[toLang]}`
+          },
           wrongHint: 'Повторите соответствующий термин.',
           confirmCta: 'Подтвердить',
           nextCta: 'Далее →',
