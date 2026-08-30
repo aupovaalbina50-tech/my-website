@@ -11,6 +11,7 @@ import { toSentenceCase } from '../../utils/textCase.js'
 import { useFavoriteTerms } from '../account/useFavoriteTerms.js'
 
 const LANG_TAG = { kk: 'KZ', ru: 'RU', en: 'EN' }
+const LANG_ORDER = ['kk', 'ru', 'en']
 
 function AllTermsContent({
   categoryKey = null,
@@ -28,7 +29,11 @@ function AllTermsContent({
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ ru: '', kk: '', en: '', category: '' })
+  const [activeLangByTerm, setActiveLangByTerm] = useState({})
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
+
+  const setActiveLang = (termId, code) =>
+    setActiveLangByTerm((prev) => (prev[termId] === code ? prev : { ...prev, [termId]: code }))
 
   const category = useMemo(
     () => (categoryKey ? CATEGORIES.find((c) => c.key === categoryKey) : null),
@@ -267,13 +272,12 @@ function AllTermsContent({
                     )
                   }
 
-                  const translationRows = (lang === 'ru' ? ['ru', 'kk', 'en'] : ['kk', 'ru', 'en']).map(
-                    (code) => ({
-                      code,
-                      label: t.langNames[code],
-                      value: toSentenceCase(term[code]),
-                    }),
-                  )
+                  const activeLang = activeLangByTerm[term.id] || 'kk'
+                  const translationRows = LANG_ORDER.map((code) => ({
+                    code,
+                    label: t.langNames[code],
+                    value: toSentenceCase(term[code]),
+                  }))
 
                   return (
                     <li
@@ -322,30 +326,47 @@ function AllTermsContent({
                           </span>
                         </div>
 
-                        <div className="term-entry-translations">
-                          {translationRows.map((row, rowIndex) => (
-                            <div
-                              key={row.code}
-                              className="term-entry-translation"
-                              data-lang={row.code}
+                        <div className="term-entry-lang-switch" role="group" aria-label={t.termsList.langSwitchAria}>
+                          {LANG_ORDER.map((code) => (
+                            <button
+                              key={code}
+                              type="button"
+                              className={`term-entry-lang-btn${activeLang === code ? ' active' : ''}`}
+                              onClick={() => setActiveLang(term.id, code)}
+                              aria-pressed={activeLang === code}
                             >
-                              <span className="term-entry-lang-tag" title={row.label}>
-                                {LANG_TAG[row.code]}
-                              </span>
-                              <span className="term-entry-divider" aria-hidden="true" />
-                              {rowIndex === 0 ? (
-                                <button
-                                  type="button"
-                                  className="term-entry-value term-entry-value-link"
-                                  onClick={() => navigate(`${termBasePath}/${term.id}`)}
-                                >
-                                  {row.value}
-                                </button>
-                              ) : (
-                                <span className="term-entry-value">{row.value || '—'}</span>
-                              )}
-                            </div>
+                              {LANG_TAG[code]}
+                            </button>
                           ))}
+                        </div>
+
+                        <div className="term-entry-translations">
+                          {translationRows.map((row) => {
+                            const isActive = row.code === activeLang
+                            return (
+                              <div
+                                key={row.code}
+                                className={`term-entry-translation${isActive ? ' active' : ''}`}
+                                data-lang={row.code}
+                              >
+                                <span className="term-entry-lang-tag" title={row.label}>
+                                  {LANG_TAG[row.code]}
+                                </span>
+                                <span className="term-entry-divider" aria-hidden="true" />
+                                {isActive ? (
+                                  <button
+                                    type="button"
+                                    className="term-entry-value term-entry-value-link"
+                                    onClick={() => navigate(`${termBasePath}/${term.id}`)}
+                                  >
+                                    {row.value}
+                                  </button>
+                                ) : (
+                                  <span className="term-entry-value">{row.value || '—'}</span>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
 
                         {isAdmin && (
