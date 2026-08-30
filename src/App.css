@@ -854,6 +854,14 @@
   transition: color 0.28s ease;
 }
 
+.alphabet-card-glyph {
+  font-family: var(--heading);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: #f4f8ff;
+}
+
 .category-card-number {
   font-family: var(--mono);
   font-size: 13px;
@@ -8172,6 +8180,17 @@
   &:hover {
     color: #fff;
     background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.terms-tabs {
+  display: flex;
+  max-width: 1120px;
+  width: calc(100% - 64px);
+  margin: var(--space-5) auto 0;
+
+  @media (max-width: 640px) {
+    width: calc(100% - 40px);
   }
 }
 

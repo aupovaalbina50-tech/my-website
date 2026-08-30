@@ -18,6 +18,8 @@ function AllTermsContent({
   showBack = true,
   showSearch = true,
   termBasePath = '/terms',
+  letterFilter = null,
+  titleOverride = null,
 }) {
   const navigate = useNavigate()
   const { lang, t } = useLanguage()
@@ -85,7 +87,14 @@ function AllTermsContent({
     )
   }, [terms, query])
 
-  const displayedTerms = visibleTerms
+  const displayedTerms = useMemo(() => {
+    if (!letterFilter) return visibleTerms
+    return visibleTerms.filter(
+      (term) =>
+        toSentenceCase(term[lang] || term.ru || term.kk || term.en).charAt(0).toUpperCase() ===
+        letterFilter,
+    )
+  }, [visibleTerms, letterFilter, lang])
 
   const headerCount = displayedTerms.length
 
@@ -158,7 +167,7 @@ function AllTermsContent({
             </span>
             <div>
               <h1 className="terms-list-title">
-                {category ? category[lang] : t.termsList.allTitle}
+                {titleOverride || (category ? category[lang] : t.termsList.allTitle)}
               </h1>
               <p className="terms-list-count">
                 {loading ? t.table.loading : t.categorySection.count(headerCount)}
