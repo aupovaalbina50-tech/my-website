@@ -71,6 +71,7 @@ function Header() {
             <div className="hero-stage-map" aria-hidden="true">
               <CivilDefenseMapGraphic />
             </div>
+            <div className="hero-stage-vignette" aria-hidden="true"></div>
             <div className="hero-stage-content">
               <p className="hero-label">
                 <span className="hero-label-mark" aria-hidden="true"></span>
