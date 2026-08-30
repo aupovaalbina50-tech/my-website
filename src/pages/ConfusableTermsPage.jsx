@@ -63,21 +63,23 @@ function ConfusableTermsPage() {
               <p className="confusable-difference-text">{selected.difference[lang]}</p>
             </div>
 
-            <div className="confusable-sources">
-              <p className="confusable-sources-label">{t.confusable.sourceLabel}</p>
-              {selected.sources.map((source) => (
-                <a
-                  key={source.docId + source.label[lang]}
-                  className="confusable-source-link"
-                  href={`https://adilet.zan.kz/${lang === 'kk' ? 'kaz' : 'rus'}/docs/${source.docId}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink size={13} aria-hidden="true" />
-                  {source.label[lang]}
-                </a>
-              ))}
-            </div>
+            {selected.sources.length > 0 && (
+              <div className="confusable-sources">
+                <p className="confusable-sources-label">{t.confusable.sourceLabel}</p>
+                {selected.sources.map((source) => (
+                  <a
+                    key={source.docId + source.label[lang]}
+                    className="confusable-source-link"
+                    href={`https://adilet.zan.kz/${lang === 'kk' ? 'kaz' : 'rus'}/docs/${source.docId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink size={13} aria-hidden="true" />
+                    {source.label[lang]}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
