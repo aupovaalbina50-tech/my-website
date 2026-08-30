@@ -1,37 +1,43 @@
 import { Flame, LifeBuoy, Radio, Hospital, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { CATEGORIES } from '../i18n/translations'
 
-// Stylised, simplified silhouette of Kazakhstan (illustrative HUD backdrop,
-// not surveyed geography) — wide east-west landmass with a Caspian-coast
-// notch on the southwest, drawn in a 0-200 x 0-100 box.
+// Kazakhstan's real border, simplified from public boundary data
+// (johan/world.geo.json) and projected with an equirectangular
+// (cos-latitude-corrected) projection into a 0-200 x 0-100 box.
 const MAP_OUTLINE =
-  'M20,20 L45,10 L75,8 L100,14 L125,8 L148,13 L168,22 L184,36 L176,48 L188,58 ' +
-  'L172,68 L154,62 L145,76 L122,70 L112,84 L90,78 L78,88 L60,82 L44,86 L34,72 ' +
-  'L40,60 L26,64 L30,50 L15,46 L24,36 L12,28 Z'
+  'M116.8,85.2 L114.4,86.3 L109.0,90.6 L107.1,95.0 L105.6,95.0 L104.5,92.1 L99.2,91.9 L98.3,86.9 ' +
+  'L96.3,86.9 L96.6,80.7 L91.6,76.3 L84.5,76.7 L79.6,77.6 L75.7,72.1 L72.3,69.8 L65.8,65.4 L65.1,64.9 ' +
+  'L54.4,68.5 L54.5,91.0 L52.4,91.3 L49.5,86.6 L46.7,84.8 L42.0,86.1 L40.1,88.1 L39.9,86.7 L40.9,84.1 ' +
+  'L40.1,82.0 L35.3,79.9 L33.5,74.4 L31.2,72.9 L31.0,70.9 L35.1,71.4 L35.2,67.0 L38.8,66.0 L42.4,66.9 ' +
+  'L43.1,60.9 L42.4,57.2 L38.2,57.5 L34.7,56.0 L29.9,58.6 L26.0,59.9 L23.9,58.9 L24.3,55.8 L21.7,51.7 ' +
+  'L18.6,51.9 L15.1,47.7 L17.5,43.1 L16.3,41.9 L19.6,35.1 L23.8,38.7 L24.4,34.2 L32.9,27.6 L39.4,27.4 ' +
+  'L48.6,31.6 L53.5,34.1 L57.9,31.5 L64.5,31.4 L69.8,34.6 L71.0,32.8 L76.8,33.0 L77.9,30.1 L71.2,25.9 ' +
+  'L75.1,23.0 L74.4,21.3 L78.3,19.7 L75.3,15.5 L77.3,13.4 L92.8,11.3 L94.8,9.8 L105.2,7.5 L109.0,5.0 ' +
+  'L116.4,6.3 L117.7,12.7 L122.1,11.2 L127.4,13.3 L127.0,16.6 L131.0,16.2 L141.4,10.5 L139.9,12.4 ' +
+  'L145.2,17.1 L154.5,32.6 L156.7,29.4 L162.4,33.0 L168.4,31.4 L170.7,32.5 L172.7,36.0 L175.6,37.2 ' +
+  'L177.4,39.8 L182.7,39.0 L184.9,42.7 L181.8,46.8 L178.3,47.4 L178.1,53.5 L175.8,56.3 L167.6,54.2 ' +
+  'L164.6,65.2 L162.4,66.5 L154.2,69.0 L158.0,79.6 L155.1,81.2 L155.4,84.7 L152.9,83.8 L150.8,81.6 ' +
+  'L144.6,81.0 L137.7,80.8 L136.2,81.5 L130.3,78.9 L128.0,80.2 L127.3,83.8 L120.5,81.7 L117.7,82.5 Z'
 
-// Balkhash-lake-style accent inside the landmass, purely decorative.
-const LAKE_PATH = 'M120,52 Q140,48 152,56 Q140,64 122,60 Q116,56 120,52 Z'
+// Lake Balkhash, roughly where it sits inside the real outline above.
+const LAKE_PATH = 'M126.9,58.1 Q137.7,54 151.0,62.4 Q137.7,68 126.9,58.1 Z'
 
-const HAZARD_KEYS = ['emergencies', 'fire_safety', 'rescue_ops', 'disaster_medicine', 'alerting_comms']
-const HAZARD_ICONS = [AlertTriangle, Flame, LifeBuoy, Hospital, Radio]
-
-const NODE_POSITIONS = [
-  { x: 50, y: 17 },
-  { x: 81.4, y: 39.8 },
-  { x: 69.4, y: 76.7 },
-  { x: 30.6, y: 76.7 },
-  { x: 18.6, y: 39.8 },
+// Five hazard nodes placed on real cities around the capital (Astana),
+// each carrying one civil-defense domain from the site's own category list.
+const HAZARD_NODES = [
+  { city: 'Almaty', x: 66.7, y: 73.4, key: 'emergencies', Icon: AlertTriangle },
+  { city: 'Atyrau', x: 17, y: 58, key: 'fire_safety', Icon: Flame },
+  { city: 'Aktobe', x: 24, y: 30, key: 'rescue_ops', Icon: LifeBuoy },
+  { city: 'Oskemen', x: 76.1, y: 40.6, key: 'disaster_medicine', Icon: Hospital },
+  { city: 'Kostanay', x: 50, y: 15, key: 'alerting_comms', Icon: Radio },
 ]
 
+const CENTER = { x: 57.5, y: 34.6 }
+
 function CivilDefenseMapGraphic({ lang, centerLabel }) {
-  const nodes = HAZARD_KEYS.map((key, i) => {
-    const category = CATEGORIES.find((c) => c.key === key)
-    return {
-      key,
-      label: category?.[lang] || key,
-      Icon: HAZARD_ICONS[i],
-      ...NODE_POSITIONS[i],
-    }
+  const nodes = HAZARD_NODES.map((n, i) => {
+    const category = CATEGORIES.find((c) => c.key === n.key)
+    return { ...n, label: category?.[lang] || n.key, delay: i }
   })
 
   return (
@@ -40,36 +46,36 @@ function CivilDefenseMapGraphic({ lang, centerLabel }) {
 
       <svg className="kzmap-outline" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <path d={MAP_OUTLINE} className="kzmap-outline-fill" />
-        <path d={MAP_OUTLINE} className="kzmap-outline-stroke" />
         <path d={LAKE_PATH} className="kzmap-lake" />
+        <path d={MAP_OUTLINE} className="kzmap-outline-stroke" />
       </svg>
 
       <svg className="kzmap-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         {nodes.map((n, i) => (
-          <g key={n.key} style={{ '--line-delay': `${0.55 + i * 0.12}s`, '--pulse-delay': `${i * 1.6}s` }}>
-            <line x1="50" y1="50" x2={n.x} y2={n.y} className="kzmap-line" />
-            <line x1="50" y1="50" x2={n.x} y2={n.y} className="kzmap-line-pulse" />
+          <g key={n.city} style={{ '--line-delay': `${0.55 + i * 0.12}s`, '--pulse-delay': `${i * 1.6}s` }}>
+            <line x1={CENTER.x} y1={CENTER.y} x2={n.x} y2={n.y} className="kzmap-line" />
+            <line x1={CENTER.x} y1={CENTER.y} x2={n.x} y2={n.y} className="kzmap-line-pulse" />
           </g>
         ))}
       </svg>
 
-      <div className="kzmap-node kzmap-node-center" style={{ left: '50%', top: '50%' }}>
+      <div className="kzmap-node kzmap-node-center" style={{ left: `${CENTER.x}%`, top: `${CENTER.y}%` }}>
         <span className="kzmap-node-inner">
           <span className="kzmap-badge kzmap-badge-center" aria-hidden="true">
-            <ShieldCheck size={22} strokeWidth={2} aria-hidden="true" />
+            <ShieldCheck size={20} strokeWidth={2} aria-hidden="true" />
           </span>
         </span>
       </div>
 
       {nodes.map((n, i) => (
         <div
-          key={n.key}
+          key={n.city}
           className="kzmap-node"
           style={{ left: `${n.x}%`, top: `${n.y}%`, '--node-delay': `${0.85 + i * 0.1}s` }}
         >
           <span className="kzmap-node-inner">
             <span className="kzmap-badge" aria-hidden="true">
-              <n.Icon size={16} strokeWidth={2} aria-hidden="true" />
+              <n.Icon size={15} strokeWidth={2} aria-hidden="true" />
             </span>
             <span className="kzmap-node-label">{n.label}</span>
           </span>
