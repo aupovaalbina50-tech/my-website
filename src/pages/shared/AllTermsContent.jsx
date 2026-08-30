@@ -335,20 +335,6 @@ function AllTermsContent({
                           </span>
                         </div>
 
-                        <div className="term-entry-lang-switch" role="group" aria-label={t.termsList.langSwitchAria}>
-                          {LANG_ORDER.map((code) => (
-                            <button
-                              key={code}
-                              type="button"
-                              className={`term-entry-lang-btn${activeLang === code ? ' active' : ''}`}
-                              onClick={() => setActiveLang(term.id, code)}
-                              aria-pressed={activeLang === code}
-                            >
-                              {LANG_TAG[code]}
-                            </button>
-                          ))}
-                        </div>
-
                         <div className="term-entry-translations">
                           {translationRows.map((row) => {
                             const isActive = row.code === activeLang
@@ -358,9 +344,15 @@ function AllTermsContent({
                                 className={`term-entry-translation${isActive ? ' active' : ''}`}
                                 data-lang={row.code}
                               >
-                                <span className="term-entry-lang-tag" title={row.label}>
+                                <button
+                                  type="button"
+                                  className="term-entry-lang-tag"
+                                  title={row.label}
+                                  onClick={() => setActiveLang(term.id, row.code)}
+                                  aria-pressed={isActive}
+                                >
                                   {LANG_TAG[row.code]}
-                                </span>
+                                </button>
                                 <span className="term-entry-divider" aria-hidden="true" />
                                 {isActive ? (
                                   <button
