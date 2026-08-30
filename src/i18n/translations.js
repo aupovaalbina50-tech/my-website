@@ -79,6 +79,8 @@ export const translations = {
     termsList: {
       allTitle: 'Барлық терминдер',
       back: 'Артқа',
+      backToAlphabet: 'Әліпбиге оралу',
+      byLetterHeading: 'Әліпби бойынша терминдер',
       notFoundCategory: 'Санат табылмады.',
       empty: 'Бұл санатта әлі термин жоқ.',
       emptyViewed: 'Сіз әлі ешбір терминді қарамадыңыз.',
@@ -88,6 +90,7 @@ export const translations = {
       searchPlaceholder: 'Терминді немесе санатты іздеу...',
       viewCategories: 'Санаттар',
       viewAlphabet: 'Әліпби',
+      viewList: 'Тізім',
       reset: 'Бастапқы күй',
       noResults: 'Сәйкес термин табылмады.',
       loading: 'Жүктелуде...',
@@ -872,6 +875,8 @@ export const translations = {
     termsList: {
       allTitle: 'Все термины',
       back: 'Назад',
+      backToAlphabet: 'Вернуться к алфавиту',
+      byLetterHeading: 'Термины по алфавиту',
       notFoundCategory: 'Категория не найдена.',
       empty: 'В этой категории пока нет терминов.',
       emptyViewed: 'Вы ещё не просматривали термины.',
@@ -881,6 +886,7 @@ export const translations = {
       searchPlaceholder: 'Поиск термина или категории...',
       viewCategories: 'Категории',
       viewAlphabet: 'Алфавит',
+      viewList: 'Список',
       reset: 'Исходный вид',
       noResults: 'Совпадений не найдено.',
       loading: 'Загрузка...',
