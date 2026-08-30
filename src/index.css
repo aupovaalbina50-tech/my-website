@@ -56,11 +56,21 @@
   --space-7: 64px;
   --space-8: 96px;
 
-  /* IBM Plex Sans is the primary UI face; Noto Sans is the declared fallback —
-     between the two, every glyph needed for kk/ru/en (incl. Ә Ғ Қ Ң Ө Ұ Ү Һ І)
-     is covered, and the browser falls back per-character automatically. */
+  /* Manrope is the default (ru/en) UI face; Noto Sans is the fallback for any
+     glyph Manrope lacks. The Kazakh interface uses its own stack below,
+     switched in per <html lang="kk">, so kk/ru/en stay visually related
+     (both are clean grotesque sans faces) without sharing one font file. */
   --sans: 'Manrope', 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Manrope', 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Kazakh UI face: IBM Plex Sans is primary here (not just a glyph
+     fallback), chosen for its full, correctly-shaped coverage of the
+     Kazakh Cyrillic letters (Ә ә Ғ ғ Қ қ Ң ң Ө ө Ұ ұ Үү Һ һ І і) at a
+     strict, technical weight consistent with the MES visual identity.
+     Noto Sans/Segoe UI are only a fallback if the webfont fails to load —
+     both also carry full Kazakh Cyrillic coverage. */
+  --sans-kk: 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --heading-kk: 'IBM Plex Sans', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
   /* Typography scale — single source of truth, referenced instead of
@@ -96,6 +106,14 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Kazakh UI: swap the body/heading font stacks to the IBM Plex Sans face.
+   documentElement.lang is kept in sync with the language switcher
+   (see LanguageContext.jsx), so this reacts live without a reload. */
+html[lang='kk'] {
+  --sans: var(--sans-kk);
+  --heading: var(--heading-kk);
 }
 
 /* Browsers give form controls their own UI font instead of inheriting the
