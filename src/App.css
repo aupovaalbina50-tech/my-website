@@ -281,104 +281,76 @@
   }
 }
 
-.letterhead-brandrow {
+.hero-emblems-row {
   position: relative;
   z-index: 2;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 14px;
-
-  @media (max-width: 640px) {
-    gap: 8px;
-  }
-}
-
-.brand-emblems {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.brand-emblems::before {
-  content: '';
-  position: absolute;
-  inset: -40%;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(ellipse 70% 75% at 50% 50%, rgba(96, 170, 255, 0.24), transparent 78%);
-  filter: blur(6px);
+  justify-content: center;
+  gap: 20px;
 }
 
 .emblem {
   flex-shrink: 0;
-  width: 168px;
-  height: 168px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
-  filter: drop-shadow(0 0 20px rgba(110, 180, 255, 0.45)) drop-shadow(0 8px 22px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
 
-  @media (max-width: 760px) {
-    width: 120px;
-    height: 120px;
-  }
   @media (max-width: 480px) {
-    width: 84px;
-    height: 84px;
+    width: 44px;
+    height: 44px;
   }
 }
 
-.brand-org-text {
-  min-width: 0;
-}
+.hero-emblem-divider {
+  width: 1px;
+  height: 40px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.22);
 
-.brand-org-line {
-  margin: 0;
-  font-size: 16.5px;
-  font-weight: 600;
-  line-height: 1.45;
-  letter-spacing: 0.01em;
-  color: rgba(255, 255, 255, 0.72);
-
-  @media (max-width: 760px) {
-    font-size: 14px;
-  }
   @media (max-width: 480px) {
-    font-size: 12.5px;
+    height: 30px;
   }
 }
 
-.brand-org-line-sub {
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 500;
-}
-
-.hero-grid {
+.hero-stage {
   position: relative;
   z-index: 2;
-  display: grid;
-  grid-template-columns: 55fr 45fr;
+  min-height: 560px;
+  display: flex;
   align-items: center;
-  gap: 28px;
+  justify-content: center;
 
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-    gap: 36px;
+  @media (max-width: 1100px) {
+    min-height: 460px;
+  }
+  @media (max-width: 760px) {
+    min-height: 360px;
+  }
+  @media (max-width: 480px) {
+    min-height: 280px;
   }
 }
 
-.hero-grid-map {
-  grid-template-columns: 38fr 62fr;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
+.hero-stage-map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
-.hero-copy {
-  min-width: 0;
+.hero-stage-content {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .hero-label {
@@ -407,12 +379,15 @@
 
 .hero-title-stacked {
   margin: 0;
-  max-width: 640px;
   color: #fff;
   font-family: var(--sans);
   letter-spacing: -0.005em;
   line-height: 1.08;
   text-shadow: 0 2px 20px rgba(6, 20, 38, 0.4);
+}
+
+.hero-title-centered {
+  text-align: center;
 }
 
 .hero-title-lead {
@@ -437,7 +412,7 @@
   display: block;
   width: 64px;
   height: 3px;
-  margin-top: 14px;
+  margin: 14px auto 0;
   background: linear-gradient(90deg, var(--red), transparent);
 }
 
@@ -471,6 +446,10 @@
   @media (max-width: 760px) {
     font-size: 15.5px;
   }
+}
+
+.hero-desc-centered {
+  text-align: center;
 }
 
 .hero-cta {
@@ -511,32 +490,65 @@
   transition: transform 0.28s ease;
 }
 
-/* ---- Hero right side — Kazakhstan digital-network map graphic ---- */
-
-.hero-visual {
+.hero-scroll-hint {
   position: relative;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  z-index: 2;
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 8px auto 0;
+  color: rgba(255, 255, 255, 0.4);
+  animation: hero-scroll-bounce 2.2s ease-in-out infinite;
 }
 
-.kzmap-panel {
-  position: relative;
-  width: 100%;
-  max-width: 900px;
-  aspect-ratio: 2 / 1;
-  padding: 4%;
-  box-sizing: border-box;
-  border-radius: 22px;
-  background: linear-gradient(160deg, #f5faff 0%, #e3f1ff 55%, #d2e9ff 100%);
-  box-shadow: 0 24px 60px rgba(4, 16, 36, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+@keyframes hero-scroll-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 0.75;
+  }
 }
+
+.hero-official-footer {
+  position: relative;
+  z-index: 2;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+
+  @media (max-width: 640px) {
+    margin-top: 28px;
+    padding-top: 18px;
+  }
+}
+
+.hero-official-line {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.5);
+
+  @media (max-width: 480px) {
+    font-size: 11.5px;
+  }
+}
+
+.hero-official-line-sub {
+  color: rgba(255, 255, 255, 0.36);
+}
+
+/* ---- Hero backdrop — Kazakhstan digital-network map graphic ---- */
 
 .kzmap {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: min(1120px, 100%);
+  aspect-ratio: 2 / 1;
 }
 
 .kzmap-outline {
@@ -551,19 +563,19 @@
 }
 
 .kzmap-outline-fill {
-  fill: #ffffff;
+  fill: rgba(255, 255, 255, 0.03);
 }
 
 .kzmap-outline-stroke {
   fill: none;
-  stroke: #1b4f8c;
-  stroke-width: 1.6;
+  stroke: rgba(190, 216, 255, 0.2);
+  stroke-width: 1.2;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 
 .kzmap-lake {
-  fill: #cfe6ff;
+  fill: rgba(126, 184, 255, 0.06);
 }
 
 @keyframes kzmap-outline-in {
@@ -587,8 +599,8 @@
 
 .kzmap-line {
   fill: none;
-  stroke: rgba(47, 111, 224, 0.4);
-  stroke-width: 0.5;
+  stroke: rgba(126, 184, 255, 0.3);
+  stroke-width: 0.4;
   vector-effect: non-scaling-stroke;
   opacity: 0;
   animation: kzmap-line-in 0.6s ease forwards, kzmap-line-breathe 6s ease-in-out infinite;
@@ -597,8 +609,8 @@
 
 .kzmap-line-pulse {
   fill: none;
-  stroke: #6fb3ff;
-  stroke-width: 0.8;
+  stroke: rgba(210, 230, 255, 0.85);
+  stroke-width: 0.6;
   stroke-dasharray: 4 60;
   vector-effect: non-scaling-stroke;
   opacity: 0;
@@ -620,10 +632,10 @@
 @keyframes kzmap-line-breathe {
   0%,
   100% {
-    opacity: 0.45;
+    opacity: 0.3;
   }
   50% {
-    opacity: 0.85;
+    opacity: 0.55;
   }
 }
 
@@ -638,28 +650,21 @@
 
 .kzmap-dot {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
   border-radius: 50%;
-  background: #2f6fe0;
-  box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.16), 0 0 10px rgba(47, 111, 224, 0.55);
+  background: rgba(150, 200, 255, 0.85);
+  box-shadow: 0 0 8px rgba(126, 184, 255, 0.6);
   opacity: 0;
-  z-index: 2;
-  transition: box-shadow 0.25s ease;
   animation: kzmap-dot-in 0.4s ease forwards, kzmap-dot-pulse 4s ease-in-out infinite;
   animation-delay: var(--dot-delay), calc(var(--dot-delay) + 0.4s);
 
   @media (max-width: 640px) {
-    width: 8px;
-    height: 8px;
-    margin: -4px 0 0 -4px;
+    width: 5px;
+    height: 5px;
+    margin: -2.5px 0 0 -2.5px;
   }
-}
-
-.kzmap-dot-accent {
-  background: var(--red);
-  box-shadow: 0 0 0 4px rgba(200, 31, 46, 0.16), 0 0 10px rgba(200, 31, 46, 0.55);
 }
 
 @keyframes kzmap-dot-in {
@@ -674,51 +679,10 @@
 @keyframes kzmap-dot-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 4px rgba(47, 111, 224, 0.14), 0 0 8px rgba(47, 111, 224, 0.45);
+    box-shadow: 0 0 6px rgba(126, 184, 255, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 7px rgba(47, 111, 224, 0.22), 0 0 16px rgba(47, 111, 224, 0.75);
-  }
-}
-
-.kzmap-dot-accent {
-  animation: kzmap-dot-in 0.4s ease forwards, kzmap-dot-pulse-red 4s ease-in-out infinite;
-  animation-delay: var(--dot-delay), calc(var(--dot-delay) + 0.4s);
-}
-
-@keyframes kzmap-dot-pulse-red {
-  0%,
-  100% {
-    box-shadow: 0 0 0 4px rgba(200, 31, 46, 0.14), 0 0 8px rgba(200, 31, 46, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 7px rgba(200, 31, 46, 0.22), 0 0 16px rgba(200, 31, 46, 0.75);
-  }
-}
-
-.kzmap-dot:hover {
-  animation: none;
-  transform: scale(1.7);
-  box-shadow: 0 0 0 8px rgba(47, 111, 224, 0.22), 0 0 20px rgba(47, 111, 224, 0.85);
-}
-
-.kzmap-dot-accent:hover {
-  box-shadow: 0 0 0 8px rgba(200, 31, 46, 0.22), 0 0 20px rgba(200, 31, 46, 0.85);
-}
-
-@supports selector(:has(*)) {
-  .kzmap:has(.kzmap-dot-astana:hover) .kzmap-line[data-touches~='astana'],
-  .kzmap:has(.kzmap-dot-almaty:hover) .kzmap-line[data-touches~='almaty'],
-  .kzmap:has(.kzmap-dot-shymkent:hover) .kzmap-line[data-touches~='shymkent'],
-  .kzmap:has(.kzmap-dot-karaganda:hover) .kzmap-line[data-touches~='karaganda'],
-  .kzmap:has(.kzmap-dot-aktobe:hover) .kzmap-line[data-touches~='aktobe'],
-  .kzmap:has(.kzmap-dot-atyrau:hover) .kzmap-line[data-touches~='atyrau'],
-  .kzmap:has(.kzmap-dot-oskemen:hover) .kzmap-line[data-touches~='oskemen'],
-  .kzmap:has(.kzmap-dot-kostanay:hover) .kzmap-line[data-touches~='kostanay'] {
-    animation: none;
-    opacity: 0.95;
-    stroke: rgba(27, 79, 140, 0.9);
-    stroke-width: 0.9;
+    box-shadow: 0 0 14px rgba(126, 184, 255, 0.8);
   }
 }
 

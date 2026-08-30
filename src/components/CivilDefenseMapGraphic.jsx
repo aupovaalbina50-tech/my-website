@@ -20,15 +20,14 @@ const MAP_OUTLINE =
 const LAKE_PATH = 'M126.9,58.1 Q137.7,54 151.0,62.4 Q137.7,68 126.9,58.1 Z'
 
 // Major cities, positioned from the same real-world projection as the
-// outline above. A couple carry the small red accent called for in the
-// brief; the rest use the standard blue "system" color.
+// outline above.
 const CITIES = [
-  { key: 'astana', x: 57.5, y: 34.6, accent: true },
+  { key: 'astana', x: 57.5, y: 34.6 },
   { key: 'almaty', x: 66.7, y: 73.4 },
   { key: 'shymkent', x: 55.0, y: 81.4 },
   { key: 'karaganda', x: 61.6, y: 40.2 },
   { key: 'aktobe', x: 33.8, y: 39.0 },
-  { key: 'atyrau', x: 25.1, y: 54.5, accent: true },
+  { key: 'atyrau', x: 25.1, y: 54.5 },
   { key: 'oskemen', x: 76.1, y: 40.6 },
   { key: 'kostanay', x: 44.5, y: 24.7 },
 ]
@@ -49,45 +48,35 @@ const LINKS = [
   ['karaganda', 'oskemen'],
 ]
 
-function CivilDefenseMapGraphic({ centerLabel }) {
+function CivilDefenseMapGraphic() {
   return (
-    <div className="kzmap-panel">
-      <div className="kzmap" role="img" aria-label={centerLabel}>
-        <svg className="kzmap-outline" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <path d={MAP_OUTLINE} className="kzmap-outline-fill" />
-          <path d={LAKE_PATH} className="kzmap-lake" />
-          <path d={MAP_OUTLINE} className="kzmap-outline-stroke" />
-        </svg>
+    <div className="kzmap" aria-hidden="true">
+      <svg className="kzmap-outline" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <path d={MAP_OUTLINE} className="kzmap-outline-fill" />
+        <path d={LAKE_PATH} className="kzmap-lake" />
+        <path d={MAP_OUTLINE} className="kzmap-outline-stroke" />
+      </svg>
 
-        <svg className="kzmap-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          {LINKS.map(([a, b], i) => {
-            const from = CITY_BY_KEY[a]
-            const to = CITY_BY_KEY[b]
-            return (
-              <g key={`${a}-${b}`} style={{ '--line-delay': `${i * 0.1}s`, '--pulse-delay': `${i * 1.3}s` }}>
-                <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="kzmap-line" data-touches={`${a} ${b}`} />
-                <line
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
-                  className="kzmap-line-pulse"
-                  data-touches={`${a} ${b}`}
-                />
-              </g>
-            )
-          })}
-        </svg>
+      <svg className="kzmap-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {LINKS.map(([a, b], i) => {
+          const from = CITY_BY_KEY[a]
+          const to = CITY_BY_KEY[b]
+          return (
+            <g key={`${a}-${b}`} style={{ '--line-delay': `${i * 0.1}s`, '--pulse-delay': `${i * 1.3}s` }}>
+              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="kzmap-line" />
+              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="kzmap-line-pulse" />
+            </g>
+          )
+        })}
+      </svg>
 
-        {CITIES.map((city, i) => (
-          <span
-            key={city.key}
-            className={`kzmap-dot kzmap-dot-${city.key}${city.accent ? ' kzmap-dot-accent' : ''}`}
-            style={{ left: `${city.x}%`, top: `${city.y}%`, '--dot-delay': `${i * 0.08}s` }}
-            aria-hidden="true"
-          />
-        ))}
-      </div>
+      {CITIES.map((city, i) => (
+        <span
+          key={city.key}
+          className="kzmap-dot"
+          style={{ left: `${city.x}%`, top: `${city.y}%`, '--dot-delay': `${i * 0.08}s` }}
+        />
+      ))}
     </div>
   )
 }
