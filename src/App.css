@@ -541,19 +541,19 @@
 .kzmap {
   position: relative;
   width: 100%;
-  max-width: 460px;
-  aspect-ratio: 1 / 1;
+  max-width: 580px;
+  aspect-ratio: 2 / 1;
 
   @media (max-width: 640px) {
-    max-width: 320px;
+    max-width: 400px;
   }
 }
 
 .kzmap-outline {
   position: absolute;
-  inset: 8%;
-  width: 84%;
-  height: 84%;
+  inset: 10%;
+  width: 80%;
+  height: 80%;
   overflow: visible;
   opacity: 0;
   animation: kzmap-outline-in 0.9s ease forwards;
@@ -807,7 +807,8 @@
 }
 
 @media (max-width: 480px) {
-  .kzmap-tag-top {
+  .kzmap-tag-top,
+  .kzmap-tag-langs {
     display: none;
   }
 }

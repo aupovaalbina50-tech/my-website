@@ -33,6 +33,10 @@ function Header() {
         <div className="letterhead-scanline" aria-hidden="true"></div>
         <div className="letterhead-inner">
           <div className="letterhead-brandrow">
+            <div className="brand-org-text">
+              <p className="brand-org-line">{t.header.eyebrow}</p>
+              <p className="brand-org-line brand-org-line-sub">{t.header.subtitle}</p>
+            </div>
             <div className="brand-emblems">
               <picture>
                 <source srcSet="/emblems/academy.webp" type="image/webp" />
@@ -56,10 +60,6 @@ function Header() {
                   decoding="async"
                 />
               </picture>
-            </div>
-            <div className="brand-org-text">
-              <p className="brand-org-line">{t.header.eyebrow}</p>
-              <p className="brand-org-line brand-org-line-sub">{t.header.subtitle}</p>
             </div>
           </div>
 
