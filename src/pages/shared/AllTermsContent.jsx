@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, GraduationCap, List, Search as SearchIcon, X } from 'lucide-react'
+import { ArrowLeft, List, Search as SearchIcon, Star, X } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -9,6 +9,8 @@ import { categoryLucideIcon } from '../../constants/categoryIcons.js'
 import { CopyButton } from '../../components/CopyButton.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
 import { useFavoriteTerms } from '../account/useFavoriteTerms.js'
+
+const LANG_TAG = { kk: 'KZ', ru: 'RU', en: 'EN' }
 
 function AllTermsContent({
   categoryKey = null,
@@ -198,9 +200,10 @@ function AllTermsContent({
             )}
             {!loading && displayedTerms.length > 0 && (
               <ul className="term-entries">
-                {displayedTerms.map((term) => {
+                {displayedTerms.map((term, index) => {
                   const isEditing = editingId === term.id
                   const label = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
+                  const CategoryIcon = term.category ? categoryLucideIcon(term.category) : null
 
                   if (isEditing) {
                     return (
@@ -264,92 +267,111 @@ function AllTermsContent({
                     )
                   }
 
-                  return (
-                    <li key={term.id} className="term-entry">
-                      <span className="term-entry-corner-actions">
-                        <button
-                          type="button"
-                          className={`quote-icon-btn term-fav-btn${
-                            favoriteIds.has(term.id) ? ' active' : ''
-                          }`}
-                          onClick={() => toggleFavorite(term)}
-                          aria-label={
-                            favoriteIds.has(term.id)
-                              ? t.termDetail.favoriteRemoveAria(label)
-                              : t.termDetail.favoriteAddAria(label)
-                          }
-                          title={
-                            favoriteIds.has(term.id)
-                              ? t.termDetail.favoriteRemove
-                              : t.termDetail.favoriteAdd
-                          }
-                          aria-pressed={favoriteIds.has(term.id)}
-                        >
-                          <GraduationCap size={18} aria-hidden="true" />
-                        </button>
-                        <CopyButton
-                          text={toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
-                          label={label}
-                          t={t}
-                        />
-                      </span>
+                  const translationRows = (lang === 'ru' ? ['ru', 'kk', 'en'] : ['kk', 'ru', 'en']).map(
+                    (code) => ({
+                      code,
+                      label: t.langNames[code],
+                      value: toSentenceCase(term[code]),
+                    }),
+                  )
 
-                      <dl className="term-detail-fields">
-                        <div className="term-detail-field">
-                          <dt>{t.langNames.kk}</dt>
-                          <dd>
+                  return (
+                    <li
+                      key={term.id}
+                      className="term-entry"
+                      style={{ '--term-entry-stagger': Math.min(index, 10) }}
+                    >
+                      <div className="term-entry-body">
+                        <div className="term-entry-top">
+                          {term.category ? (
+                            <span className="term-entry-category">
+                              <CategoryIcon size={13} strokeWidth={2.5} aria-hidden="true" />
+                              {categoryLabel(term.category)}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          <span className="term-entry-corner-actions">
                             <button
                               type="button"
-                              className="cell-text cell-text-link"
-                              onClick={() => navigate(`${termBasePath}/${term.id}`)}
+                              className={`term-entry-fav${favoriteIds.has(term.id) ? ' active' : ''}`}
+                              onClick={() => toggleFavorite(term)}
+                              aria-label={
+                                favoriteIds.has(term.id)
+                                  ? t.termDetail.favoriteRemoveAria(label)
+                                  : t.termDetail.favoriteAddAria(label)
+                              }
+                              title={
+                                favoriteIds.has(term.id)
+                                  ? t.termDetail.favoriteRemove
+                                  : t.termDetail.favoriteAdd
+                              }
+                              aria-pressed={favoriteIds.has(term.id)}
                             >
-                              {toSentenceCase(term.kk)}
+                              <Star
+                                size={17}
+                                aria-hidden="true"
+                                fill={favoriteIds.has(term.id) ? 'currentColor' : 'none'}
+                              />
                             </button>
-                          </dd>
+                            <CopyButton
+                              text={toSentenceCase(term[lang] || term.ru || term.kk || term.en)}
+                              label={label}
+                              t={t}
+                            />
+                          </span>
                         </div>
-                        <div className="term-detail-field">
-                          <dt>{t.langNames.ru}</dt>
-                          <dd>
-                            <span className="cell-text">{toSentenceCase(term.ru) || '—'}</span>
-                          </dd>
-                        </div>
-                        <div className="term-detail-field">
-                          <dt>{t.langNames.en}</dt>
-                          <dd>
-                            <span className="cell-text">{toSentenceCase(term.en) || '—'}</span>
-                          </dd>
-                        </div>
-                        <div className="term-detail-field">
-                          <dt>{t.form.categoryLabel}</dt>
-                          <dd>
-                            {term.category ? (
-                              <span className="category-badge">{categoryLabel(term.category)}</span>
-                            ) : (
-                              <span className="cell-text">{t.form.noCategory}</span>
-                            )}
-                          </dd>
-                        </div>
-                      </dl>
 
-                      {isAdmin && (
-                        <div className="term-entry-actions">
-                          <button
-                            type="button"
-                            className="btn-edit"
-                            onClick={() => handleEditStart(term)}
-                            aria-label={t.table.editAria(label)}
-                          >
-                            {t.table.edit}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-delete"
-                            onClick={() => handleDelete(term)}
-                            aria-label={t.table.deleteAria(label)}
-                          >
-                            {t.table.delete}
-                          </button>
+                        <div className="term-entry-translations">
+                          {translationRows.map((row, rowIndex) => (
+                            <div
+                              key={row.code}
+                              className="term-entry-translation"
+                              data-lang={row.code}
+                            >
+                              <span className="term-entry-lang-tag" title={row.label}>
+                                {LANG_TAG[row.code]}
+                              </span>
+                              <span className="term-entry-divider" aria-hidden="true" />
+                              {rowIndex === 0 ? (
+                                <button
+                                  type="button"
+                                  className="term-entry-value term-entry-value-link"
+                                  onClick={() => navigate(`${termBasePath}/${term.id}`)}
+                                >
+                                  {row.value}
+                                </button>
+                              ) : (
+                                <span className="term-entry-value">{row.value || '—'}</span>
+                              )}
+                            </div>
+                          ))}
                         </div>
+
+                        {isAdmin && (
+                          <div className="term-entry-actions">
+                            <button
+                              type="button"
+                              className="btn-edit"
+                              onClick={() => handleEditStart(term)}
+                              aria-label={t.table.editAria(label)}
+                            >
+                              {t.table.edit}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-delete"
+                              onClick={() => handleDelete(term)}
+                              aria-label={t.table.deleteAria(label)}
+                            >
+                              {t.table.delete}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {CategoryIcon && (
+                        <CategoryIcon className="term-entry-watermark" aria-hidden="true" />
                       )}
                     </li>
                   )
