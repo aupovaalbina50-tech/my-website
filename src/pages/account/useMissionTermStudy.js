@@ -25,7 +25,7 @@ export function useMissionTermStudy(mission) {
 
     const { data: termRows } = await supabase
       .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
+      .select('id, ru, kk, en, category')
       .eq('category', mission.categoryKey)
       .order('kk', { ascending: true })
       .limit(mission.requiredTerms)
@@ -45,7 +45,14 @@ export function useMissionTermStudy(mission) {
         setStudiedIds(new Set())
       } else {
         setPersistenceAvailable(true)
-        setStudiedIds(new Set((progressRows || []).map((row) => row.term_id)))
+        // Only count terms that are in the mission's CURRENT list. The list is
+        // the first N terms of the category, so adding new terms to the
+        // dictionary can shift it — stale rows for terms that dropped out
+        // must not count toward (or auto-complete) the study stage.
+        const currentIds = new Set(loadedTerms.map((term) => term.id))
+        setStudiedIds(
+          new Set((progressRows || []).map((row) => row.term_id).filter((id) => currentIds.has(id))),
+        )
       }
     } else {
       setStudiedIds(new Set())

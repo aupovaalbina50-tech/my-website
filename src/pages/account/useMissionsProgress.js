@@ -41,6 +41,7 @@ export function useMissionsProgress() {
       { data: studyRows, error: studyError },
       { data: attemptRows, error: attemptError },
       { data: completionRows, error: completionError },
+      ...missionTermResults
     ] = await Promise.all([
       supabase.from('mission_term_progress').select('mission_id, term_id').eq('user_id', user.id),
       supabase.from('mission_test_attempts').select('mission_id, score_percent').eq('user_id', user.id),
@@ -48,6 +49,16 @@ export function useMissionsProgress() {
         .from('mission_completions')
         .select('mission_id, score_percent, completed_at')
         .eq('user_id', user.id),
+      // Same term list the study page uses (first N of the category by kk),
+      // so studied counts only include terms still in each mission.
+      ...MISSIONS.map((mission) =>
+        supabase
+          .from('terms')
+          .select('id')
+          .eq('category', mission.categoryKey)
+          .order('kk', { ascending: true })
+          .limit(mission.requiredTerms),
+      ),
     ])
 
     if (studyError || attemptError || completionError) {
@@ -56,8 +67,16 @@ export function useMissionsProgress() {
       return
     }
 
+    const currentTermIdsByMission = new Map(
+      MISSIONS.map((mission, i) => [
+        mission.id,
+        new Set((missionTermResults[i].data || []).map((row) => row.id)),
+      ]),
+    )
+
     const studiedCountByMission = new Map()
     ;(studyRows || []).forEach((row) => {
+      if (!currentTermIdsByMission.get(row.mission_id)?.has(row.term_id)) return
       studiedCountByMission.set(row.mission_id, (studiedCountByMission.get(row.mission_id) || 0) + 1)
     })
 
