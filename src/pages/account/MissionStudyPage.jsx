@@ -8,14 +8,17 @@ import { toSentenceCase } from '../../utils/textCase.js'
 import MissionLanguagePicker from './MissionLanguagePicker.jsx'
 import { MISSION_LANG_NAMES, useMissionLanguage } from './missionLanguage.js'
 
-function TermLangRow({ label, text, active }) {
-  if (!text) return null
+// Always shows all three languages; a missing translation is stated, not hidden.
+function TermLangRow({ label, text, active, missingText }) {
+  const hasText = !!text?.trim()
   return (
     <div className={`mission-term-lang-row${active ? ' mission-term-lang-row--active' : ''}`}>
       <div className="mission-term-lang-head">
         <span className="mission-term-lang-label">{label}</span>
       </div>
-      <p className="mission-term-lang-text">{toSentenceCase(text)}</p>
+      <p className={`mission-term-lang-text${hasText ? "" : " mission-term-lang-text--missing"}`}>
+        {hasText ? toSentenceCase(text) : missingText}
+      </p>
     </div>
   )
 }
@@ -250,9 +253,9 @@ function MissionStudyPage() {
             </div>
 
             <div className="mission-term-langs">
-              <TermLangRow label={s.langKk} text={currentTerm.kk} active={activeLang === 'kk'} />
-              <TermLangRow label={s.langRu} text={currentTerm.ru} active={activeLang === 'ru'} />
-              <TermLangRow label={s.langEn} text={currentTerm.en} active={activeLang === 'en'} />
+              <TermLangRow label={s.langKk} text={currentTerm.kk} active={activeLang === 'kk'} missingText={s.noTranslation} />
+              <TermLangRow label={s.langRu} text={currentTerm.ru} active={activeLang === 'ru'} missingText={s.noTranslation} />
+              <TermLangRow label={s.langEn} text={currentTerm.en} active={activeLang === 'en'} missingText={s.noTranslation} />
             </div>
 
             {isCurrentStudied ? (

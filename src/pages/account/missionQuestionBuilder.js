@@ -65,11 +65,15 @@ export function pickQuestionSeeds(terms, targetCount) {
 export function buildQuestion({ term, type }, pool, index) {
   const [fromLang, toLang] = type.split('-')
   const correctText = term[toLang]
+  const promptText = term[fromLang].trim().toLowerCase()
   const distractorPool = pool.filter(
     (t) =>
       t.id !== term.id &&
       t[toLang]?.trim() &&
-      t[toLang].trim().toLowerCase() !== correctText.trim().toLowerCase(),
+      t[toLang].trim().toLowerCase() !== correctText.trim().toLowerCase() &&
+      // A term with the same prompt text (e.g. two terms both "апат") would be
+      // a second correct answer — never offer it as a distractor.
+      (t[fromLang] || '').trim().toLowerCase() !== promptText,
   )
   // Different terms can share a translation (e.g. two terms both "апат"):
   // never show the same option text twice.

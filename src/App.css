@@ -9895,3 +9895,9 @@
   color: var(--red);
 }
 
+
+.mission-term-lang-text--missing {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--text-soft);
+}
