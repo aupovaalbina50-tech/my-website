@@ -7,9 +7,12 @@
 // Response: 200 { readable, documentLanguage, findings: Finding[], model }
 //           4xx/5xx { error: <code>, message } — codes listed in README below
 //
-// Flow: validate the upload -> rate-limit -> load glossary -> Claude Vision
-// (inspection.ts) -> attach glossary entries -> JSON back to the browser.
-// The Anthropic API key never leaves the server.
+// Flow: validate the upload -> rate-limit -> load glossary -> vision model
+// -> attach glossary entries -> JSON back to the browser.
+//
+// Vision model: Claude (inspection.ts) when the ANTHROPIC_API_KEY secret is
+// set, otherwise Gemini's free tier (gemini.ts) with the GEMINI_API_KEY
+// secret the ai-chat assistant already uses. API keys never leave the server.
 //
 // Error codes the frontend handles:
 //   no_file, empty_file (400) · file_too_large (413) · unsupported_file (415)
@@ -20,7 +23,8 @@
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { loadGlossary } from './glossary.ts'
-import { inspectDocument, InspectionError, type ImageMediaType } from './inspection.ts'
+import { inspectWithClaude, InspectionError, type ImageMediaType, type InspectParams } from './inspection.ts'
+import { inspectWithGemini } from './gemini.ts'
 import { enforceInspectorLimits } from './rateLimit.ts'
 
 const corsHeaders = {
@@ -121,14 +125,14 @@ Deno.serve(async (req: Request) => {
     return fail(500, 'glossary_unavailable', 'The term glossary could not be loaded')
   }
 
-  // ---- 4. Claude Vision inspection --------------------------------------
+  // ---- 4. Vision inspection ----------------------------------------------
+  const params: InspectParams = { imageBase64: encodeBase64(bytes), mediaType, explanationLang: lang, glossary }
+  const geminiKey = Deno.env.get('GEMINI_API_KEY')
   try {
-    const result = await inspectDocument({
-      imageBase64: encodeBase64(bytes),
-      mediaType,
-      explanationLang: lang,
-      glossary,
-    })
+    let result
+    if (Deno.env.get('ANTHROPIC_API_KEY')) result = await inspectWithClaude(params)
+    else if (geminiKey) result = await inspectWithGemini(params, geminiKey)
+    else return fail(500, 'config_error', 'Set the GEMINI_API_KEY (free) or ANTHROPIC_API_KEY secret')
     return json(result)
   } catch (error) {
     if (error instanceof InspectionError) {

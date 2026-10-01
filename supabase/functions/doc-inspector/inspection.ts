@@ -79,18 +79,48 @@ const RESPONSE_SCHEMA = {
   additionalProperties: false,
 }
 
-const EXPLANATION_LANGUAGE = { kk: 'казахский', ru: 'русский' } as const
+export const EXPLANATION_LANGUAGE = { kk: 'казахский', ru: 'русский' } as const
 
-// ANTHROPIC_API_KEY is read from the Edge Function secrets by the SDK.
-const client = new Anthropic()
-
-export async function inspectDocument(params: {
+export interface InspectParams {
   imageBase64: string
   mediaType: ImageMediaType
   explanationLang: 'kk' | 'ru'
   glossary: GlossaryTerm[]
-}): Promise<InspectionResult> {
+}
+
+export function userInstruction(explanationLang: 'kk' | 'ru'): string {
+  return `Проверь терминологию в документе на изображении.\nЯзык пояснений (explanation): ${EXPLANATION_LANGUAGE[explanationLang]}.`
+}
+
+/** Shared by every provider: model JSON -> InspectionResult with glossary links. */
+export function toInspectionResult(
+  parsed: {
+    document_readable: boolean
+    document_language: InspectionResult['documentLanguage']
+    findings: Omit<Finding, 'term'>[]
+  },
+  glossary: GlossaryTerm[],
+  model: string,
+): InspectionResult {
+  return {
+    readable: parsed.document_readable,
+    documentLanguage: parsed.document_language,
+    findings: (parsed.findings || []).map((finding) => ({
+      ...finding,
+      term: findGlossaryTerm(glossary, finding.correct_term),
+    })),
+    model,
+  }
+}
+
+// Created on first use, so the function still starts (and can use Gemini)
+// when no ANTHROPIC_API_KEY secret is set.
+let client: Anthropic | null = null
+
+/** Claude Vision inspection — used when the ANTHROPIC_API_KEY secret is set. */
+export async function inspectWithClaude(params: InspectParams): Promise<InspectionResult> {
   const { imageBase64, mediaType, explanationLang, glossary } = params
+  client ??= new Anthropic() // reads ANTHROPIC_API_KEY from the Edge Function secrets
 
   let response: Anthropic.Beta.BetaMessage
   try {
@@ -117,10 +147,7 @@ export async function inspectDocument(params: {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            {
-              type: 'text',
-              text: `Проверь терминологию в документе на изображении.\nЯзык пояснений (explanation): ${EXPLANATION_LANGUAGE[explanationLang]}.`,
-            },
+            { type: 'text', text: userInstruction(explanationLang) },
           ],
         },
       ],
@@ -160,24 +187,9 @@ export async function inspectDocument(params: {
     .map((block) => block.text)
     .join('')
 
-  let parsed: {
-    document_readable: boolean
-    document_language: InspectionResult['documentLanguage']
-    findings: Omit<Finding, 'term'>[]
-  }
   try {
-    parsed = JSON.parse(text)
+    return toInspectionResult(JSON.parse(text), glossary, response.model)
   } catch {
     throw new InspectionError(502, 'bad_response', 'The model returned malformed JSON')
-  }
-
-  return {
-    readable: parsed.document_readable,
-    documentLanguage: parsed.document_language,
-    findings: parsed.findings.map((finding) => ({
-      ...finding,
-      term: findGlossaryTerm(glossary, finding.correct_term),
-    })),
-    model: response.model,
   }
 }
