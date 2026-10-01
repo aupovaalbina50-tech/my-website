@@ -90,6 +90,8 @@ export async function inspectDocument(blob, lang) {
   }
 
   const body = await res.json().catch(() => null)
+  // 404 from the Supabase gateway = the doc-inspector function isn't deployed.
+  if (res.status === 404) throw new InspectorError('ai_unavailable')
   if (!res.ok) {
     throw new InspectorError(body?.error || 'internal_error', {
       retryAfterSeconds: body?.retryAfterSeconds,
