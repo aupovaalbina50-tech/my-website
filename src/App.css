@@ -2005,6 +2005,146 @@
   max-width: 680px;
 }
 
+.committees-detail-text--spaced + .committees-detail-text--spaced {
+  margin-top: var(--space-3);
+}
+
+.committees-source-link {
+  display: inline-block;
+  margin-top: var(--space-3);
+}
+
+/* Ministry / committees: verified-at note, people cards, direction tags. */
+.org-verified-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 var(--space-4);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.org-count-badge {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.org-person-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.org-person-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.org-person-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.org-person-card--lead {
+  border-color: var(--red);
+  border-left-width: 4px;
+  background: var(--red-bg);
+  grid-column: 1 / -1;
+}
+
+.org-person-role {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-soft);
+}
+
+.org-person-name {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.org-person-areas,
+.org-person-note {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.org-person-note {
+  color: var(--text-soft);
+}
+
+.org-person-areas-label {
+  font-weight: 600;
+}
+
+.org-person-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 2px;
+  font-size: 13.5px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--navy);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+.org-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-soft);
+    font-size: 13.5px;
+    color: var(--text);
+  }
+}
+
+.org-contacts {
+  margin-bottom: var(--space-3);
+
+  a {
+    color: var(--navy);
+  }
+}
+
 .committees-detail-section .modal-meta {
   margin-bottom: 0;
 }

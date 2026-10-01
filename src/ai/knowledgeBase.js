@@ -1,10 +1,12 @@
 import { supabase } from '../supabaseClient'
-import { MINISTRY_NAME, MINISTRY_MISSION, MINISTRY_LEADERSHIP, MINISTRY_CONTACTS } from '../data/ministry'
 import {
-  MINISTRY_TERRITORIAL_BODIES,
-  MINISTRY_SUBORDINATE_INSTITUTIONS,
-  MINISTRY_SUBORDINATE_ORGANIZATIONS,
-} from '../data/ministryStructure'
+  MINISTRY_NAME,
+  MINISTRY_MISSION,
+  MINISTRY_LEADERSHIP,
+  MINISTRY_CONTACTS,
+  MINISTRY_CENTRAL_DEPARTMENTS,
+} from '../data/ministry'
+import { MINISTRY_TERRITORIAL_BODIES, MINISTRY_SUBORDINATE_ORGANIZATIONS } from '../data/ministryStructure'
 import { COMMITTEES } from '../data/committees'
 
 // Lightweight keyword retrieval over the site's own content — no embeddings,
@@ -106,9 +108,8 @@ function searchMinistryStatic(tokens) {
   const structureGroups = [
     ['территориальные органы (регионы)', MINISTRY_TERRITORIAL_BODIES.ru.regional],
     ['территориальные органы (города)', MINISTRY_TERRITORIAL_BODIES.ru.cities],
-    ['службы пожаротушения и аварийно-спасательных работ', MINISTRY_TERRITORIAL_BODIES.ru.fireRescue],
     ['управления промышленной безопасности', MINISTRY_TERRITORIAL_BODIES.ru.industrialSafety],
-    ['подведомственные государственные учреждения', MINISTRY_SUBORDINATE_INSTITUTIONS.ru],
+    ['центральный аппарат (департаменты и управления)', MINISTRY_CENTRAL_DEPARTMENTS.ru],
     ['подведомственные организации', MINISTRY_SUBORDINATE_ORGANIZATIONS.ru],
   ]
   for (const [label, list] of structureGroups) {
@@ -128,13 +129,16 @@ function searchMinistryStatic(tokens) {
 function searchCommittees(tokens) {
   const results = []
   for (const committee of COMMITTEES) {
-    const blob = `${committee.name.ru} ${committee.name.kk} ${committee.description.ru} ${committee.chair.ru}`
+    const leaders = committee.leadership.ru
+    const chair = leaders.find((person) => person.chair)
+    const deputies = leaders.filter((person) => !person.chair).map((person) => person.name)
+    const blob = `${committee.name.ru} ${committee.name.kk} ${committee.description.ru} ${leaders.map((person) => person.name).join(' ')} ${committee.leadership.kk.map((person) => person.name).join(' ')}`
     const score = scoreText(blob, tokens)
     if (score > 0) {
       results.push({
         type: 'committee',
         score,
-        text: `Комитет: ${committee.name.ru} — ${committee.description.ru} Председатель: ${committee.chair.ru}${committee.phone ? `, телефон: ${committee.phone.ru}` : ''}`,
+        text: `Комитет: ${committee.name.ru} — ${committee.description.ru} Председатель: ${chair.name}${deputies.length ? `; заместители: ${deputies.join(', ')}` : ''}. Адрес: ${committee.contacts.address.ru}; канцелярия: ${committee.contacts.office.ru}`,
       })
     }
   }
