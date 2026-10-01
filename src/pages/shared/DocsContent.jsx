@@ -1,16 +1,9 @@
-import { useLanguage } from '../../i18n/LanguageContext.jsx'
+import DocInspector from './docInspector/DocInspector.jsx'
 
+// The "Құжаттама / Документация" tab is the «Цифровой инспектор МЧС»: a photo
+// of a service document is checked against the official term glossary.
 function DocsContent() {
-  const { t } = useLanguage()
-
-  return (
-    <section id="docs" className="section-static">
-      <div className="card">
-        <h2>{t.sections.docsTitle}</h2>
-        <p className="empty-state-text">{t.sections.comingSoon}</p>
-      </div>
-    </section>
-  )
+  return <DocInspector />
 }
 
 export default DocsContent
