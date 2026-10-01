@@ -22,8 +22,8 @@ function defaultState() {
 // quiz score on record (motivational — never regresses on a worse retry);
 // per-mission best/last/attempt-count history lives in
 // useMissionAttemptStats, used only where that detail is shown. If any of
-// these tables hasn't been created yet in the live project, this falls
-// back to the original all-not_started defaults instead of throwing.
+// these tables hasn't been created yet in the live project, that part is
+// simply treated as empty — the rest of the progress still shows.
 export function useMissionsProgress() {
   const { user } = useAuth()
   const [missionState, setMissionState] = useState(defaultState)
@@ -37,10 +37,13 @@ export function useMissionsProgress() {
     }
     setLoading(true)
 
+    // Each table is read independently: if one of them is missing in the
+    // live project (e.g. 0013 not applied), only that part of the progress
+    // is treated as empty instead of discarding everything else.
     const [
-      { data: studyRows, error: studyError },
-      { data: attemptRows, error: attemptError },
-      { data: completionRows, error: completionError },
+      { data: studyRows },
+      { data: attemptRows },
+      { data: completionRows },
       ...missionTermResults
     ] = await Promise.all([
       supabase.from('mission_term_progress').select('mission_id, term_id').eq('user_id', user.id),
@@ -60,12 +63,6 @@ export function useMissionsProgress() {
           .limit(mission.requiredTerms),
       ),
     ])
-
-    if (studyError || attemptError || completionError) {
-      setMissionState(defaultState())
-      setLoading(false)
-      return
-    }
 
     const currentTermIdsByMission = new Map(
       MISSIONS.map((mission, i) => [

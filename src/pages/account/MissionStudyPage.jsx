@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, Target } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { MISSIONS } from '../../data/missions.js'
@@ -21,13 +21,11 @@ function TermLangRow({ label, text, active }) {
 function MissionStudyPage() {
   const { missionId } = useParams()
   const navigate = useNavigate()
-  const location = useLocation()
   const { t, lang } = useLanguage()
   const s = t.account.missions.study
 
   const mission = MISSIONS.find((item) => item.id === missionId)
-  const { terms, studiedIds, markStudied, startOver, loading } = useMissionTermStudy(mission)
-  const restartRequested = Boolean(location.state?.restart)
+  const { terms, studiedIds, markStudied, loading } = useMissionTermStudy(mission)
 
   const [viewIndex, setViewIndex] = useState(0)
   const [activeLang, setActiveLang] = useState(lang)
@@ -46,13 +44,7 @@ function MissionStudyPage() {
   useEffect(() => {
     if (loading || initializedRef.current || terms.length === 0) return
     initializedRef.current = true
-    if (restartRequested) {
-      // "Пройти миссию заново" from the mission page: fresh run from term 1.
-      startOver()
-      setViewIndex(0)
-      // Drop the flag so Back/refresh doesn't keep wiping the run.
-      navigate(location.pathname, { replace: true, state: null })
-    } else if (studiedIds.size >= terms.length) {
+    if (studiedIds.size >= terms.length) {
       setStage('complete')
       setViewIndex(terms.length - 1)
     } else {
@@ -90,12 +82,6 @@ function MissionStudyPage() {
     setViewIndex((i) => Math.max(0, i - 1))
   }
 
-  const handleStudyAgain = () => {
-    startOver()
-    setViewIndex(0)
-    setStage('studying')
-  }
-
   const jumpTo = (index) => {
     if (index <= maxUnlockedIndex) setViewIndex(index)
   }
@@ -119,9 +105,6 @@ function MissionStudyPage() {
             onClick={() => navigate(`/account/missions/mission/${mission.id}/test`)}
           >
             {s.completeCta}
-          </button>
-          <button type="button" className="btn-auth-secondary mission-cta" onClick={handleStudyAgain}>
-            {s.restartStudyCta}
           </button>
         </div>
       </div>

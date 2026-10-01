@@ -16,6 +16,7 @@ import { CATEGORIES } from '../../i18n/translations.js'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionsProgress } from './useMissionsProgress.js'
 import { useMissionAttemptStats } from './useMissionAttemptStats.js'
+import { useMissionStageStatus } from './useMissionStageStatus.js'
 
 const STAGE_ICONS = { study: BookOpen, test: ClipboardCheck, result: Target, finish: ShieldCheck }
 
@@ -63,10 +64,15 @@ function MissionDetailPage() {
   const mission = MISSIONS.find((item) => item.id === missionId)
   const { missionState } = useMissionsProgress()
   const attemptStats = useMissionAttemptStats(missionId)
+  const run = useMissionStageStatus(mission)
 
   const goToList = () => navigate('/account/missions', { state: { stage: 'list' } })
   const goToStudy = () => navigate(`/account/missions/mission/${missionId}/study`)
-  const restartMission = () => navigate(`/account/missions/mission/${missionId}/study`, { state: { restart: true } })
+  const goToStage = (stageKey) => {
+    if (stageKey === 'study') goToStudy()
+    else if (stageKey === 'test') navigate(`/account/missions/mission/${missionId}/test`)
+    else if (stageKey === 'finish') navigate(`/account/missions/mission/${missionId}/execute`)
+  }
 
   useEffect(() => {
     if (!mission) goToList()
@@ -87,6 +93,23 @@ function MissionDetailPage() {
     { key: 'result', number: '03', title: d.stages.result.title, text: d.stages.result.text },
     { key: 'finish', number: '04', title: d.stages.finish.title, text: mission.completion[lang] },
   ]
+
+  // Status of each stage in the current run — derived from saved progress,
+  // never assumed. 'active' stages can be opened; 'locked' ones cannot yet.
+  const stageStatus = {
+    study: run.studyDone ? 'done' : 'active',
+    test: run.testPassed ? 'done' : run.studyDone ? 'active' : 'locked',
+    result: run.testPassed ? 'done' : 'locked',
+    finish: run.testPassed ? 'active' : 'locked',
+  }
+  const stageBadge = (key) => {
+    const status = stageStatus[key]
+    if (status === 'done') return d.stageStatus.done
+    if (status === 'locked') return d.stageStatus.locked
+    if (key === 'study' && run.studied > 0) return d.stageStatus.studied(run.studied, run.total)
+    return d.stageStatus.available
+  }
+  const runStarted = run.studied > 0
 
   return (
     <div className="mission-page mission-brief-page">
@@ -190,11 +213,28 @@ function MissionDetailPage() {
         <ol className="mission-steps mission-stages">
           {stages.map((stage, i) => {
             const StageIcon = STAGE_ICONS[stage.key]
+            const status = run.loading ? 'locked' : stageStatus[stage.key]
+            const openable = status === 'active' && stage.key !== 'result'
             return (
               <li
-                className={`mission-step ${i === 0 ? 'mission-step--active' : 'mission-step--future'}`}
+                className={`mission-step mission-step--${
+                  status === 'done' ? 'done' : status === 'active' ? 'active' : 'future'
+                }${openable ? ' mission-step--openable' : ''}`}
                 key={stage.key}
                 style={{ '--i': i }}
+                role={openable ? 'button' : undefined}
+                tabIndex={openable ? 0 : undefined}
+                onClick={openable ? () => goToStage(stage.key) : undefined}
+                onKeyDown={
+                  openable
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          goToStage(stage.key)
+                        }
+                      }
+                    : undefined
+                }
               >
                 <div className="mission-step-marker">
                   <span className="mission-step-number">{stage.number}</span>
@@ -205,6 +245,12 @@ function MissionDetailPage() {
                 <div className="mission-step-body">
                   <h3 className="mission-step-title">{stage.title}</h3>
                   <p className="mission-step-text">{stage.text}</p>
+                  {!run.loading && (
+                    <span className={`mission-step-badge mission-step-badge--${status}`}>
+                      {status === 'done' && <CheckCircle2 size={14} aria-hidden="true" />}
+                      {stageBadge(stage.key)}
+                    </span>
+                  )}
                 </div>
               </li>
             )
@@ -255,23 +301,10 @@ function MissionDetailPage() {
         </div>
       </div>
 
-      {state.status === 'not_started' ? (
-        <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={goToStudy}>
-          {d.startCta}
-        </button>
-      ) : state.status === 'in_progress' ? (
+      {state.status === 'completed' ? (
         <>
           <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={goToStudy}>
-            {d.continueCta}
-          </button>
-          <button type="button" className="btn-auth-secondary mission-cta" onClick={restartMission}>
-            {d.restartCta}
-          </button>
-        </>
-      ) : (
-        <>
-          <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={restartMission}>
-            {d.restartCta}
+            {runStarted ? d.continueCta : d.restartCta}
           </button>
           <button
             type="button"
@@ -281,6 +314,10 @@ function MissionDetailPage() {
             {d.retryCta}
           </button>
         </>
+      ) : (
+        <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={goToStudy}>
+          {runStarted ? d.continueCta : d.startCta}
+        </button>
       )}
     </div>
   )

@@ -3925,10 +3925,6 @@
   text-align: center;
 }
 
-.mission-complete-card .mission-cta + .mission-cta {
-  margin-top: var(--space-3);
-}
-
 @media (max-width: 480px) {
   .mission-cta {
     min-width: 0;
@@ -4946,6 +4942,53 @@
 .mission-step--future .mission-step-icon {
   background: var(--bg-soft);
   color: var(--text-soft);
+}
+
+.mission-step--done .mission-step-icon {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.mission-step--done .mission-step-title {
+  color: var(--green);
+}
+
+.mission-step--openable {
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.mission-step--openable:hover .mission-step-title {
+  text-decoration: underline;
+}
+
+.mission-step--openable:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 4px;
+}
+
+.mission-step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--bg-soft);
+  color: var(--text-soft);
+}
+
+.mission-step-badge--active {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-step-badge--done {
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .mission-ahead-title {

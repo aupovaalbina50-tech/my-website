@@ -14,7 +14,7 @@ const OPERATION_STAGE_COUNT = 4
 // single source of truth also used by useMissionsProgress.
 export function useMissionOperation(mission) {
   const { user } = useAuth()
-  const { terms, loading: termsLoading } = useMissionTermStudy(mission)
+  const { terms, runStartedAt, loading: termsLoading } = useMissionTermStudy(mission)
 
   const [scoreState, setScoreState] = useState({ loading: true, percent: null, cleared: false })
   const [checks, setChecks] = useState([])
@@ -28,15 +28,22 @@ export function useMissionOperation(mission) {
 
   useEffect(() => {
     let cancelled = false
+    // Wait for the run start: on a repeat run only attempts made since the
+    // last completion grant clearance, so a mission is replayed in full.
+    // Once the operation is finished its own completion row starts a new run;
+    // keep the clearance that was granted for this screen.
+    if (termsLoading || phase === 'complete') return undefined
     if (!user || !mission) {
       setScoreState({ loading: false, percent: null, cleared: false })
       return
     }
-    supabase
+    let query = supabase
       .from('mission_test_attempts')
       .select('score_percent')
       .eq('user_id', user.id)
       .eq('mission_id', mission.id)
+    if (runStartedAt) query = query.gt('created_at', runStartedAt)
+    query
       .order('score_percent', { ascending: false })
       .limit(1)
       .then(({ data, error }) => {
@@ -47,7 +54,7 @@ export function useMissionOperation(mission) {
     return () => {
       cancelled = true
     }
-  }, [user, mission])
+  }, [user, mission, runStartedAt, termsLoading, phase])
 
   useEffect(() => {
     if (termsLoading || terms.length === 0 || checks.length > 0) return
