@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../../auth/AuthContext.jsx'
 
@@ -15,6 +15,9 @@ export function useMissionTermStudy(mission) {
   const [studiedIds, setStudiedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [persistenceAvailable, setPersistenceAvailable] = useState(true)
+  // Set by startOver(): this visit is a fresh run of the study stage, so
+  // stored marks from earlier runs must not be loaded back in.
+  const freshRunRef = useRef(false)
 
   const load = useCallback(async () => {
     if (!mission) {
@@ -33,7 +36,9 @@ export function useMissionTermStudy(mission) {
     const loadedTerms = termRows || []
     setTerms(loadedTerms)
 
-    if (user && loadedTerms.length > 0) {
+    if (freshRunRef.current) {
+      // Keep the current run's session-local marks.
+    } else if (user && loadedTerms.length > 0) {
       const { data: progressRows, error } = await supabase
         .from('mission_term_progress')
         .select('term_id')
@@ -80,12 +85,22 @@ export function useMissionTermStudy(mission) {
         .from('mission_term_progress')
         .upsert(
           { user_id: user.id, mission_id: mission.id, term_id: termId },
-          { onConflict: 'user_id,mission_id,term_id' },
+          // DO NOTHING on conflict: a repeat run re-marks terms that already
+          // have a row, and there is no client UPDATE policy (0012).
+          { onConflict: 'user_id,mission_id,term_id', ignoreDuplicates: true },
         )
       if (error) setPersistenceAvailable(false)
     },
     [isAuthenticated, user, mission?.id, persistenceAvailable],
   )
 
-  return { terms, studiedIds, markStudied, loading, persistenceAvailable }
+  // Start the study stage over from scratch so a mission can be replayed.
+  // Stored rows are left in place (no client delete policy); the new run
+  // simply ignores them and re-marks each term.
+  const startOver = useCallback(() => {
+    freshRunRef.current = true
+    setStudiedIds(new Set())
+  }, [])
+
+  return { terms, studiedIds, markStudied, startOver, loading, persistenceAvailable }
 }

@@ -65,6 +65,8 @@ function MissionDetailPage() {
   const attemptStats = useMissionAttemptStats(missionId)
 
   const goToList = () => navigate('/account/missions', { state: { stage: 'list' } })
+  const goToStudy = () => navigate(`/account/missions/mission/${missionId}/study`)
+  const restartMission = () => navigate(`/account/missions/mission/${missionId}/study`, { state: { restart: true } })
 
   useEffect(() => {
     if (!mission) goToList()
@@ -253,15 +255,33 @@ function MissionDetailPage() {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="btn-auth-primary quiz-start-btn mission-cta"
-        onClick={() =>
-          navigate(`/account/missions/mission/${mission.id}/${state.status === 'completed' ? 'test' : 'study'}`)
-        }
-      >
-        {state.status === 'completed' ? d.retryCta : d.startCta}
-      </button>
+      {state.status === 'not_started' ? (
+        <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={goToStudy}>
+          {d.startCta}
+        </button>
+      ) : state.status === 'in_progress' ? (
+        <>
+          <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={goToStudy}>
+            {d.continueCta}
+          </button>
+          <button type="button" className="btn-auth-secondary mission-cta" onClick={restartMission}>
+            {d.restartCta}
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={restartMission}>
+            {d.restartCta}
+          </button>
+          <button
+            type="button"
+            className="btn-auth-secondary mission-cta"
+            onClick={() => navigate(`/account/missions/mission/${mission.id}/test`)}
+          >
+            {d.retryCta}
+          </button>
+        </>
+      )}
     </div>
   )
 }

@@ -3925,6 +3925,10 @@
   text-align: center;
 }
 
+.mission-complete-card .mission-cta + .mission-cta {
+  margin-top: var(--space-3);
+}
+
 @media (max-width: 480px) {
   .mission-cta {
     min-width: 0;
