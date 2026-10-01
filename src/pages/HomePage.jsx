@@ -8,36 +8,13 @@ import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
 import DocsContent from './shared/DocsContent.jsx'
-import { toSentenceCase } from '../utils/textCase.js'
-
-const MAX_SUGGESTIONS = 8
-
-function startsWithQuery(text, query) {
-  return text
-    .toLowerCase()
-    .split(/[\s,;()/-]+/)
-    .some((word) => word.startsWith(query))
-}
-
-function HighlightedText({ text, query }) {
-  if (!query) return text
-  const wordRegex = /[^\s,;()/-]+/g
-  const parts = []
-  let lastIndex = 0
-  let match
-  while ((match = wordRegex.exec(text))) {
-    const word = match[0]
-    if (word.toLowerCase().startsWith(query)) {
-      const start = match.index
-      const end = start + query.length
-      if (start > lastIndex) parts.push(text.slice(lastIndex, start))
-      parts.push(<mark key={start}>{text.slice(start, end)}</mark>)
-      lastIndex = end
-    }
-  }
-  parts.push(text.slice(lastIndex))
-  return parts
-}
+import {
+  TermSuggestionList,
+  fetchAllTerms,
+  startsWithQuery,
+  useSuggestionKeyboard,
+  useTermSuggestions,
+} from './shared/TermSuggestions.jsx'
 
 const STEP_ICONS = [Search, BookOpen, Bookmark]
 
@@ -113,10 +90,7 @@ function HomePage() {
 
   const fetchTerms = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
-      .order('kk', { ascending: true })
+    const { data, error } = await fetchAllTerms('id, ru, kk, en, category')
 
     if (error) {
       setError(t.alerts.loadFailed)
@@ -200,21 +174,7 @@ function HomePage() {
     )
   }, [terms, deferredSearch, lang])
 
-  const searchSuggestions = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    if (!query) return []
-    const matches = terms.filter(
-      (term) =>
-        startsWithQuery(term.ru, query) ||
-        startsWithQuery(term.kk, query) ||
-        startsWithQuery(term.en, query),
-    )
-    matches.sort((a, b) =>
-      (a[lang] || a.ru || a.kk).localeCompare(b[lang] || b.ru || b.kk, lang) ||
-      a.en.localeCompare(b.en, 'en'),
-    )
-    return matches.slice(0, MAX_SUGGESTIONS)
-  }, [terms, search, lang])
+  const searchSuggestions = useTermSuggestions(terms, search, lang)
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -226,14 +186,20 @@ function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const otherLang = lang === 'kk' ? 'ru' : 'kk'
-  const suggestionQuery = search.trim().toLowerCase()
-  const showSuggestions = isSearchFocused && suggestionQuery.length > 0
+  const showSuggestions = isSearchFocused && search.trim().length > 0
 
   const handleSuggestionSelect = (term) => {
     setIsSearchFocused(false)
     navigate(`/terms/${term.id}`)
   }
+
+  const suggestionKeys = useSuggestionKeyboard({
+    suggestions: searchSuggestions,
+    open: showSuggestions,
+    query: search,
+    onSelect: handleSuggestionSelect,
+    onClose: () => setIsSearchFocused(false),
+  })
 
   return (
     <>
@@ -244,7 +210,9 @@ function HomePage() {
       {error && <div className="alert">{error}</div>}
 
       <section id="search" className="section-search">
-        <div className="hero-glow" aria-hidden="true"></div>
+        <div className="hero-glow-clip" aria-hidden="true">
+          <div className="hero-glow"></div>
+        </div>
         <div className="hero-search">
           <p className="hero-kicker">{t.hero.kicker}</p>
           <h2 className="hero-headline">{t.hero.headline}</h2>
@@ -255,47 +223,34 @@ function HomePage() {
               type="search"
               className="hero-search-input"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setIsSearchFocused(true)
+              }}
               onFocus={() => setIsSearchFocused(true)}
+              onKeyDown={suggestionKeys.onKeyDown}
+              autoComplete="off"
               placeholder={t.hero.placeholder}
               aria-label={t.hero.searchAria}
               role="combobox"
               aria-expanded={showSuggestions}
               aria-autocomplete="list"
               aria-controls="search-suggestions"
+              aria-activedescendant={
+                suggestionKeys.activeIndex >= 0 ? `search-suggestions-option-${suggestionKeys.activeIndex}` : undefined
+              }
             />
             {showSuggestions && (
-              <ul className="search-suggestions" id="search-suggestions" role="listbox">
-                {searchSuggestions.length === 0 ? (
-                  <li className="search-suggestion-empty">{t.table.emptyNoResults}</li>
-                ) : (
-                  searchSuggestions.map((term) => (
-                    <li key={term.id} role="option" aria-selected="false">
-                      <button
-                        type="button"
-                        className="search-suggestion-item"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSuggestionSelect(term)}
-                      >
-                        <span className="search-suggestion-accent" aria-hidden="true"></span>
-                        <span className="search-suggestion-text">
-                          <span className="search-suggestion-primary">
-                            <HighlightedText
-                              text={toSentenceCase(term[lang] || term[otherLang] || term.en)}
-                              query={suggestionQuery}
-                            />
-                          </span>
-                          <span className="search-suggestion-secondary">
-                            <HighlightedText text={toSentenceCase(term[otherLang])} query={suggestionQuery} />
-                            {' · '}
-                            <HighlightedText text={toSentenceCase(term.en)} query={suggestionQuery} />
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
+              <TermSuggestionList
+                id="search-suggestions"
+                suggestions={searchSuggestions}
+                query={search}
+                lang={lang}
+                activeIndex={suggestionKeys.activeIndex}
+                setActiveIndex={suggestionKeys.setActiveIndex}
+                onSelect={handleSuggestionSelect}
+                notFoundText={t.account.home.searchNotFound}
+              />
             )}
           </div>
           <div className="hero-actions">

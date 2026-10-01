@@ -725,11 +725,21 @@
 .section-search {
   position: relative;
   padding: var(--space-7) 32px var(--space-3);
-  overflow: hidden;
+  /* Not hidden: the search dropdown must be able to extend below. The glow
+     is cropped by .hero-glow-clip instead. */
+  overflow: visible;
 
   @media (max-width: 640px) {
     padding: var(--space-6) 20px var(--space-2);
   }
+}
+
+.hero-glow-clip {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .hero-glow {
@@ -839,6 +849,8 @@
 
 .hero-search-box {
   position: relative;
+  /* Keep the suggestions dropdown above the hero links/meta below it. */
+  z-index: 5;
   animation: hero-fade-up 0.6s ease 0.24s both;
 }
 
