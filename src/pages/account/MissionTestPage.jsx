@@ -13,6 +13,8 @@ import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations.js'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionQuiz } from './useMissionQuiz.js'
+import MissionLanguagePicker from './MissionLanguagePicker.jsx'
+import { MISSION_LANG_NAMES, MISSION_QUIZ_UI, useMissionLanguage } from './missionLanguage.js'
 
 const LANG_TAG = { kk: 'KZ', ru: 'RU', en: 'EN' }
 const TIER_ICON = { excellent: Trophy, passed: CheckCircle2, needs_practice: AlertTriangle, failed: RotateCcw }
@@ -86,6 +88,12 @@ function MissionTestPage() {
 
   const mission = MISSIONS.find((item) => item.id === missionId)
   const quiz = useMissionQuiz(mission)
+  const { missionLang, missionLangLoaded, chooseMissionLang } = useMissionLanguage(
+    missionId,
+    quiz.runStartedAt,
+    quiz.termsLoading,
+  )
+  const l = t.account.missions.language
 
   const goToMission = () => navigate(`/account/missions/mission/${missionId}`)
   const goToStudy = () => navigate(`/account/missions/mission/${missionId}/study`)
@@ -103,6 +111,8 @@ function MissionTestPage() {
 
   if (quiz.stage === 'quiz' && quiz.currentQuestion) {
     const q = quiz.currentQuestion
+    // Everything inside the test is in the mission language, not the site's.
+    const ui = MISSION_QUIZ_UI[quiz.targetLang]
     const questionNumber = quiz.currentIndex + 1
     const progressPercent = Math.round((questionNumber / quiz.totalQuestions) * 100)
 
@@ -115,8 +125,8 @@ function MissionTestPage() {
 
         <div className="card quiz-card">
           <div className="quiz-progress-row">
-            <span className="quiz-progress-badge">{s.quiz.questionLabel(questionNumber, quiz.totalQuestions)}</span>
-            <span className="mission-quiz-score">{s.quiz.correctCount(quiz.score)}</span>
+            <span className="quiz-progress-badge">{ui.questionLabel(questionNumber, quiz.totalQuestions)}</span>
+            <span className="mission-quiz-score">{ui.correctCount(quiz.score)}</span>
           </div>
           <div className="quiz-progress-track">
             <div className="quiz-progress-fill" style={{ width: `${progressPercent}%` }} />
@@ -125,10 +135,10 @@ function MissionTestPage() {
           <div className="mission-quiz-tag">
             {LANG_TAG[q.fromLang]} &rarr; {LANG_TAG[q.toLang]}
           </div>
-          <p className="quiz-prompt-label">{s.quiz.instruction(q.fromLang, q.toLang)}</p>
-          <h2 className="quiz-term">{q.prompt}</h2>
+          <p className="quiz-prompt-label" lang={quiz.targetLang}>{ui.instruction(q.fromLang)}</p>
+          <h2 className="quiz-term" lang={q.fromLang}>{q.prompt}</h2>
 
-          <div className="quiz-options">
+          <div className="quiz-options" lang={quiz.targetLang}>
             {q.options.map((option) => {
               const isPending = quiz.pendingOptionId === option.id
               const isCorrectOption = option.id === q.correctId
@@ -164,12 +174,12 @@ function MissionTestPage() {
               {quiz.confirmed.correct ? (
                 <>
                   <CheckCircle2 size={18} aria-hidden="true" />
-                  {s.quiz.correctTitle} &middot; {s.quiz.correctText}
+                  {ui.correctTitle} &middot; {ui.correctText}
                 </>
               ) : (
                 <>
                   <XCircle size={18} aria-hidden="true" />
-                  {s.quiz.wrongTitle}. {s.quiz.correctAnswerLabel(q.options.find((o) => o.id === q.correctId)?.text)}
+                  {ui.wrongTitle}. {ui.correctAnswerLabel(q.options.find((o) => o.id === q.correctId)?.text)}
                 </>
               )}
             </div>
@@ -182,11 +192,11 @@ function MissionTestPage() {
               onClick={quiz.confirmAnswer}
               disabled={quiz.pendingOptionId === null}
             >
-              {s.quiz.answerCta}
+              {ui.answerCta}
             </button>
           ) : (
             <button type="button" className="btn-auth-primary quiz-next-btn" onClick={quiz.goNext}>
-              {s.quiz.nextCta}
+              {quiz.isLastQuestion ? ui.finishCta : ui.nextCta}
             </button>
           )}
         </div>
@@ -309,7 +319,9 @@ function MissionTestPage() {
         </div>
       </div>
 
-      {quiz.termsLoading ? (
+      {!quiz.termsLoading && missionLangLoaded && !missionLang ? (
+        <MissionLanguagePicker value={missionLang} onChoose={chooseMissionLang} />
+      ) : quiz.termsLoading || !missionLangLoaded ? (
         <div className="card">
           <p className="empty-state-text">{t.account.missions.study.loading}</p>
         </div>
@@ -321,10 +333,15 @@ function MissionTestPage() {
         <div className="card mission-test-intro-card">
           <div className="mission-test-intro-stats">
             <span className="category-badge">{s.intro.statTerms(quiz.studiedTermsCount)}</span>
-            <span className="category-badge">{s.intro.statLangs}</span>
+            <span className="category-badge">{MISSION_LANG_NAMES[missionLang]}</span>
             <span className="category-badge">{s.intro.statType}</span>
           </div>
-          <button type="button" className="btn-auth-primary quiz-start-btn mission-cta" onClick={quiz.start}>
+          <p className="mission-lang-hint">{l.testHint(MISSION_LANG_NAMES[missionLang])}</p>
+          <button
+            type="button"
+            className="btn-auth-primary quiz-start-btn mission-cta"
+            onClick={() => quiz.start(missionLang)}
+          >
             {s.intro.startCta}
           </button>
         </div>

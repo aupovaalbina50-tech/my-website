@@ -3,13 +3,14 @@ import { supabase } from '../../supabaseClient'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useMissionTermStudy } from './useMissionTermStudy.js'
 import { missionScoreTier } from '../../utils/missionScoreTier.js'
-import { buildQuestions } from './missionQuestionBuilder.js'
+import { buildTargetQuestions } from './missionQuestionBuilder.js'
+import { MISSION_SOURCE_LANG } from './missionLanguage.js'
 
 const TARGET_QUESTION_COUNT = 15
 
 export function useMissionQuiz(mission) {
   const { user } = useAuth()
-  const { terms, studiedIds, loading: termsLoading } = useMissionTermStudy(mission)
+  const { terms, studiedIds, runStartedAt, loading: termsLoading } = useMissionTermStudy(mission)
 
   const [stage, setStage] = useState('intro') // intro | quiz | results
   const [questions, setQuestions] = useState([])
@@ -20,10 +21,14 @@ export function useMissionQuiz(mission) {
   const [saving, setSaving] = useState(false)
 
   const canStart = terms.length > 0
+  // The mission language chosen for this run: every question asks for the
+  // translation INTO it (see missionLanguage.js). Kept for retries.
+  const [targetLang, setTargetLang] = useState(null)
 
-  const start = useCallback(() => {
-    if (!canStart) return
-    setQuestions(buildQuestions(terms, TARGET_QUESTION_COUNT))
+  const start = useCallback((lang) => {
+    if (!canStart || !lang) return
+    setTargetLang(lang)
+    setQuestions(buildTargetQuestions(terms, TARGET_QUESTION_COUNT, MISSION_SOURCE_LANG[lang], lang))
     setCurrentIndex(0)
     setPendingOptionId(null)
     setConfirmed(null)
@@ -81,12 +86,14 @@ export function useMissionQuiz(mission) {
   }, [confirmed, isLastQuestion, saveAttempt])
 
   const retry = useCallback(() => {
-    start()
-  }, [start])
+    start(targetLang)
+  }, [start, targetLang])
 
   return {
     termsLoading,
+    runStartedAt,
     canStart,
+    targetLang,
     studiedTermsCount: terms.length,
     studiedCount: studiedIds.size,
     stage,

@@ -71,7 +71,17 @@ export function buildQuestion({ term, type }, pool, index) {
       t[toLang]?.trim() &&
       t[toLang].trim().toLowerCase() !== correctText.trim().toLowerCase(),
   )
-  const distractors = shuffle(distractorPool).slice(0, OPTIONS_PER_QUESTION - 1)
+  // Different terms can share a translation (e.g. two terms both "апат"):
+  // never show the same option text twice.
+  const seenTexts = new Set([correctText.trim().toLowerCase()])
+  const distractors = shuffle(distractorPool)
+    .filter((t) => {
+      const text = t[toLang].trim().toLowerCase()
+      if (seenTexts.has(text)) return false
+      seenTexts.add(text)
+      return true
+    })
+    .slice(0, OPTIONS_PER_QUESTION - 1)
   const options = shuffle([
     { id: term.id, text: term[toLang] },
     ...distractors.map((t) => ({ id: t.id, text: t[toLang] })),
@@ -92,4 +102,21 @@ export function buildQuestion({ term, type }, pool, index) {
 export function buildQuestions(terms, count) {
   const seeds = pickQuestionSeeds(terms, count)
   return seeds.map((seed, i) => buildQuestion(seed, terms, i))
+}
+
+// Step 2 test in a chosen mission language: the options are only ever in
+// the target language. The term is shown in sourceLang; a term with no usable
+// sourceLang text (missing, or identical to the target) is shown in the third
+// language instead, so all of the mission's terms can still be asked. Each
+// term is asked once, in random order.
+export function buildTargetQuestions(terms, count, sourceLang, targetLang) {
+  const fallbackLang = ['kk', 'ru', 'en'].find((code) => code !== sourceLang && code !== targetLang)
+  const seeds = []
+  terms.forEach((term) => {
+    const type = [`${sourceLang}-${targetLang}`, `${fallbackLang}-${targetLang}`].find((t) => isValidPair(term, t))
+    if (type) seeds.push({ term, type })
+  })
+  return shuffle(seeds)
+    .slice(0, count)
+    .map((seed, i) => buildQuestion(seed, terms, i))
 }

@@ -5495,6 +5495,141 @@
   }
 }
 
+/* Mission language: picker at the start of a run, chip, test hint. */
+.mission-lang-picker {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+
+.mission-lang-picker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-3);
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.mission-lang-picker-eyebrow {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.mission-lang-picker-title {
+  margin: 0 0 var(--space-3);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-lang-picker-text {
+  margin: 0 auto var(--space-5);
+  max-width: 520px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+.mission-lang-picker-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mission-lang-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-4) var(--space-3);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--red);
+    background: var(--red-bg);
+    transform: translateY(-2px);
+    outline: none;
+  }
+}
+
+.mission-lang-option--active {
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+
+.mission-lang-option-tag {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--red);
+}
+
+.mission-lang-option-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.mission-lang-chip {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+
+  strong {
+    color: var(--navy);
+  }
+}
+
+.mission-lang-chip-change {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--red-bg);
+  color: var(--red);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--red);
+    color: #fff;
+  }
+}
+
+.mission-lang-hint {
+  margin: 0 0 var(--space-4);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
 .mission-complete-card {
   max-width: 520px;
   margin: 0 auto;

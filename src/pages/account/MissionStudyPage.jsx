@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Target } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Languages, Target } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionTermStudy } from './useMissionTermStudy.js'
 import { toSentenceCase } from '../../utils/textCase.js'
+import MissionLanguagePicker from './MissionLanguagePicker.jsx'
+import { MISSION_LANG_NAMES, useMissionLanguage } from './missionLanguage.js'
 
 function TermLangRow({ label, text, active }) {
   if (!text) return null
@@ -25,7 +27,10 @@ function MissionStudyPage() {
   const s = t.account.missions.study
 
   const mission = MISSIONS.find((item) => item.id === missionId)
-  const { terms, studiedIds, markStudied, loading } = useMissionTermStudy(mission)
+  const { terms, studiedIds, runStartedAt, markStudied, loading } = useMissionTermStudy(mission)
+  const { missionLang, missionLangLoaded, chooseMissionLang } = useMissionLanguage(missionId, runStartedAt, loading)
+  const [changingLang, setChangingLang] = useState(false)
+  const l = t.account.missions.language
 
   const [viewIndex, setViewIndex] = useState(0)
   const [activeLang, setActiveLang] = useState(lang)
@@ -86,6 +91,44 @@ function MissionStudyPage() {
     if (index <= maxUnlockedIndex) setViewIndex(index)
   }
 
+  // A run starts by choosing the mission language (the language of the whole
+  // Step 2 test). Step 1 itself always shows each term in all three languages.
+  if (!missionLangLoaded || !missionLang || changingLang) {
+    return (
+      <div className="mission-page mission-study-page">
+        <button type="button" className="mission-brief-back" onClick={goToMission}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          {s.back}
+        </button>
+        {missionLangLoaded ? (
+          <MissionLanguagePicker
+            value={missionLang}
+            onChoose={(code) => {
+              chooseMissionLang(code)
+              setChangingLang(false)
+            }}
+          />
+        ) : (
+          <div className="card">
+            <p className="empty-state-text">{s.loading}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const languageChip = (
+    <div className="mission-lang-chip">
+      <Languages size={15} aria-hidden="true" />
+      <span>
+        {l.chosenLabel}: <strong>{MISSION_LANG_NAMES[missionLang]}</strong>
+      </span>
+      <button type="button" className="mission-lang-chip-change" onClick={() => setChangingLang(true)}>
+        {l.changeCta}
+      </button>
+    </div>
+  )
+
   if (stage === 'complete') {
     return (
       <div className="mission-page">
@@ -99,6 +142,7 @@ function MissionStudyPage() {
           </span>
           <h1 className="mission-complete-title">{s.completeTitle}</h1>
           <p className="mission-complete-text">{s.completeText}</p>
+          <p className="mission-complete-text mission-lang-hint">{l.testHint(MISSION_LANG_NAMES[missionLang])}</p>
           <button
             type="button"
             className="btn-auth-primary quiz-start-btn mission-cta"
@@ -129,6 +173,8 @@ function MissionStudyPage() {
           <span className="mission-study-mission-title">{mission.title[lang]}</span>
         </div>
       </div>
+
+      {languageChip}
 
       {loading ? (
         <div className="card">
