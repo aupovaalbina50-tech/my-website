@@ -4140,16 +4140,23 @@
 
 /* ---- Missions — motivational "path to the peak" hero ---- */
 
+/* Missions hero — MES field-tablet style: deep navy panel, strict corners,
+   a 1px signal-orange instrument border, faint topographic/HUD background. */
 .mission-hero {
+  --mission-hero-navy: #061a33;
+  --mission-hero-signal: #ff8a1f;
   position: relative;
   isolation: isolate;
   overflow: hidden;
   min-height: 420px;
   padding: var(--space-6) var(--space-5);
-  border-radius: 20px;
-  background: linear-gradient(165deg, var(--canvas-1) 0%, var(--canvas-2) 55%, var(--canvas-3) 100%);
-  border: 1px solid var(--dash-panel-border);
-  box-shadow: 0 24px 60px rgba(6, 20, 38, 0.35);
+  border-radius: 6px;
+  background: var(--mission-hero-navy);
+  border: 1px solid var(--mission-hero-signal);
+  box-shadow:
+    0 0 0 1px rgba(255, 138, 31, 0.12),
+    0 0 18px rgba(255, 138, 31, 0.18),
+    0 24px 60px rgba(3, 12, 26, 0.45);
   animation: account-card-in 0.5s ease both;
 
   @media (max-width: 640px) {
@@ -4158,33 +4165,11 @@
   }
 }
 
-.mission-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      rgba(148, 197, 227, 0.06) 0,
-      rgba(148, 197, 227, 0.06) 1px,
-      transparent 1px,
-      transparent 44px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(148, 197, 227, 0.06) 0,
-      rgba(148, 197, 227, 0.06) 1px,
-      transparent 1px,
-      transparent 44px
-    );
-  pointer-events: none;
-}
-
 .mission-hero-visual {
   position: absolute;
   inset: 0;
   z-index: 1;
+  pointer-events: none;
 }
 
 .mission-hero-svg {
@@ -4193,90 +4178,54 @@
   height: 100%;
 }
 
-.mission-hero-ridge {
-  fill: rgba(148, 197, 227, 0.07);
-  stroke: rgba(148, 197, 227, 0.22);
-  stroke-width: 1;
-}
-
-.mission-hero-route {
+.mission-hero-topo path {
   fill: none;
-  stroke: var(--cyan);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.55));
-  animation: mission-route-draw 1.8s ease-out 0.2s forwards;
-}
-
-.mission-hero-ticks line {
-  stroke: rgba(148, 197, 227, 0.35);
+  stroke: #9cc8ec;
   stroke-width: 1;
+  opacity: 0.08;
 }
 
-.mission-hero-node {
-  fill: var(--cyan);
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.6));
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mission-node-in 0.5s ease 0.4s forwards;
+.mission-hero-topo path.mission-hero-topo-index {
+  stroke-width: 1.6;
+  opacity: 0.12;
 }
 
-.mission-hero-waypoint {
-  fill: var(--canvas-1);
-  stroke: var(--cyan);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mission-node-in 0.4s ease forwards;
+.mission-hero-radar circle,
+.mission-hero-radar line {
+  fill: none;
+  stroke: #9cc8ec;
+  stroke-width: 1;
+  opacity: 0.09;
+}
 
-  &:nth-of-type(1) {
-    animation-delay: 0.8s;
-  }
-  &:nth-of-type(2) {
-    animation-delay: 1.2s;
-  }
-  &:nth-of-type(3) {
-    animation-delay: 1.6s;
+.mission-hero-radar .mission-hero-radar-sweep {
+  stroke: var(--mission-hero-signal);
+  stroke-width: 1.5;
+  opacity: 0.22;
+  transform-origin: 0 0;
+  animation: mission-radar-sweep 6s linear infinite;
+}
+
+@keyframes mission-radar-sweep {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-.mission-hero-summit {
-  opacity: 0;
-  animation: mission-node-in 0.5s ease 2s forwards, mission-peak-pulse 2.6s ease-in-out 2.6s infinite;
+.mission-hero-corner path,
+.mission-hero-corner line {
+  fill: none;
+  stroke: #9cc8ec;
+  stroke-width: 1;
+  opacity: 0.35;
 }
 
-.mission-hero-summit-pole {
-  stroke: rgba(238, 244, 251, 0.8);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.mission-hero-summit-flag {
-  fill: var(--red);
-  filter: drop-shadow(0 0 8px rgba(200, 31, 46, 0.7));
-}
-
-.mission-hero-summit-base {
-  fill: var(--red);
-}
-
-.mission-hero-dot {
-  fill: #fff;
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 10px rgba(34, 211, 238, 0.7));
-}
-
-.mission-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: linear-gradient(100deg, rgba(6, 20, 38, 0.86) 0%, rgba(6, 20, 38, 0.6) 40%, rgba(6, 20, 38, 0.08) 70%);
-  pointer-events: none;
+.mission-hero-corner text {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  fill: #9cc8ec;
+  opacity: 0.4;
 }
 
 .mission-hero-body {
@@ -4336,8 +4285,8 @@
   margin-bottom: var(--space-5);
   padding: var(--space-4);
   background: rgba(6, 20, 38, 0.55);
-  border: 1px solid var(--dash-panel-border);
-  border-radius: 12px;
+  border: 1px solid rgba(156, 200, 236, 0.28);
+  border-radius: 4px;
   backdrop-filter: blur(2px);
 }
 
@@ -4354,14 +4303,9 @@
   flex-shrink: 0;
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(34, 211, 238, 0.14);
   color: var(--cyan);
-}
-
-.mission-hero-path-stat-row--final .mission-hero-path-stat-icon {
-  background: rgba(200, 31, 46, 0.16);
-  color: var(--red);
 }
 
 .mission-hero-path-stat {
@@ -4370,10 +4314,6 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   color: var(--canvas-text);
-}
-
-.mission-hero-path-stat--final {
-  color: var(--red);
 }
 
 .mission-hero-path-arrow {
@@ -4453,27 +4393,6 @@
 @keyframes mission-route-draw {
   to {
     stroke-dashoffset: 0;
-  }
-}
-
-@keyframes mission-node-in {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes mission-peak-pulse {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 8px rgba(200, 31, 46, 0.7));
-  }
-  50% {
-    filter: drop-shadow(0 0 14px rgba(200, 31, 46, 0.95));
   }
 }
 

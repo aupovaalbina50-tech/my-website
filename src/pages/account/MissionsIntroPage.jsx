@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { BookOpen, ClipboardCheck, Compass, Flag, ShieldCheck, Siren, Target, TriangleAlert } from 'lucide-react'
+import { BookOpen, ClipboardCheck, Compass, Medal, Shield, ShieldCheck, Siren, Target, TriangleAlert } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { TOTAL_MISSIONS } from '../../data/missions.js'
 import { useMissionsProgress } from './useMissionsProgress.js'
@@ -14,63 +14,74 @@ const VALID_STAGES = ['intro', 'hero', 'list']
 const prefersReducedMotion =
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// A trail up the ridge, not a smooth growth curve — angular waypoint-to-
-// waypoint legs, the way a route is actually marked on an ops map.
-const ROUTE_PATH = 'M40,268 L128,236 L182,246 L246,180 L308,196 L372,124 L432,140 L560,48'
-const WAYPOINTS = [
-  { x: 246, y: 180 },
-  { x: 372, y: 124 },
-  { x: 432, y: 140 },
+// Background of the missions hero, in the style of an MES field tablet: a
+// faint topographic map (contour lines around two heights, as on rescue
+// maps), a radar in the right half and coordinate-grid brackets in the
+// corners. Everything is drawn at very low opacity behind the content.
+function contourPath(cx, cy, radius, phase) {
+  const points = []
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * Math.PI * 2
+    const r = radius * (1 + 0.16 * Math.sin(3 * a + phase) + 0.08 * Math.cos(5 * a - phase) + 0.05 * Math.sin(7 * a))
+    points.push(`${(cx + r * Math.cos(a) * 1.35).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`)
+  }
+  return `M${points.join(' L')} Z`
+}
+
+const CONTOURS = [
+  ...[18, 34, 52, 72, 94, 118, 144].map((r, i) => ({ d: contourPath(430, 120, r, 0.6 + i * 0.12), index: i })),
+  ...[16, 32, 50, 70, 92].map((r, i) => ({ d: contourPath(120, 250, r, 2.1 + i * 0.15), index: i })),
 ]
+
+function CornerGrid({ x, y, flipX, flipY, label }) {
+  const sx = flipX ? -1 : 1
+  const sy = flipY ? -1 : 1
+  return (
+    <g className="mission-hero-corner" transform={`translate(${x} ${y}) scale(${sx} ${sy})`}>
+      <path d="M0,34 L0,0 L34,0" />
+      {[8, 16, 24].map((t) => (
+        <g key={t}>
+          <line x1={t} y1="0" x2={t} y2="4" />
+          <line x1="0" y1={t} x2="4" y2={t} />
+        </g>
+      ))}
+      {/* Un-flip the label; its offset is then measured from the corner itself. */}
+      <text x={8 * sx} y={flipY ? -10 : 18} transform={`scale(${sx} ${sy})`} textAnchor={flipX ? 'end' : 'start'}>
+        {label}
+      </text>
+    </g>
+  )
+}
 
 function MissionsHeroVisual() {
   return (
     <svg
       className="mission-hero-svg"
       viewBox="0 0 600 300"
-      preserveAspectRatio="xMaxYMid slice"
+      preserveAspectRatio="xMidYMid slice"
       aria-hidden="true"
     >
-      <path
-        className="mission-hero-ridge"
-        d="M0,300 L0,222 L60,152 L110,192 L170,112 L230,176 L300,92 L360,160 L430,72 L490,142 L560,62 L600,112 L600,300 Z"
-      />
-
-      {/* coordinate ticks — cartographic framing, not a chart axis */}
-      <g className="mission-hero-ticks">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <line key={i} x1={i * 150} y1="290" x2={i * 150} y2="296" />
+      <g className="mission-hero-topo">
+        {CONTOURS.map((c, i) => (
+          <path key={i} d={c.d} className={c.index % 3 === 2 ? 'mission-hero-topo-index' : undefined} />
         ))}
       </g>
 
-      <path id="mission-route-path" className="mission-hero-route" d={ROUTE_PATH} pathLength="1" />
-
-      <circle className="mission-hero-node" cx="40" cy="268" r="4" />
-      {WAYPOINTS.map((p, i) => (
-        <rect
-          key={i}
-          className="mission-hero-waypoint"
-          x={p.x - 5}
-          y={p.y - 5}
-          width="10"
-          height="10"
-          transform={`rotate(45 ${p.x} ${p.y})`}
-        />
-      ))}
-
-      <g className="mission-hero-summit" transform="translate(560,48)">
-        <line className="mission-hero-summit-pole" x1="0" y1="2" x2="0" y2="-30" />
-        <path className="mission-hero-summit-flag" d="M0,-30 L20,-23 L0,-16 Z" />
-        <circle className="mission-hero-summit-base" cx="0" cy="4" r="4" />
+      <g className="mission-hero-radar" transform="translate(470 150)">
+        {[30, 60, 90, 120].map((r) => (
+          <circle key={r} r={r} />
+        ))}
+        <line x1="-130" y1="0" x2="130" y2="0" />
+        <line x1="0" y1="-130" x2="0" y2="130" />
+        {!prefersReducedMotion && (
+          <line className="mission-hero-radar-sweep" x1="0" y1="0" x2="120" y2="0" />
+        )}
       </g>
 
-      <circle className="mission-hero-dot" cx="40" cy="268" r="5">
-        {!prefersReducedMotion && (
-          <animateMotion dur="7s" repeatCount="indefinite" calcMode="linear">
-            <mpath href="#mission-route-path" xlinkHref="#mission-route-path" />
-          </animateMotion>
-        )}
-      </circle>
+      <CornerGrid x={10} y={10} label="N 48°" />
+      <CornerGrid x={590} y={10} flipX label="E 68°" />
+      <CornerGrid x={10} y={290} flipY label="ГЗ-01" />
+      <CornerGrid x={590} y={290} flipX flipY label="ТЖМ" />
     </svg>
   )
 }
@@ -109,7 +120,7 @@ function MissionsIntroPage() {
             <div className="mission-hero-path-stats">
               <div className="mission-hero-path-stat-row">
                 <span className="mission-hero-path-stat-icon" aria-hidden="true">
-                  <Target size={18} strokeWidth={2} />
+                  <Shield size={18} strokeWidth={2} />
                 </span>
                 <span className="mission-hero-path-stat">{h.stat1}</span>
               </div>
@@ -125,11 +136,11 @@ function MissionsIntroPage() {
               <span className="mission-hero-path-arrow" aria-hidden="true">
                 &darr;
               </span>
-              <div className="mission-hero-path-stat-row mission-hero-path-stat-row--final">
+              <div className="mission-hero-path-stat-row">
                 <span className="mission-hero-path-stat-icon" aria-hidden="true">
-                  <Flag size={18} strokeWidth={2} />
+                  <Medal size={18} strokeWidth={2} />
                 </span>
-                <span className="mission-hero-path-stat mission-hero-path-stat--final">{h.stat3}</span>
+                <span className="mission-hero-path-stat">{h.stat3}</span>
               </div>
             </div>
 
