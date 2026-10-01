@@ -978,6 +978,7 @@
   }
 }
 
+/* Dashboard quick search: full term names, wrapped — never truncated. */.search-suggestions--full {  max-height: min(460px, 60vh);  & .search-suggestion-item {    padding-top: 11px;    padding-bottom: 11px;  }  & .search-suggestion-item--active {    background: var(--red-bg);  }  & .search-suggestion-item--active .search-suggestion-accent {    opacity: 1;  }  & li + li {    border-top: 1px solid var(--border);  }  & .search-suggestion-primary,  & .search-suggestion-secondary {    overflow: visible;    text-overflow: clip;    white-space: normal;    overflow-wrap: anywhere;    line-height: 1.4;  }  & .search-suggestion-primary {    font-size: 15px;  }  & .search-suggestion-empty {    text-align: center;    font-weight: 600;  }}
 .hero-actions {
   display: flex;
   align-items: center;
