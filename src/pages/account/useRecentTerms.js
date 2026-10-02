@@ -29,7 +29,7 @@ export function useRecentTerms() {
 
     const { data: termRows } = await supabase
       .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
+      .select('id, ru, kk, en, category')
       .in('id', views.map((v) => v.term_id))
 
     const byId = new Map((termRows || []).map((term) => [term.id, term]))

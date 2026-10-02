@@ -27,7 +27,7 @@ function TermDetailContent() {
     setLoading(true)
     supabase
       .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
+      .select('id, ru, kk, en, category')
       .eq('id', id)
       .maybeSingle()
       .then(({ data, error }) => {

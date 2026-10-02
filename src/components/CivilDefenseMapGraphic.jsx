@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+
 // Kazakhstan's real border, simplified from public boundary data
 // (johan/world.geo.json) and projected with an equirectangular
 // (cos-latitude-corrected) projection into a 0-200 x 0-100 box.
@@ -19,64 +21,238 @@ const MAP_OUTLINE =
 // Lake Balkhash, roughly where it sits inside the real outline above.
 const LAKE_PATH = 'M126.9,58.1 Q137.7,54 151.0,62.4 Q137.7,68 126.9,58.1 Z'
 
-// Major cities, positioned from the same real-world projection as the
-// outline above.
-const CITIES = [
-  { key: 'astana', x: 57.5, y: 34.6 },
-  { key: 'almaty', x: 66.7, y: 73.4 },
-  { key: 'shymkent', x: 55.0, y: 81.4 },
-  { key: 'karaganda', x: 61.6, y: 40.2 },
-  { key: 'aktobe', x: 33.8, y: 39.0 },
-  { key: 'atyrau', x: 25.1, y: 54.5 },
-  { key: 'oskemen', x: 76.1, y: 40.6 },
-  { key: 'kostanay', x: 44.5, y: 24.7 },
+// Seats of the 20 regional emergency departments (ДЧС of every oblast and
+// of the three cities of republican significance), in the same 0-200 x
+// 0-100 projection as the outline, fitted to the country's extreme points
+// (46.49°E → x 15.1, 87.31°E → x 184.9, 55.44°N → y 5.0, 40.57°N → y 95.0):
+// x = 15.1 + (lon - 46.49) * 4.16, y = 5.0 + (55.44 - lat) * 6.05.
+const DEPARTMENTS = [
+  { key: 'astana', x: 118.9, y: 31.1, hub: true },
+  { key: 'almaty', x: 141.8, y: 78.8, hub: true },
+  { key: 'shymkent', x: 111.2, y: 84.4, hub: true },
+  { key: 'kokshetau', x: 110.4, y: 18.1 },
+  { key: 'petropavl', x: 109.4, y: 8.4 },
+  { key: 'kostanay', x: 86.4, y: 18.5 },
+  { key: 'pavlodar', x: 141.8, y: 24.1 },
+  { key: 'semey', x: 155.5, y: 35.4 },
+  { key: 'oskemen', x: 165.4, y: 38.2 },
+  { key: 'karaganda', x: 125.8, y: 39.1 },
+  { key: 'zhezkazgan', x: 103.4, y: 51.2 },
+  { key: 'taldykorgan', x: 147.7, y: 68.0 },
+  { key: 'konaev', x: 142.4, y: 75.0 },
+  { key: 'taraz', x: 118.6, y: 80.9 },
+  { key: 'turkestan', x: 105.6, y: 78.4 },
+  { key: 'kyzylorda', x: 94.2, y: 69.1 },
+  { key: 'aktobe', x: 59.5, y: 36.2 },
+  { key: 'oral', x: 35.4, y: 30.5 },
+  { key: 'atyrau', x: 37.7, y: 55.5 },
+  { key: 'aktau', x: 34.7, y: 76.3 },
 ]
 
-const CITY_BY_KEY = Object.fromEntries(CITIES.map((c) => [c.key, c]))
+const DEPT_BY_KEY = Object.fromEntries(DEPARTMENTS.map((d) => [d.key, d]))
 
-// A loose mesh rather than a strict hub-and-spoke: Astana connects to most
-// regions, plus a few direct region-to-region links for a "network" feel.
+// Hazard symbols drawn like conventional signs on an engineering map:
+// straight hairlines, square ends, no rounded "app icon" shapes. All on a
+// 24-unit grid; `circles` are [cx, cy, r].
+const HAZARD_SIGNS = {
+  // Command post: a rotating beacon on its base with light rays.
+  hq: {
+    d: ['M6 18 H18 V21 H6 Z', 'M8 18 V13 A4 4 0 0 1 16 13 V18', 'M12 3 V6 M4.5 6.5 L6.5 8.5 M19.5 6.5 L17.5 8.5 M2 13 H5 M19 13 H22'],
+  },
+  // Coal mine: winding headframe over the shaft, with its sheave wheel.
+  mines: {
+    d: ['M2 21 H22', 'M6.5 21 L11 7.5 M17.5 21 L13 7.5', 'M8.4 15.5 H15.6 M9.7 11.5 H14.3', 'M12 7.5 V21'],
+    circles: [[12, 5, 2.5]],
+  },
+  // Fire: a flame over a burning ground line.
+  fires: {
+    d: ['M12 3 C13 7 17 8.5 17 13 A5 5 0 0 1 7 13 C7 10.5 8.5 9 9.5 8 C9.8 9.8 10.7 10.6 11.5 11 C11.7 8 10.5 5.5 12 3 Z', 'M3 21 H21', 'M5 21 L7 18 M19 21 L17 18'],
+  },
+  // Earthquake: a seismograph trace.
+  quake: {
+    d: ['M2 12 H6 L7.5 7 L9.5 17 L11.5 3 L13.5 19 L15.5 8 L17 12 H22', 'M2 21 H22'],
+  },
+  // Mudflow / avalanche: a slope with debris flow lines.
+  mudflow: {
+    d: ['M2 20 L9 7 L13 13 L15 10 L22 20 Z', 'M6 17 C8 16 9 18 11 17 C13 16 14 18 16 17'],
+  },
+  // Flood: rising water level mark over water.
+  flood: {
+    d: ['M2 13 C4 11 6 11 8 13 C10 15 12 15 14 13 C16 11 18 11 20 13 L22 14', 'M2 18 C4 16 6 16 8 18 C10 20 12 20 14 18 C16 16 18 16 20 18 L22 19', 'M12 3 V9', 'M9 6 L12 9 L15 6'],
+  },
+  // Industry: a plant with saw-tooth roof and stack.
+  industry: {
+    d: ['M2 21 V11 L7 14 V11 L12 14 V11 L17 14 V4 H20 V21 Z', 'M5 17 H7 M10 17 H12 M15 17 H17'],
+  },
+  // Sea rescue: a lifebuoy.
+  sea: {
+    d: ['M5.6 5.6 L9.2 9.2 M18.4 5.6 L14.8 9.2 M5.6 18.4 L9.2 14.8 M18.4 18.4 L14.8 14.8'],
+    circles: [
+      [12, 12, 9],
+      [12, 12, 4],
+    ],
+  },
+}
+
+function HazardSign({ risk, ...props }) {
+  const sign = HAZARD_SIGNS[risk]
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="square" strokeLinejoin="miter" {...props}>
+      {sign.d.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+      {sign.circles?.map(([cx, cy, r], i) => (
+        <circle key={`c${i}`} cx={cx} cy={cy} r={r} />
+      ))}
+    </svg>
+  )
+}
+
+// One badge per region's best-known hazard, so the map reads as "what the
+// service there deals with most": coal mines in Karaganda, forest and
+// steppe fires in the east and north, earthquakes in Almaty, mudflows in
+// Zhetisu, spring floods on the Ural and Ishim, oil and heavy industry in
+// Atyrau and Pavlodar, Caspian rescue at Aktau. `dx`/`dy` (viewBox units)
+// were picked so each icon sits wholly inside the border, clear of the
+// department dots and of the other icons.
+const RISK_TONE = {
+  hq: 'hq',
+  mines: 'mine',
+  fires: 'fire',
+  quake: 'quake',
+  mudflow: 'quake',
+  flood: 'water',
+  industry: 'industry',
+  sea: 'water',
+}
+
+const SERVICE_BADGES = [
+  { at: 'astana', risk: 'hq', dx: 7, dy: 0 },
+  { at: 'karaganda', risk: 'mines', dx: 0, dy: 7 },
+  { at: 'semey', risk: 'fires', dx: -1, dy: 7 },
+  { at: 'oskemen', risk: 'fires', dx: 0, dy: 7 },
+  { at: 'kostanay', risk: 'fires', dx: 0, dy: 7 },
+  { at: 'almaty', risk: 'quake', dx: -7, dy: -6 },
+  { at: 'taldykorgan', risk: 'mudflow', dx: 10, dy: -8 },
+  { at: 'oral', risk: 'flood', dx: 0, dy: 7 },
+  { at: 'petropavl', risk: 'flood', dx: -6, dy: 7 },
+  { at: 'atyrau', risk: 'industry', dx: 0, dy: -7 },
+  { at: 'pavlodar', risk: 'industry', dx: 0, dy: 7 },
+  { at: 'aktau', risk: 'sea', dx: 7, dy: -3 },
+]
+
+// Each department linked to its neighbours, so the whole country reads as
+// one connected response network.
 const LINKS = [
-  ['astana', 'almaty'],
+  ['oral', 'aktobe'],
+  ['oral', 'atyrau'],
+  ['atyrau', 'aktau'],
+  ['atyrau', 'aktobe'],
+  ['aktobe', 'kostanay'],
+  ['aktobe', 'kyzylorda'],
+  ['kostanay', 'petropavl'],
+  ['kostanay', 'kokshetau'],
+  ['petropavl', 'kokshetau'],
+  ['kokshetau', 'astana'],
+  ['astana', 'pavlodar'],
   ['astana', 'karaganda'],
-  ['astana', 'kostanay'],
-  ['astana', 'aktobe'],
-  ['astana', 'oskemen'],
-  ['karaganda', 'almaty'],
-  ['almaty', 'shymkent'],
-  ['aktobe', 'atyrau'],
-  ['karaganda', 'oskemen'],
+  ['pavlodar', 'semey'],
+  ['semey', 'oskemen'],
+  ['karaganda', 'semey'],
+  ['karaganda', 'zhezkazgan'],
+  ['karaganda', 'taldykorgan'],
+  ['oskemen', 'taldykorgan'],
+  ['zhezkazgan', 'kyzylorda'],
+  ['kyzylorda', 'turkestan'],
+  ['turkestan', 'shymkent'],
+  ['shymkent', 'taraz'],
+  ['taraz', 'almaty'],
+  ['almaty', 'konaev'],
+  ['konaev', 'taldykorgan'],
+  ['aktau', 'kyzylorda'],
 ]
 
 function CivilDefenseMapGraphic() {
+  const { t } = useLanguage()
   return (
     <div className="kzmap" aria-hidden="true">
-      <svg className="kzmap-outline" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d={MAP_OUTLINE} className="kzmap-outline-fill" />
-        <path d={LAKE_PATH} className="kzmap-lake" />
-        <path d={MAP_OUTLINE} className="kzmap-outline-stroke" />
-      </svg>
+      <svg className="kzmap-svg" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <filter id="kzmap-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="0.9" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <radialGradient id="kzmap-fill" cx="58%" cy="45%" r="60%">
+            <stop offset="0%" stopColor="rgba(64, 196, 255, 0.14)" />
+            <stop offset="100%" stopColor="rgba(64, 196, 255, 0.02)" />
+          </radialGradient>
+        </defs>
 
-      <svg className="kzmap-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d={MAP_OUTLINE} className="kzmap-fill" />
+        <path d={LAKE_PATH} className="kzmap-lake" />
+        <path d={MAP_OUTLINE} className="kzmap-border" filter="url(#kzmap-glow)" />
+        <path d={MAP_OUTLINE} className="kzmap-border-run" pathLength="100" filter="url(#kzmap-glow)" />
+
         {LINKS.map(([a, b], i) => {
-          const from = CITY_BY_KEY[a]
-          const to = CITY_BY_KEY[b]
+          const from = DEPT_BY_KEY[a]
+          const to = DEPT_BY_KEY[b]
           return (
-            <g key={`${a}-${b}`} style={{ '--line-delay': `${i * 0.1}s`, '--pulse-delay': `${i * 1.3}s` }}>
-              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="kzmap-line" />
-              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="kzmap-line-pulse" />
+            <g key={`${a}-${b}`} style={{ '--link-delay': `${(i * 0.37) % 6}s` }}>
+              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="kzmap-link" />
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                pathLength="100"
+                className="kzmap-link-spark"
+                filter="url(#kzmap-glow)"
+              />
             </g>
           )
         })}
+
+        {/* Thin dashed leader from each department to its hazard marker,
+            as on an operational map. */}
+        {SERVICE_BADGES.map(({ at, risk, dx, dy }) => {
+          const d = DEPT_BY_KEY[at]
+          return (
+            <line
+              key={`leader-${at}`}
+              x1={d.x}
+              y1={d.y}
+              x2={d.x + dx}
+              y2={d.y + dy}
+              className={`kzmap-leader kzmap-leader-${RISK_TONE[risk]}`}
+            />
+          )
+        })}
+
+        {DEPARTMENTS.map((d, i) => (
+          <g key={d.key} style={{ '--node-delay': `${(i * 0.29) % 4}s` }}>
+            <circle cx={d.x} cy={d.y} r={d.hub ? 2.4 : 1.8} className="kzmap-node-ring" />
+            <circle cx={d.x} cy={d.y} r={d.hub ? 1.1 : 0.8} className="kzmap-node" filter="url(#kzmap-glow)" />
+          </g>
+        ))}
       </svg>
 
-      {CITIES.map((city, i) => (
-        <span
-          key={city.key}
-          className="kzmap-dot"
-          style={{ left: `${city.x}%`, top: `${city.y}%`, '--dot-delay': `${i * 0.08}s` }}
-        />
-      ))}
+      {SERVICE_BADGES.map(({ at, risk, dx, dy }, i) => {
+        const d = DEPT_BY_KEY[at]
+        const tone = RISK_TONE[risk]
+        return (
+          <span
+            key={at}
+            className={`kzmap-badge kzmap-badge-${tone}`}
+            title={t.header.hero.mapRisks[risk]}
+            style={{ left: `${(d.x + dx) / 2}%`, top: `${d.y + dy}%`, '--badge-delay': `${0.6 + i * 0.1}s` }}
+          >
+            <HazardSign risk={risk} className="kzmap-badge-icon" />
+          </span>
+        )
+      })}
     </div>
   )
 }

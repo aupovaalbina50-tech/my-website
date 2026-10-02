@@ -1,4 +1,5 @@
-import { Shield, RadioTower, Cross, FireExtinguisher, Compass, Star, Truck, Flame, HardHat, PersonStanding } from 'lucide-react'
+import { Silhouette } from './fireGearArt.jsx'
+
 
 const NODES = [
   [60, 80], [180, 140], [320, 60], [420, 180], [560, 90], [700, 150], [850, 70], [920, 220],
@@ -138,6 +139,21 @@ const KZ_EDGES = [
 
 const KZ_CITY_POS = Object.fromEntries(KZ_CITIES.map((c) => [c.name, c.pos]))
 
+// Where each silhouette sits on the screen, kept to the edges so it never
+// competes with the text in the middle.
+const SILHOUETTE_PLACES = [
+  { kind: 'helmet', top: '9%', left: '3%', size: 160 },
+  { kind: 'axe', top: '42%', left: '2%', size: 60, wide: true },
+  { kind: 'truck', top: '74%', left: '4%', size: 280 },
+  { kind: 'bucket', top: '8%', left: '88%', size: 64 },
+  { kind: 'hydrant', top: '34%', left: '89%', size: 70, wide: true },
+  { kind: 'sprinkler', top: '54%', left: '89%', size: 62, wide: true },
+  { kind: 'extinguisher', top: '74%', left: '86%', size: 72 },
+  { kind: 'boat', top: '90%', left: '62%', size: 200, wide: true },
+]
+
+
+
 function BackgroundDecor() {
   return (
     <div className="bg-decor" aria-hidden="true">
@@ -231,21 +247,21 @@ function BackgroundDecor() {
         ></span>
       ))}
 
-      <div className="bg-side bg-side-left">
-        <PersonStanding className="bg-side-icon bg-side-icon-lg" strokeWidth={1.25} />
-        <HardHat className="bg-side-icon" strokeWidth={1.25} />
-        <Truck className="bg-side-icon bg-side-icon-lg" strokeWidth={1.25} />
-        <Flame className="bg-side-icon" strokeWidth={1.25} />
-      </div>
-
-      <div className="bg-side bg-side-right">
-        <Shield className="bg-side-icon" strokeWidth={1.25} />
-        <RadioTower className="bg-side-icon" strokeWidth={1.25} />
-        <Cross className="bg-side-icon" strokeWidth={1.25} />
-        <FireExtinguisher className="bg-side-icon" strokeWidth={1.25} />
-        <Compass className="bg-side-icon" strokeWidth={1.25} />
-        <Star className="bg-side-icon" strokeWidth={1.25} />
-      </div>
+      {SILHOUETTE_PLACES.map((p, i) => (
+        <div
+          key={p.kind}
+          className={`bg-sil${p.wide ? ' bg-sil-wide-only' : ''}`}
+          style={{
+            top: p.top,
+            left: p.left,
+            width: p.size,
+            '--sil-rotate': `${p.rotate || 0}deg`,
+            animationDelay: `${i * -3}s`,
+          }}
+        >
+          <Silhouette kind={p.kind} />
+        </div>
+      ))}
     </div>
   )
 }

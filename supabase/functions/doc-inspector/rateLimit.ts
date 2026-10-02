@@ -1,12 +1,13 @@
-// Rate limits for the inspector. Every check is a paid Claude Vision call, so
-// limits are much tighter than the chat assistant's. Reuses the generic
+// Rate limits for the inspector. Every page OCR and every analyzed chunk is
+// one AI call (a typical document = a few calls), so each counts. Limits
+// are tighter than the chat assistant's. Reuses the generic
 // `ai_chat_rate_limit_check` Postgres function already used by ai-chat, with
 // its own identifier prefix so the two features have separate counters.
 //
 // Tunable via Edge Function secrets, no code change needed:
-//   supabase secrets set DOC_INSPECTOR_LIMIT_PER_HOUR=10
-//   supabase secrets set DOC_INSPECTOR_LIMIT_PER_DAY=30
-//   supabase secrets set DOC_INSPECTOR_GLOBAL_PER_DAY=300
+//   supabase secrets set DOC_INSPECTOR_LIMIT_PER_HOUR=60
+//   supabase secrets set DOC_INSPECTOR_LIMIT_PER_DAY=200
+//   supabase secrets set DOC_INSPECTOR_GLOBAL_PER_DAY=1500
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -42,13 +43,13 @@ export interface RateLimitResult {
 
 /** `who` is the signed-in user's id when available, otherwise the client IP. */
 export async function enforceInspectorLimits(who: string): Promise<RateLimitResult> {
-  if (!(await withinLimit(`doc-inspector:global`, envInt('DOC_INSPECTOR_GLOBAL_PER_DAY', 300), 86400))) {
+  if (!(await withinLimit(`doc-inspector:global`, envInt('DOC_INSPECTOR_GLOBAL_PER_DAY', 1500), 86400))) {
     return { allowed: false, reason: 'global', retryAfterSeconds: 3600 }
   }
-  if (!(await withinLimit(`doc-inspector:h:${who}`, envInt('DOC_INSPECTOR_LIMIT_PER_HOUR', 10), 3600))) {
+  if (!(await withinLimit(`doc-inspector:h:${who}`, envInt('DOC_INSPECTOR_LIMIT_PER_HOUR', 60), 3600))) {
     return { allowed: false, reason: 'per_hour', retryAfterSeconds: 3600 }
   }
-  if (!(await withinLimit(`doc-inspector:d:${who}`, envInt('DOC_INSPECTOR_LIMIT_PER_DAY', 30), 86400))) {
+  if (!(await withinLimit(`doc-inspector:d:${who}`, envInt('DOC_INSPECTOR_LIMIT_PER_DAY', 200), 86400))) {
     return { allowed: false, reason: 'per_day', retryAfterSeconds: 86400 }
   }
   return { allowed: true }

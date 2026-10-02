@@ -16,4 +16,5 @@ export const ROUTE_SECTIONS = {
   quotes: '/quotes',
   ministry: '/ministry',
   committees: '/committees',
+  docs: '/docs',
 }

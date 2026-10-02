@@ -10,7 +10,7 @@ export function useAllTerms() {
     let cancelled = false
     supabase
       .from('terms')
-      .select('id, kk, ru, en, category, audio_kk, audio_ru, audio_en')
+      .select('id, kk, ru, en, category')
       .then(({ data, error: fetchError }) => {
         if (cancelled) return
         if (fetchError) {

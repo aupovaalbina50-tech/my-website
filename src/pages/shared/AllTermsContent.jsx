@@ -51,7 +51,7 @@ function AllTermsContent({
     setLoading(true)
     let query = supabase
       .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
+      .select('id, ru, kk, en, category')
       .order('kk', { ascending: true })
     if (categoryKey) query = query.eq('category', categoryKey)
 

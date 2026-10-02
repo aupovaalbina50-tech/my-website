@@ -47,7 +47,7 @@ export function useMastery() {
 
     const { data: termRows } = await supabase
       .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
+      .select('id, ru, kk, en, category')
       .in('id', allIds)
 
     const byId = new Map((termRows || []).map((term) => [term.id, term]))

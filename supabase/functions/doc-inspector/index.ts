@@ -1,30 +1,35 @@
 // doc-inspector — Supabase Edge Function behind «Цифровой инспектор МЧС».
 //
-// Request:  POST multipart/form-data
-//             file — the document photo (JPEG / PNG / WebP / GIF, up to 5 MB)
-//             lang — 'kk' | 'ru', language of the explanations (default 'ru')
-//           Headers: apikey + Authorization: Bearer <user JWT or anon key>
-// Response: 200 { readable, documentLanguage, findings: Finding[], model }
-//           4xx/5xx { error: <code>, message } — codes listed in README below
+// The browser does the file handling (DOCX/PDF text extraction, rendering
+// scanned pages to images, building the corrected file); this function does
+// the parts that need the glossary or an AI key. Three actions:
 //
-// Flow: validate the upload -> rate-limit -> load glossary -> vision model
-// -> attach glossary entries -> JSON back to the browser.
+//   POST { action: 'ocr', image: <base64>, mediaType: 'image/jpeg'|'image/png'|'image/webp' }
+//     -> 200 { readable: boolean, text: string, model }
+//     Verbatim transcription of one page image (scans, photos).
 //
-// Vision model: Claude (inspection.ts) when the ANTHROPIC_API_KEY secret is
-// set, otherwise Gemini's free tier (gemini.ts) with the GEMINI_API_KEY
-// secret the ai-chat assistant already uses. API keys never leave the server.
+//   POST { action: 'analyze', lang: 'kk'|'ru', segments: [{ page, offset, text }] }
+//     -> 200 { results: Result[], ai: { status, model?, error? }, glossarySize }
+//     Terminology check of one chunk of the document (see analyze.ts).
 //
-// Error codes the frontend handles:
-//   no_file, empty_file (400) · file_too_large (413) · unsupported_file (415)
-//   rate_limited (429) · image_rejected, refused (422)
-//   ai_busy, ai_unavailable (503) · truncated, bad_response (502)
-//   config_error, glossary_unavailable, internal_error (500)
+//   POST { action: 'lookup', lang, phrases: [{ phrase, context }] }   (≤ 10 phrases)
+//     -> 200 { results: [{ phrase, found, officialTerm, sourceTitle, sourceUrl, reason }] }
+//     Official-source web search for phrases with no match in the base (lookup.ts).
+//
+//   Headers: apikey + Authorization: Bearer <user JWT or anon key>
+//   Errors:  4xx/5xx { error: <code>, message }
+//     bad_request (400) · payload_too_large (413) · unsupported_file (415)
+//     rate_limited (429) · image_rejected, refused (422)
+//     ai_busy, ai_unavailable (503) · truncated, bad_response (502)
+//     config_error, glossary_unavailable, internal_error (500)
 
-import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
+import { decodeBase64 } from 'jsr:@std/encoding@1/base64'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { loadGlossary } from './glossary.ts'
-import { inspectWithClaude, InspectionError, type ImageMediaType, type InspectParams } from './inspection.ts'
-import { inspectWithGemini } from './gemini.ts'
+import { analyzeSegments, type Segment } from './analyze.ts'
+import { callModel, InspectionError, type ImageMediaType } from './llm.ts'
+import { OCR_PROMPT, OCR_SCHEMA } from './systemPrompt.ts'
+import { lookupOfficial, type LookupPhrase } from './lookup.ts'
 import { enforceInspectorLimits } from './rateLimit.ts'
 
 const corsHeaders = {
@@ -33,9 +38,11 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// Claude accepts images up to 5 MB each. The frontend downscales photos to
-// ~2000px JPEG before upload, so real uploads are far below this.
-const MAX_FILE_BYTES = 5 * 1024 * 1024
+// The browser downscales page images to ~2000px JPEG, far below this.
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+// One analyze request = one chunk; the browser splits longer documents.
+const MAX_CHUNK_CHARS = 40_000
+const MAX_SEGMENTS = 200
 
 const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
@@ -48,21 +55,15 @@ function json(body: unknown, status = 200, extraHeaders: Record<string, string> 
   })
 }
 
-function fail(status: number, error: string, message: string, extraHeaders?: Record<string, string>) {
-  return json({ error, message }, status, extraHeaders)
+function fail(status: number, error: string, message: string) {
+  return json({ error, message }, status)
 }
 
-/**
- * Detects the real image type from the file's first bytes (magic numbers)
- * instead of trusting the browser-declared MIME type. Returns null for
- * anything that isn't a supported, structurally valid image header — that
- * covers both unsupported formats (HEIC, PDF, ...) and corrupted files.
- */
+/** Real image type from the first bytes, not the declared MIME type. */
 function sniffImageType(bytes: Uint8Array): ImageMediaType | null {
   const startsWith = (...sig: number[]) => sig.every((b, i) => bytes[i] === b)
   if (startsWith(0xff, 0xd8, 0xff)) return 'image/jpeg'
   if (startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png'
-  if (startsWith(0x47, 0x49, 0x46, 0x38)) return 'image/gif'
   const ascii = (from: number, to: number) => String.fromCharCode(...bytes.slice(from, to))
   if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp'
   return null
@@ -80,32 +81,92 @@ async function userIdFrom(req: Request): Promise<string | null> {
   return data.user?.id ?? null
 }
 
+function parseSegments(value: unknown): Segment[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_SEGMENTS) return null
+  const segments: Segment[] = []
+  for (const s of value) {
+    if (!s || typeof s.text !== 'string' || !Number.isInteger(s.page) || !Number.isInteger(s.offset)) return null
+    if (s.page < 1 || s.offset < 0) return null
+    segments.push({ page: s.page, offset: s.offset, text: s.text })
+  }
+  return segments
+}
+
+async function handleOcr(body: any) {
+  if (typeof body.image !== 'string') return fail(400, 'bad_request', 'image (base64) is required')
+  let bytes: Uint8Array
+  try {
+    bytes = decodeBase64(body.image)
+  } catch {
+    return fail(400, 'bad_request', 'image is not valid base64')
+  }
+  if (bytes.length === 0) return fail(400, 'bad_request', 'image is empty')
+  if (bytes.length > MAX_IMAGE_BYTES) return fail(413, 'payload_too_large', 'The page image must be 5 MB or smaller')
+  const mediaType = sniffImageType(bytes)
+  if (!mediaType) return fail(415, 'unsupported_file', 'The page image must be JPEG, PNG or WebP')
+
+  const { json: out, model } = await callModel({
+    system: OCR_PROMPT,
+    parts: [
+      { type: 'image', mediaType, data: body.image },
+      { type: 'text', text: 'Распознай весь текст этой страницы дословно.' },
+    ],
+    schema: OCR_SCHEMA,
+    maxTokens: 12000,
+  })
+  const text = typeof out?.text === 'string' ? out.text : ''
+  return json({ readable: Boolean(out?.readable) && text.trim().length > 0, text, model })
+}
+
+async function handleAnalyze(body: any) {
+  const segments = parseSegments(body.segments)
+  if (!segments) return fail(400, 'bad_request', 'segments must be a non-empty array of { page, offset, text }')
+  const chars = segments.reduce((n, s) => n + s.text.length, 0)
+  if (chars > MAX_CHUNK_CHARS) return fail(413, 'payload_too_large', `A chunk may contain at most ${MAX_CHUNK_CHARS} characters`)
+  const lang = body.lang === 'kk' ? 'kk' : 'ru'
+
+  let glossary
+  try {
+    glossary = await loadGlossary()
+  } catch (error) {
+    console.error('doc-inspector glossary error:', error)
+    return fail(500, 'glossary_unavailable', 'The term glossary could not be loaded')
+  }
+
+  const report = await analyzeSegments(segments, glossary, lang)
+  return json({ ...report, glossarySize: glossary.length })
+}
+
+const MAX_LOOKUP_PHRASES = 10
+
+async function handleLookup(body: any) {
+  const phrases: LookupPhrase[] = Array.isArray(body.phrases)
+    ? body.phrases
+        .filter((p: any) => typeof p?.phrase === 'string' && p.phrase.trim())
+        .slice(0, MAX_LOOKUP_PHRASES)
+        .map((p: any) => ({ phrase: p.phrase.slice(0, 200), context: String(p.context ?? '').slice(0, 400) }))
+    : []
+  if (!phrases.length) return fail(400, 'bad_request', 'phrases must be a non-empty array of { phrase, context }')
+  const lang = body.lang === 'kk' ? 'kk' : 'ru'
+  return json({ results: await lookupOfficial(phrases, lang) })
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   if (req.method !== 'POST') return fail(405, 'method_not_allowed', 'Use POST')
 
-  // ---- 1. Read and validate the upload --------------------------------
-  let form: FormData
+  let body: any
   try {
-    form = await req.formData()
+    body = await req.json()
   } catch {
-    return fail(400, 'no_file', 'Expected multipart/form-data with a "file" field')
+    return fail(400, 'bad_request', 'Expected a JSON body')
+  }
+  if (!['ocr', 'analyze', 'lookup'].includes(body?.action)) {
+    return fail(400, 'bad_request', 'action must be "ocr", "analyze" or "lookup"')
   }
 
-  const file = form.get('file')
-  if (!(file instanceof File)) return fail(400, 'no_file', 'No file was uploaded')
-  if (file.size === 0) return fail(400, 'empty_file', 'The uploaded file is empty')
-  if (file.size > MAX_FILE_BYTES) return fail(413, 'file_too_large', 'The image must be 5 MB or smaller')
-
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  const mediaType = sniffImageType(bytes)
-  if (!mediaType) {
-    return fail(415, 'unsupported_file', 'Upload a JPEG, PNG, WebP or GIF image; the file is unsupported or damaged')
-  }
-
-  const lang = form.get('lang') === 'kk' ? 'kk' : 'ru'
-
-  // ---- 2. Rate limit (per signed-in user, else per IP) ----------------
+  // Rate limit (per signed-in user, else per IP). Each page OCR and each
+  // analyzed chunk is one AI call, so each counts.
   const who = (await userIdFrom(req)) ?? `ip:${clientIp(req)}`
   const limit = await enforceInspectorLimits(who)
   if (!limit.allowed) {
@@ -116,24 +177,10 @@ Deno.serve(async (req: Request) => {
     )
   }
 
-  // ---- 3. Glossary -----------------------------------------------------
-  let glossary
   try {
-    glossary = await loadGlossary()
-  } catch (error) {
-    console.error('doc-inspector glossary error:', error)
-    return fail(500, 'glossary_unavailable', 'The term glossary could not be loaded')
-  }
-
-  // ---- 4. Vision inspection ----------------------------------------------
-  const params: InspectParams = { imageBase64: encodeBase64(bytes), mediaType, explanationLang: lang, glossary }
-  const geminiKey = Deno.env.get('GEMINI_API_KEY')
-  try {
-    let result
-    if (Deno.env.get('ANTHROPIC_API_KEY')) result = await inspectWithClaude(params)
-    else if (geminiKey) result = await inspectWithGemini(params, geminiKey)
-    else return fail(500, 'config_error', 'Set the GEMINI_API_KEY (free) or ANTHROPIC_API_KEY secret')
-    return json(result)
+    if (body.action === 'ocr') return await handleOcr(body)
+    if (body.action === 'lookup') return await handleLookup(body)
+    return await handleAnalyze(body)
   } catch (error) {
     if (error instanceof InspectionError) {
       console.error(`doc-inspector ${error.code}:`, error.message)

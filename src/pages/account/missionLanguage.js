@@ -59,8 +59,8 @@ export const MISSION_QUIZ_UI = {
     questionLabel: (current, total) => `${String(current).padStart(2, '0')}-сұрақ / ${total}`,
     correctCount: (n) => `${n} дұрыс`,
     instruction: (fromLang) => {
-      const from = { ru: 'орыс', en: 'ағылшын', kk: 'қазақ' }
-      return `Терминнің қазақ тіліндегі дұрыс аудармасын таңдаңыз (${from[fromLang]} тілінен)`
+      const from = { ru: 'орыс', en: 'ағылшын', kk: 'мемлекеттік' }
+      return `Терминнің мемлекеттік тілдегі дұрыс аудармасын таңдаңыз (${from[fromLang]} тілінен)`
     },
     answerCta: 'Жауап беру →',
     nextCta: 'Келесі сұрақ →',

@@ -1,13 +1,12 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, BookOpen, Bookmark, Flame, GraduationCap, Languages, Presentation, HandHeart, Globe } from 'lucide-react'
+import { Search, BookOpen, Bookmark, Flame, GraduationCap, Presentation, Globe } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { SECTION_IDS } from '../constants/navigation.js'
 import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
-import DocsContent from './shared/DocsContent.jsx'
 import {
   TermSuggestionList,
   fetchAllTerms,
@@ -50,7 +49,7 @@ const StepsSection = memo(function StepsSection({ t }) {
   )
 })
 
-const AUDIENCE_ICONS = [Flame, GraduationCap, Languages, Presentation, HandHeart, Globe]
+const AUDIENCE_ICONS = [GraduationCap, Flame, Presentation, BookOpen]
 
 const AudienceSection = memo(function AudienceSection({ t }) {
   return (
@@ -210,13 +209,9 @@ function HomePage() {
       {error && <div className="alert">{error}</div>}
 
       <section id="search" className="section-search">
-        <div className="hero-glow-clip" aria-hidden="true">
-          <div className="hero-glow"></div>
-        </div>
         <div className="hero-search">
           <p className="hero-kicker">{t.hero.kicker}</p>
           <h2 className="hero-headline">{t.hero.headline}</h2>
-          <p className="hero-lead">{t.hero.lead}</p>
           <div className="hero-search-box" ref={searchWrapRef}>
             <input
               ref={searchInputRef}
@@ -270,15 +265,12 @@ function HomePage() {
             <span>
               {search.trim() ? t.hero.found(visibleTerms.length) : t.hero.total(terms.length)}
             </span>
-            <span className="hero-meta-divider" aria-hidden="true"></span>
-            <span className="hero-coords">KZ · 48°N 68°E</span>
           </div>
         </div>
       </section>
 
       <StepsSection t={t} />
       <AudienceSection t={t} />
-      <DocsContent />
         </div>
       </div>
 

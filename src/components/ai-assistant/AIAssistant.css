@@ -283,7 +283,7 @@ html.ai-chat-open {
   max-width: 84%;
   padding: 10px 13px 7px;
   border-radius: 15px;
-  font-size: 14.5px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
@@ -357,7 +357,7 @@ html.ai-chat-open {
 }
 
 .ai-bubble-time {
-  font-size: 10.5px;
+  font-size: 12px;
   opacity: 0.65;
 }
 
@@ -447,7 +447,7 @@ html.ai-chat-open {
   background: var(--ai-bg);
   color: var(--ai-text);
   font: inherit;
-  font-size: 14.5px;
+  font-size: 15px;
   line-height: 1.4;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }

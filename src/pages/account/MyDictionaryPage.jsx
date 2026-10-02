@@ -14,10 +14,10 @@ function MyDictionaryPage() {
 
   return (
     <div className="account-home">
-      <div className="account-card">
+      <header className="my-dictionary-head">
         <h1 className="account-title">{t.termFavorites.pageTitle}</h1>
-        <p className="account-description">{t.termFavorites.pageSubtitle}</p>
-      </div>
+        <p className="my-dictionary-hint">{t.termFavorites.pageSubtitle}</p>
+      </header>
 
       <div className="card">
         <div className="table-wrap">

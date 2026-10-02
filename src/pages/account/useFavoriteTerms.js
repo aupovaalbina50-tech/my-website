@@ -37,7 +37,7 @@ export function useFavoriteTerms() {
 
     const { data: termRows } = await supabase
       .from('terms')
-      .select('id, ru, kk, en, category, audio_ru, audio_kk, audio_en')
+      .select('id, ru, kk, en, category')
       .in('id', favRows.map((row) => row.term_id))
 
     const byId = new Map((termRows || []).map((term) => [term.id, term]))
