@@ -26,6 +26,7 @@ import { InspectorError } from './inspectorClient.js'
 import { CATEGORIES, categoryOf, chosenFix, decisionRecord, paragraphNumber, runInspection } from './pipeline.js'
 import { buildCorrectedFiles, buildReportDocx, downloadBlob, textToDocxFile } from './writers.js'
 import DocPreview from './DocPreview.jsx'
+import FixesScreen from './FixesScreen.jsx'
 import { adiletUrl, isPairTerm, pairForResult } from './confusables.js'
 
 // «Цифровой инспектор МЧС»: a real terminology check of a PDF / DOCX / photo
@@ -536,7 +537,7 @@ function Summary({ inspection, counts, ti }) {
   )
 }
 
-function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices, onFixAll, building, onReport, onRecords, onReset, ti, lang }) {
+function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices, onOpenFixes, onReport, onRecords, onReset, ti, lang }) {
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
   const { results, doc } = inspection
   const counts = useMemo(() => {
@@ -551,7 +552,8 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
 
   const selected = results.find((r) => r.id === selectedId) ?? null
   const visible = results.filter((r) => categoryOf(r) === filter)
-  const toApply = results.filter((r) => chosenFix(r, decisions[r.id], choices[r.id])).length
+  // Findings with a base-verified replacement: what «Исправить терминологию» lists.
+  const fixable = results.filter((r) => r.status !== 'ok' && r.candidates.some((c) => c.applicable)).length
 
   const show = (result) => {
     setSelectedId(result.id)
@@ -573,9 +575,9 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
       <Summary inspection={inspection} counts={counts} ti={ti} />
 
       <div className="inspector-review-actions">
-        <button type="button" className="inspector-btn inspector-btn--primary" onClick={onFixAll} disabled={toApply === 0 || building}>
-          {building ? <Loader2 size={16} className="inspector-spin" aria-hidden="true" /> : <Wand2 size={16} aria-hidden="true" />}
-          {building ? ti.building : ti.fixAll(toApply)}
+        <button type="button" className="inspector-btn inspector-btn--primary" onClick={onOpenFixes} disabled={fixable === 0}>
+          <Wand2 size={16} aria-hidden="true" />
+          {ti.fixTerminology(fixable)}
         </button>
         <button type="button" className="inspector-btn" onClick={onReport}>
           <Download size={15} aria-hidden="true" />
@@ -590,7 +592,7 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
           {ti.checkAnother}
         </button>
       </div>
-      {counts.fix > 0 && <p className="inspector-review-hint">{ti.fixAllHint}</p>}
+      {fixable > 0 && <p className="inspector-review-hint">{ti.fixAllHint}</p>}
 
       <div className="inspector-split">
         <div className="inspector-split-preview" ref={previewRef}>
@@ -705,7 +707,7 @@ function DocInspector() {
   const { t, lang } = useLanguage()
   const ti = t.inspector
 
-  const [screen, setScreen] = useState('upload') // upload | processing | review | done | error
+  const [screen, setScreen] = useState('upload') // upload | processing | review | fixes | done | error
   const [fileName, setFileName] = useState('')
   const [progress, setProgress] = useState({ stage: 'read' })
   const [sawOcr, setSawOcr] = useState(false)
@@ -847,11 +849,25 @@ function DocInspector() {
             setDecisions={setDecisions}
             choices={choices}
             setChoices={setChoices}
-            onFixAll={fixAll}
+            onOpenFixes={() => setScreen('fixes')}
             onRecords={downloadRecords}
-            building={building}
             onReport={downloadReport}
             onReset={reset}
+            ti={ti}
+            lang={lang}
+          />
+        )}
+        {screen === 'fixes' && inspection && (
+          <FixesScreen
+            inspection={inspection}
+            decisions={decisions}
+            setDecisions={setDecisions}
+            choices={choices}
+            setChoices={setChoices}
+            onBuild={fixAll}
+            building={building}
+            onBack={() => setScreen('review')}
+            locate={(result) => locationLabel(inspection, result, ti)}
             ti={ti}
             lang={lang}
           />
@@ -861,7 +877,7 @@ function DocInspector() {
             inspection={inspection}
             output={output}
             onReport={downloadReport}
-            onBack={() => setScreen('review')}
+            onBack={() => setScreen('fixes')}
             onReset={reset}
             ti={ti}
           />
