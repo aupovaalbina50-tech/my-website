@@ -13,6 +13,8 @@ export interface GlossaryTerm {
   ru: string | null
   en: string | null
   category: string
+  /** Unofficial wordings of this term (table term_variants). */
+  variants?: Array<{ lang: 'kk' | 'ru'; text: string }>
 }
 
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected into every
@@ -39,6 +41,19 @@ export async function loadGlossary(): Promise<GlossaryTerm[]> {
     if (error) throw new Error(`Failed to load glossary: ${error.message}`)
     terms.push(...(data as GlossaryTerm[]))
     if (!data || data.length < PAGE_SIZE) break
+  }
+
+  // Unofficial variants are an optional extra: a failure here (e.g. the
+  // table not created yet) must not take the whole check down.
+  const { data: variants, error: variantsError } = await supabase.from('term_variants').select('term_id, lang, variant')
+  if (variantsError) {
+    console.warn('doc-inspector: term variants unavailable:', variantsError.message)
+  } else {
+    const byId = new Map(terms.map((t) => [t.id, t]))
+    for (const v of variants as Array<{ term_id: string; lang: 'kk' | 'ru'; variant: string }>) {
+      const term = byId.get(v.term_id)
+      if (term) (term.variants ??= []).push({ lang: v.lang, text: v.variant })
+    }
   }
 
   cached = { terms, loadedAt: Date.now() }

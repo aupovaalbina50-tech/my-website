@@ -21,7 +21,7 @@
 
 import type { GlossaryTerm } from './glossary.ts'
 import { termByRef, termRef } from './glossary.ts'
-import { findTerms, foldYo, formsFor, officialFormOf, type TermMatch } from './matcher.ts'
+import { findTerms, foldYo, formsFor, officialFormOf, primaryText, type TermMatch } from './matcher.ts'
 import { ANALYZER_SCHEMA, buildAnalyzerPrompt, type ErrorType } from './systemPrompt.ts'
 import { callModel, InspectionError } from './llm.ts'
 
@@ -145,6 +145,19 @@ function deterministicExplanation(match: TermMatch, lang: 'kk' | 'ru'): string {
     : `В документе использована форма, не соответствующая официальному написанию термина в базе: неверно поставлены дефис или пробел. Официальный термин — «${match.form.text}».`
 }
 
+function variantExplanation(text: string, official: string, lang: 'kk' | 'ru'): string {
+  return lang === 'kk'
+    ? `«${text}» — ресми емес тіркес. Платформа базасындағы ресми термин — «${official}».`
+    : `«${text}» — неофициальная формулировка. Официальный термин в базе платформы — «${official}».`
+}
+
+/** `official` with the first letter capitalised like `like`. */
+function matchCase(official: string, like: string): string {
+  return like[0] && like[0] === like[0].toUpperCase() && like[0] !== like[0].toLowerCase()
+    ? official[0].toUpperCase() + official.slice(1)
+    : official
+}
+
 function userMessage(segments: Segment[], matches: Array<TermMatch & { page: number }>, lang: 'kk' | 'ru'): string {
   const seen = new Set<string>()
   const known: string[] = []
@@ -155,7 +168,9 @@ function userMessage(segments: Segment[], matches: Array<TermMatch & { page: num
     known.push(
       m.status === 'ok'
         ? `- «${m.text}» (${termRef(m.form.termIndex)}) — соответствует базе`
-        : `- «${m.text}» → «${m.replacement}» (${termRef(m.form.termIndex)}) — ошибка дефиса, уже учтена`,
+        : m.status === 'variant'
+          ? `- «${m.text}» — неофициальный вариант термина ${termRef(m.form.termIndex)} «${primaryText(m.form.term, m.form.lang)}» (подтверждено базой): верни находку unofficial_variant с этим термином в suggested_text в той грамматической форме, которая нужна в предложении`
+          : `- «${m.text}» → «${m.replacement}» (${termRef(m.form.termIndex)}) — ошибка дефиса, уже учтена`,
     )
   }
   const body = segments.map((s) => `=== Страница ${s.page} ===\n${s.text}`).join('\n\n')
@@ -183,6 +198,34 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
   )
   const results: Result[] = matches.map((m) => {
     const segment = segments.find((s) => s.page === m.page && m.start >= s.offset && m.end <= s.offset + s.text.length)!
+    const context = sentenceAround(segment.text, m.start - segment.offset, m.end - segment.offset)
+    if (m.status === 'variant') {
+      // Confirmed by the base, so always reported. The official term can be
+      // pasted as is only when the variant stands in its dictionary form;
+      // otherwise the AI pass supplies the inflected form (and replaces this).
+      const official = primaryText(m.form.term, m.form.lang)
+      const suggestion = same(m.text, m.form.text) ? matchCase(official, m.text) : null
+      const candidate: Candidate = { suggestion, official, term: m.form.term, difference: '', applicable: suggestion !== null }
+      return {
+        page: m.page,
+        start: m.start,
+        end: m.end,
+        text: m.text,
+        status: 'review',
+        matchType: 'exact',
+        confidence: 1,
+        level: 'high',
+        candidates: [candidate],
+        suggestion,
+        official,
+        term: m.form.term,
+        errorType: 'unofficial_variant',
+        explanation: variantExplanation(m.text, official, lang),
+        context,
+        meaningPreserved: true,
+        source: 'glossary',
+      }
+    }
     const candidate: Candidate = {
       suggestion: m.status === 'fix' ? m.replacement! : null,
       official: m.form.text,
@@ -205,7 +248,7 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
       term: candidate.term,
       errorType: m.status === 'fix' ? 'hyphenation' : null,
       explanation: m.status === 'fix' ? deterministicExplanation(m, lang) : '',
-      context: sentenceAround(segment.text, m.start - segment.offset, m.end - segment.offset),
+      context,
       meaningPreserved: true,
       source: 'glossary',
     }
@@ -299,7 +342,12 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
     if (overlapIndex !== -1) {
       const other = results[overlapIndex]
       const widerPhrase = start <= other.start && end >= other.end && end - start > other.end - other.start
-      if (other.source === 'ai' || other.status === 'fix' || !(CAN_OVERRIDE_OK.has(errorType) || widerPhrase)) continue
+      // A base-confirmed unofficial variant gives way only to an AI finding
+      // that offers the same term in a verified, inflected form.
+      const inflectsVariant =
+        other.errorType === 'unofficial_variant' && candidates.some((c) => c.applicable && c.term.id === other.term?.id)
+      if (other.errorType === 'unofficial_variant' && !inflectsVariant) continue
+      if (!inflectsVariant && (other.source === 'ai' || other.status === 'fix' || !(CAN_OVERRIDE_OK.has(errorType) || widerPhrase))) continue
       results.splice(overlapIndex, 1)
     }
 

@@ -8,6 +8,8 @@
 //           «аварийно-спасательные работы»). The replacement keeps the
 //           document's own words and endings and only fixes the separators,
 //           so it can never change the meaning.
+//   'variant' — an unofficial wording listed in term_variants («пожарник»
+//           for «огнеборец»); the official term is suggested instead.
 //
 // The same matcher validates every AI suggestion (see analyze.ts): a
 // suggestion is only auto-applicable when it is, word for word, a glossary
@@ -29,6 +31,8 @@ export interface TermForm {
   regex: RegExp
   anchored: RegExp
   probe: string
+  /** An unofficial wording from term_variants, not the official term. */
+  unofficial: boolean
 }
 
 export interface TermMatch {
@@ -36,7 +40,8 @@ export interface TermMatch {
   end: number
   text: string
   form: TermForm
-  status: 'ok' | 'fix'
+  /** 'variant': an unofficial wording of the term (form.unofficial). */
+  status: 'ok' | 'fix' | 'variant'
   /** For 'fix': the document's words joined with the official separators. */
   replacement?: string
 }
@@ -133,7 +138,13 @@ function naturalOrder(variant: string): string | null {
   return [...words.slice(1), words[0]].join(' ')
 }
 
-function buildForm(term: GlossaryTerm, termIndex: number, lang: 'kk' | 'ru', text: string): TermForm | null {
+/** The term's main official spelling in `lang` (first variant of the cell). */
+export function primaryText(term: GlossaryTerm, lang: 'kk' | 'ru'): string {
+  const cell = term[lang] || term.ru || term.kk || ''
+  return variants(cell)[0] ?? cell
+}
+
+function buildForm(term: GlossaryTerm, termIndex: number, lang: 'kk' | 'ru', text: string, unofficial = false): TermForm | null {
   const parts = text.split(/(\s*[-‐‑]\s*|\s+)/)
   const words: string[] = []
   const seps: SepKind[] = []
@@ -165,6 +176,7 @@ function buildForm(term: GlossaryTerm, termIndex: number, lang: 'kk' | 'ru', tex
     regex: new RegExp(bounded, flags),
     anchored: new RegExp(`^${source}$`, flags.replace('g', '')),
     probe: foldYo(words[0].toLowerCase()).slice(0, Math.max(2, Math.min(4, words[0].length - 1))),
+    unofficial,
   }
 }
 
@@ -187,6 +199,13 @@ export function buildForms(terms: GlossaryTerm[]): TermForm[] {
         const form = buildForm(term, index, formLang, text)
         if (form) forms.push(form)
       }
+    }
+    for (const v of term.variants ?? []) {
+      const key = `u:${v.lang}:${foldYo(v.text.toLowerCase())}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const form = buildForm(term, index, v.lang, v.text.trim(), true)
+      if (form) forms.push(form)
     }
   })
   return forms
@@ -257,6 +276,10 @@ export function findTerms(text: string, forms: TermForm[]): TermMatch[] {
       if (form.lang === 'ru' && lower.slice(start, end) !== foldYo(form.text.toLowerCase()) && isKazakhAround(lower, start, end)) {
         continue
       }
+      if (form.unofficial) {
+        candidates.push({ start, end, text: text.slice(start, end), form, status: 'variant' })
+        continue
+      }
       const { status, replacement } = classify(form, m.slice(1))
       candidates.push({ start, end, text: text.slice(start, end), form, status, replacement })
     }
@@ -278,7 +301,7 @@ export function findTerms(text: string, forms: TermForm[]): TermMatch[] {
 export function officialFormOf(text: string, forms: TermForm[], term?: GlossaryTerm): TermForm | null {
   const folded = foldYo(text.trim())
   for (const form of forms) {
-    if (term && form.term.id !== term.id) continue
+    if (form.unofficial || (term && form.term.id !== term.id)) continue
     const m = form.anchored.exec(folded)
     if (m && classify(form, m.slice(1)).status === 'ok') return form
   }
