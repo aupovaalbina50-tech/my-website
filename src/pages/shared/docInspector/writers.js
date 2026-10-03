@@ -245,6 +245,17 @@ async function buildDocx(bodyXml) {
   return zip.generateAsync({ type: 'blob', mimeType: DOCX_MIME, compression: 'DEFLATE' })
 }
 
+/**
+ * Pasted text as a DOCX file, one paragraph per line, so a quick check goes
+ * through exactly the same pipeline (preview, fixes, corrected file) as an
+ * uploaded document.
+ */
+export async function textToDocxFile(text, fileName) {
+  const body = text.replace(/\r\n?/g, '\n').split('\n').map((line) => para(line)).join('')
+  const blob = await buildDocx(body)
+  return new File([blob], fileName, { type: DOCX_MIME })
+}
+
 /** The recognised / extracted text with fixes applied, page by page. */
 async function correctedTextDocx(doc, fixes, labels) {
   const parts = []

@@ -23,7 +23,7 @@ import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
 import { chosenFix, decisionRecord, paragraphNumber, runInspection } from './pipeline.js'
-import { buildCorrectedFiles, buildReportDocx, downloadBlob } from './writers.js'
+import { buildCorrectedFiles, buildReportDocx, downloadBlob, textToDocxFile } from './writers.js'
 import DocPreview from './DocPreview.jsx'
 
 // «Цифровой инспектор МЧС»: a real terminology check of a PDF / DOCX / photo
@@ -31,9 +31,12 @@ import DocPreview from './DocPreview.jsx'
 // into the document. Screens: upload -> processing -> review -> done (or error).
 
 const ACCEPT = '.pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png'
+// A pasted text is for a quick check; longer texts belong in a file.
+const MAX_PASTE_CHARS = 20000
 
 function UploadScreen({ onFile, ti }) {
   const [dragging, setDragging] = useState(false)
+  const [pasted, setPasted] = useState('')
   const fileInputRef = useRef(null)
   const cameraInputRef = useRef(null)
 
@@ -41,6 +44,11 @@ function UploadScreen({ onFile, ti }) {
     const file = event.target.files?.[0]
     event.target.value = '' // allow choosing the same file again later
     if (file) onFile(file)
+  }
+
+  const checkPasted = async () => {
+    if (!pasted.trim()) return
+    onFile(await textToDocxFile(pasted.trim(), ti.pastedFileName))
   }
 
   return (
@@ -80,6 +88,27 @@ function UploadScreen({ onFile, ti }) {
         </button>
         <input ref={fileInputRef} type="file" accept={ACCEPT} hidden onChange={pick} />
         <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png" capture="environment" hidden onChange={pick} />
+      </div>
+
+      <h3 className="inspector-subheading">{ti.pasteHeading}</h3>
+      <div className="inspector-paste">
+        <textarea
+          aria-label={ti.pasteHeading}
+          className="inspector-paste-input"
+          value={pasted}
+          onChange={(event) => setPasted(event.target.value.slice(0, MAX_PASTE_CHARS))}
+          placeholder={ti.pastePlaceholder}
+          rows={6}
+        />
+        <div className="inspector-paste-footer">
+          <span className="inspector-paste-count">
+            {pasted.length.toLocaleString()} / {MAX_PASTE_CHARS.toLocaleString()}
+          </span>
+          <button type="button" className="inspector-btn inspector-btn--primary" onClick={checkPasted} disabled={!pasted.trim()}>
+            <FileSearch size={16} aria-hidden="true" />
+            {ti.pasteCheck}
+          </button>
+        </div>
       </div>
 
       <h3 className="inspector-subheading">{ti.howTitle}</h3>
@@ -318,7 +347,17 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
 
       {!isFix && (
         <p className="inspector-card-note">
-          {several ? ti.chooseNote : single ? (single.applicable ? ti.confirmNote : ti.reviewNote) : result.external ? ti.externalNote : ti.noMatchNote}
+          {several
+            ? ti.chooseNote
+            : single
+              ? single.applicable
+                ? ti.confirmNote
+                : result.errorType === 'unofficial_variant' && result.source === 'glossary'
+                  ? ti.variantManualNote
+                  : ti.reviewNote
+              : result.external
+                ? ti.externalNote
+                : ti.noMatchNote}
         </p>
       )}
       {!isFix && !result.meaningPreserved && result.candidates.length > 0 && (

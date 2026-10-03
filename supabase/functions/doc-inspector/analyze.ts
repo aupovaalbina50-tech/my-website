@@ -367,7 +367,11 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
       official: primary?.official ?? null,
       term: primary?.term ?? null,
       errorType,
-      explanation: String(f.reason ?? ''),
+      // The prompt's internal term references («T778») mean nothing to the reader.
+      explanation: String(f.reason ?? '')
+        .replace(/\s*\(?\bT\d+\b\)?/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim(),
       context: String(f.context ?? '').trim() || sentenceAround(located.segment.text, located.start, located.end),
       meaningPreserved,
       source: 'ai',
