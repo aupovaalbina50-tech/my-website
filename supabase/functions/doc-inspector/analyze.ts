@@ -21,7 +21,7 @@
 
 import type { GlossaryTerm } from './glossary.ts'
 import { termByRef, termRef } from './glossary.ts'
-import { buildForms, findTerms, foldYo, formsFor, officialFormOf, primaryText, type TermForm, type TermMatch } from './matcher.ts'
+import { buildForms, findTerms, foldYo, formsFor, officialFormOf, primaryText, sentenceLanguage, type Lang, type TermForm, type TermMatch } from './matcher.ts'
 import { ANALYZER_SCHEMA, buildAnalyzerPrompt, type ErrorType } from './systemPrompt.ts'
 import { callModel, InspectionError } from './llm.ts'
 
@@ -111,7 +111,10 @@ export interface AnalyzeResponse {
   ai: { status: 'ok' | 'failed'; model?: string; error?: string }
 }
 
-const LANGUAGE_NAME = { kk: 'казахский', ru: 'русский' } as const
+const LANGUAGE_NAME = { kk: 'казахский', ru: 'русский', en: 'английский' } as const
+// Base-confirmed findings of the deterministic pass that the AI may only
+// replace with the same term in a verified, inflected form.
+const BASE_CONFIRMED = new Set<ErrorType>(['unofficial_variant', 'language_mismatch'])
 
 // Confidence levels for semantic matching.
 const HIGH_CONFIDENCE = 0.85
@@ -181,6 +184,20 @@ function deterministicExplanation(match: TermMatch, lang: 'kk' | 'ru'): string {
     : `В документе использована форма, не соответствующая официальному написанию термина в базе: неверно поставлены дефис или пробел. Официальный термин — «${match.form.text}».`
 }
 
+const LANGUAGE_NAME_KK = { kk: 'қазақ', ru: 'орыс', en: 'ағылшын' } as const
+const LANGUAGE_NAME_RU_GEN = { kk: 'казахском', ru: 'русском', en: 'английском' } as const
+
+function languageExplanation(text: string, termLang: Lang, sentenceLang: Lang, official: string | null, lang: 'kk' | 'ru'): string {
+  if (lang === 'kk') {
+    return official
+      ? `«${text}» — ${LANGUAGE_NAME_KK[termLang]} тіліндегі термин, ал сөйлем ${LANGUAGE_NAME_KK[sentenceLang]} тілінде. Платформа базасындағы ${LANGUAGE_NAME_KK[sentenceLang]} тіліндегі ресми баламасы — «${official}».`
+      : `«${text}» — ${LANGUAGE_NAME_KK[termLang]} тіліндегі термин, ал сөйлем ${LANGUAGE_NAME_KK[sentenceLang]} тілінде. Базада ${LANGUAGE_NAME_KK[sentenceLang]} тіліндегі баламасы жоқ — қолмен тексеріңіз.`
+  }
+  return official
+    ? `«${text}» — термин на ${LANGUAGE_NAME_RU_GEN[termLang]} языке в предложении на ${LANGUAGE_NAME_RU_GEN[sentenceLang]}. Официальный эквивалент в базе платформы на языке предложения — «${official}».`
+    : `«${text}» — термин на ${LANGUAGE_NAME_RU_GEN[termLang]} языке в предложении на ${LANGUAGE_NAME_RU_GEN[sentenceLang]}. Эквивалента на языке предложения в базе нет — проверьте вручную.`
+}
+
 function variantExplanation(text: string, official: string, lang: 'kk' | 'ru'): string {
   return lang === 'kk'
     ? `«${text}» — ресми емес тіркес. Платформа базасындағы ресми термин — «${official}».`
@@ -206,7 +223,9 @@ function userMessage(segments: Segment[], matches: Array<TermMatch & { page: num
         ? `- «${m.text}» (${termRef(m.form.termIndex)}) — соответствует базе`
         : m.status === 'variant'
           ? `- «${m.text}» — неофициальный вариант термина ${termRef(m.form.termIndex)} «${primaryText(m.form.term, m.form.lang)}» (подтверждено базой): верни находку unofficial_variant с этим термином в suggested_text в той грамматической форме, которая нужна в предложении`
-          : `- «${m.text}» → «${m.replacement}» (${termRef(m.form.termIndex)}) — ошибка дефиса, уже учтена`,
+          : m.status === 'foreign'
+            ? `- «${m.text}» — термин ${termRef(m.form.termIndex)} на языке «${LANGUAGE_NAME[m.form.lang]}» в предложении на языке «${LANGUAGE_NAME[m.sentenceLang]}»; официальный эквивалент на языке предложения — «${primaryText(m.form.term, m.sentenceLang)}» (подтверждено базой): верни находку language_mismatch с этим эквивалентом в suggested_text в нужной грамматической форме. Сам ничего не переводи.`
+            : `- «${m.text}» → «${m.replacement}» (${termRef(m.form.termIndex)}) — ошибка дефиса, уже учтена`,
     )
   }
   const body = segments.map((s) => `=== Страница ${s.page} ===\n${s.text}`).join('\n\n')
@@ -252,13 +271,20 @@ export async function analyzeSegments(
   const results: Result[] = matches.map((m) => {
     const segment = segments.find((s) => s.page === m.page && m.start >= s.offset && m.end <= s.offset + s.text.length)!
     const context = sentenceAround(segment.text, m.start - segment.offset, m.end - segment.offset)
-    if (m.status === 'variant') {
+    if (m.status === 'variant' || m.status === 'foreign') {
       // Confirmed by the base, so always reported. The official term can be
-      // pasted as is only when the variant stands in its dictionary form;
+      // pasted as is only when the phrase stands in its dictionary form;
       // otherwise the AI pass supplies the inflected form (and replaces this).
-      const official = primaryText(m.form.term, m.form.lang)
-      const suggestion = same(m.text, m.form.text) ? matchCase(official, m.text) : null
-      const candidate: Candidate = { suggestion, official, term: m.form.term, difference: '', applicable: suggestion !== null }
+      // A term in another language gets the base entry in the sentence's
+      // language — never a translation of our own.
+      const foreign = m.status === 'foreign'
+      const targetLang = foreign ? m.sentenceLang : m.form.lang
+      const hasTarget = Boolean(m.form.term[targetLang])
+      const official = hasTarget ? primaryText(m.form.term, targetLang) : null
+      const suggestion = official && same(m.text, m.form.text) ? matchCase(official, m.text) : null
+      const candidates: Candidate[] = official
+        ? [{ suggestion, official, term: m.form.term, difference: '', applicable: suggestion !== null }]
+        : []
       return {
         page: m.page,
         start: m.start,
@@ -267,13 +293,13 @@ export async function analyzeSegments(
         status: 'review',
         matchType: 'exact',
         confidence: 1,
-        level: 'high',
-        candidates: [candidate],
+        level: official ? 'high' : 'low',
+        candidates,
         suggestion,
         official,
         term: m.form.term,
-        errorType: 'unofficial_variant',
-        explanation: variantExplanation(m.text, official, lang),
+        errorType: foreign ? 'language_mismatch' : 'unofficial_variant',
+        explanation: foreign ? languageExplanation(m.text, m.form.lang, m.sentenceLang, official, lang) : variantExplanation(m.text, official!, lang),
         context,
         meaningPreserved: true,
         source: 'glossary',
@@ -350,7 +376,8 @@ export async function analyzeSegments(
     const errorType: ErrorType = f.error_type
     // The replacement must be in the document's language, not the UI's: a
     // Russian sentence never gets a Kazakh term pasted into it, or vice versa.
-    const textLang: 'kk' | 'ru' = KK_LETTERS.test(sentenceAround(located.segment.text, located.start, located.end)) ? 'kk' : 'ru'
+    const sentence = sentenceAround(located.segment.text, located.start, located.end)
+    const textLang: Lang = KK_LETTERS.test(sentence) ? 'kk' : sentenceLanguage(sentence.replace(foundText, ' '))
 
     // Glossary is the source of truth: every candidate must resolve to a
     // glossary row, and its replacement text must be that term in the
@@ -404,8 +431,8 @@ export async function analyzeSegments(
       // A base-confirmed unofficial variant gives way only to an AI finding
       // that offers the same term in a verified, inflected form.
       const inflectsVariant =
-        other.errorType === 'unofficial_variant' && candidates.some((c) => c.applicable && c.term.id === other.term?.id)
-      if (other.errorType === 'unofficial_variant' && !inflectsVariant) continue
+        BASE_CONFIRMED.has(other.errorType!) && candidates.some((c) => c.applicable && c.term.id === other.term?.id)
+      if (BASE_CONFIRMED.has(other.errorType!) && !inflectsVariant) continue
       if (!inflectsVariant && (other.source === 'ai' || other.status === 'fix' || !(CAN_OVERRIDE_OK.has(errorType) || widerPhrase))) continue
       results.splice(overlapIndex, 1)
     }

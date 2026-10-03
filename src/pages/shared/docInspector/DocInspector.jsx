@@ -196,13 +196,45 @@ function locationLabel(inspection, result, ti) {
   return ti.pageLabel(result.page)
 }
 
+/**
+ * Language of the sentence a finding is in. Judged by the whole sentence:
+ * «Нысанда» alone has no Kazakh-only letters, the sentence around it does;
+ * English only when the sentence (without the phrase) is all but Latin.
+ */
+function sentenceLang(result) {
+  const sentence = result.context || result.text
+  if (/[әғқңөұүһі]/i.test(sentence)) return 'kk'
+  const rest = sentence.replace(result.text, ' ')
+  const cyrillic = rest.match(/\p{Script=Cyrillic}/gu)?.length ?? 0
+  return cyrillic < 5 && /\p{Script=Latin}/u.test(rest) ? 'en' : 'ru'
+}
+
 /** A base entry in the language the document fragment is written in. */
 function entryText(term, result, fallback) {
   if (!term) return fallback
-  // Judge by the whole sentence: «Нысанда» or «Пожарниктер» alone has no
-  // Kazakh-only letters, the sentence around it does.
-  const docLang = /[әғқңөұүһі]/i.test(`${result.context || ''} ${result.text}`) ? 'kk' : 'ru'
-  return term[docLang] || fallback
+  return term[sentenceLang(result)] || fallback
+}
+
+const TRILINGUAL = [
+  ['kk', 'ҚАЗ'],
+  ['ru', 'РУС'],
+  ['en', 'ENG'],
+]
+
+/** How the base term is written in all three languages (never translated by us). */
+function TrilingualLine({ term, ti }) {
+  if (!term || isPairTerm(term)) return null
+  return (
+    <p className="inspector-trilingual">
+      <span className="inspector-trilingual-label">{ti.trilingualLabel}:</span>
+      {TRILINGUAL.map(([key, label]) => (
+        <span key={key} className="inspector-trilingual-item">
+          <span className="inspector-trilingual-lang">{label}</span>
+          {term[key] ? term[key] : <em className="inspector-trilingual-missing">{ti.notInBase}</em>}
+        </span>
+      ))}
+    </p>
+  )
 }
 
 const CATEGORY_ICON = { misuse: '🔴', mismatch: '🟠', uncertain: '🟡', ambiguous: '🔵', ok: '🟢' }
@@ -234,6 +266,7 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
             {ti.okNote}: «{official}»
           </p>
         )}
+        <TrilingualLine term={result.term} ti={ti} />
       </li>
     )
   }
@@ -328,6 +361,7 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
             </a>
           </div>
         )}
+        <TrilingualLine term={(chosen ?? single)?.term ?? result.term} ti={ti} />
       </div>
 
       <dl className="inspector-card-meta">

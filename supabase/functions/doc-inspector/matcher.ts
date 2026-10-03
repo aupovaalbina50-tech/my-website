@@ -10,6 +10,10 @@
 //           so it can never change the meaning.
 //   'variant' — an unofficial wording listed in term_variants («пожарник»
 //           for «огнеборец»); the official term is suggested instead.
+//   'foreign' — a base term in another language than its sentence: an
+//           English term in Russian / Kazakh text, or a Russian term in a
+//           Kazakh sentence whose Kazakh base entry is different
+//           («огнетушитель» where the base has «өрт сөндіргіш»).
 //
 // The same matcher validates every AI suggestion (see analyze.ts): a
 // suggestion is only auto-applicable when it is, word for word, a glossary
@@ -21,10 +25,12 @@ import type { GlossaryTerm } from './glossary.ts'
 
 export type SepKind = 'space' | 'hyphen' | 'dash' | 'none'
 
+export type Lang = 'kk' | 'ru' | 'en'
+
 export interface TermForm {
   term: GlossaryTerm
   termIndex: number
-  lang: 'kk' | 'ru'
+  lang: Lang
   /** Official spelling of this form, e.g. «аварийно-спасательные работы». */
   text: string
   seps: SepKind[]
@@ -40,8 +46,10 @@ export interface TermMatch {
   end: number
   text: string
   form: TermForm
-  /** 'variant': an unofficial wording of the term (form.unofficial). */
-  status: 'ok' | 'fix' | 'variant'
+  /** 'variant': an unofficial wording of the term (form.unofficial); 'foreign': see above. */
+  status: 'ok' | 'fix' | 'variant' | 'foreign'
+  /** Language of the sentence the match is in. */
+  sentenceLang: Lang
   /** For 'fix': the document's words joined with the official separators. */
   replacement?: string
 }
@@ -61,6 +69,8 @@ const RU_ENDING_RE = `(?:${RU_ENDINGS.join('|')})?`
 // voice to г/ғ/б before a vowel suffix (көмек -> көмегі).
 const KK_SUFFIX_RE = '\\p{L}{0,12}'
 const KK_LETTERS = /[әғқңөұүһі]/i
+// English: the base's en column. Plural / possessive endings only.
+const EN_SUFFIX_RE = "(?:s|es|'s)?"
 
 const HYPHENS = '\\-\\u2010\\u2011\\u2012\\u2013\\u2014\\u2015'
 const SEP_RE = `([\\s\\u00A0]*(?:[${HYPHENS}][\\s\\u00A0]*)?)`
@@ -85,10 +95,11 @@ function isAbbreviation(word: string): boolean {
   return word.length >= 2 && word.length <= 8 && word === word.toUpperCase() && /\p{Lu}/u.test(word)
 }
 
-function wordPattern(word: string, lang: 'kk' | 'ru', beforeHyphen: boolean): string {
+function wordPattern(word: string, lang: Lang, beforeHyphen: boolean): string {
   const lower = foldYo(word.toLowerCase())
   // The first part of a hyphenated compound («аварийно-») never inflects.
   if (beforeHyphen ||!/^\p{L}+$/u.test(lower) || lower.length < 3) return escapeRe(lower)
+  if (lang === 'en') return `${escapeRe(lower)}${EN_SUFFIX_RE}`
   if (lang === 'kk') {
     const last = lower.at(-1)!
     if (lower.length >= 4 && 'кқп'.includes(last)) {
@@ -98,12 +109,17 @@ function wordPattern(word: string, lang: 'kk' | 'ru', beforeHyphen: boolean): st
     return `${escapeRe(lower)}${KK_SUFFIX_RE}`
   }
   let stem = lower
+  let stripped = ''
   for (const ending of RU_ENDINGS) {
     if (lower.endsWith(ending) && lower.length - ending.length >= 3) {
       stem = lower.slice(0, -ending.length)
+      stripped = ending
       break
     }
   }
+  // Nouns in -ие / -ия / -ье / -ья never appear without an ending, while the
+  // bare stem is often another word: «обозначен(ие)» vs «обозначен».
+  if (['ие', 'ия', 'ье', 'ья'].includes(stripped)) return `${escapeRe(stem)}(?:${RU_ENDINGS.join('|')})`
   return `${escapeRe(stem)}${RU_ENDING_RE}`
 }
 
@@ -139,12 +155,12 @@ function naturalOrder(variant: string): string | null {
 }
 
 /** The term's main official spelling in `lang` (first variant of the cell). */
-export function primaryText(term: GlossaryTerm, lang: 'kk' | 'ru'): string {
+export function primaryText(term: GlossaryTerm, lang: Lang): string {
   const cell = term[lang] || term.ru || term.kk || ''
   return variants(cell)[0] ?? cell
 }
 
-function buildForm(term: GlossaryTerm, termIndex: number, lang: 'kk' | 'ru', text: string, unofficial = false): TermForm | null {
+function buildForm(term: GlossaryTerm, termIndex: number, lang: Lang, text: string, unofficial = false): TermForm | null {
   const parts = text.split(/(\s*[-‐‑]\s*|\s+)/)
   const words: string[] = []
   const seps: SepKind[] = []
@@ -184,15 +200,17 @@ export function buildForms(terms: GlossaryTerm[]): TermForm[] {
   const forms: TermForm[] = []
   const seen = new Set<string>()
   terms.forEach((term, index) => {
-    for (const lang of ['kk', 'ru'] as const) {
+    for (const lang of ['kk', 'ru', 'en'] as const) {
       const cell = term[lang]
       if (!cell) continue
       const all = variants(cell)
       if (lang === 'ru') all.push(...all.map(naturalOrder).filter((v): v is string => v !== null))
       for (const text of all) {
+        // English entries are Latin only (a Cyrillic word there is a typo).
+        if (lang === 'en' && (/\p{Script=Cyrillic}/u.test(text) || !/\p{Script=Latin}/u.test(text))) continue
         // A Kazakh-only spelling in the ru column (or vice versa) still works,
         // but the stemming rules follow the actual letters.
-        const formLang = KK_LETTERS.test(text) ? 'kk' : lang
+        const formLang: Lang = lang === 'en' ? 'en' : KK_LETTERS.test(text) ? 'kk' : lang
         const key = `${formLang}:${foldYo(text.toLowerCase())}`
         if (seen.has(key)) continue
         seen.add(key)
@@ -245,12 +263,42 @@ const SENTENCE_LIMIT = 300
  * letters)? Sentence-level, so bilingual documents with Russian and Kazakh
  * paragraphs side by side are judged per sentence.
  */
-function isKazakhAround(lower: string, start: number, end: number): boolean {
+function sentenceAt(lower: string, start: number, end: number): string {
   let from = start
   while (from > 0 && start - from < SENTENCE_LIMIT && !/[.!?\n]/.test(lower[from - 1])) from--
   let to = end
   while (to < lower.length && to - end < SENTENCE_LIMIT && !/[.!?\n]/.test(lower[to])) to++
-  return (lower.slice(from, to).match(/[әғқңөұүһі]/g)?.length ?? 0) >= 2
+  return lower.slice(from, to)
+}
+
+function isKazakhAround(lower: string, start: number, end: number): boolean {
+  return (sentenceAt(lower, start, end).match(/[әғқңөұүһі]/g)?.length ?? 0) >= 2
+}
+
+/**
+ * Language of a sentence: Kazakh if it has Kazakh-only letters, English if
+ * it has (next to) no Cyrillic, otherwise Russian. Pass the sentence without
+ * the term being judged, so English terms quoted in Russian text don't make
+ * it look English.
+ */
+export function sentenceLanguage(sentence: string): Lang {
+  if ((sentence.match(/[әғқңөұүһі]/gi)?.length ?? 0) >= 2) return 'kk'
+  const cyrillic = sentence.match(/\p{Script=Cyrillic}/gu)?.length ?? 0
+  const latin = sentence.match(/\p{Script=Latin}/gu)?.length ?? 0
+  return cyrillic < 5 && latin > 0 ? 'en' : 'ru'
+}
+
+/** Is a base term in `formLang` foreign to a sentence in `lang`? */
+function isForeign(form: TermForm, lang: Lang): boolean {
+  if (form.lang === lang) return false
+  if (form.lang === 'en' || lang === 'en') return true
+  // A Russian term in a Kazakh sentence is fine when the Kazakh entry is the
+  // same word («эвакуация»), foreign when it differs («огнетушитель»).
+  if (form.lang === 'ru' && lang === 'kk') {
+    const kk = primaryText(form.term, 'kk').toLowerCase()
+    return Boolean(form.term.kk) && foldYo(kk) !== foldYo(form.text.toLowerCase())
+  }
+  return false
 }
 
 /**
@@ -276,12 +324,20 @@ export function findTerms(text: string, forms: TermForm[]): TermMatch[] {
       if (form.lang === 'ru' && lower.slice(start, end) !== foldYo(form.text.toLowerCase()) && isKazakhAround(lower, start, end)) {
         continue
       }
+      // Kazakh letters anywhere (the term's own included) make it Kazakh;
+      // English vs Russian is judged without the term itself.
+      const sentence = sentenceAt(lower, start, end)
+      const sentenceLang = isKazakhAround(lower, start, end) ? 'kk' : sentenceLanguage(sentence.replace(lower.slice(start, end), ' '))
       if (form.unofficial) {
-        candidates.push({ start, end, text: text.slice(start, end), form, status: 'variant' })
+        candidates.push({ start, end, text: text.slice(start, end), form, status: 'variant', sentenceLang })
+        continue
+      }
+      if (isForeign(form, sentenceLang)) {
+        candidates.push({ start, end, text: text.slice(start, end), form, status: 'foreign', sentenceLang })
         continue
       }
       const { status, replacement } = classify(form, m.slice(1))
-      candidates.push({ start, end, text: text.slice(start, end), form, status, replacement })
+      candidates.push({ start, end, text: text.slice(start, end), form, status, replacement, sentenceLang })
     }
   }
   candidates.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start)
