@@ -194,9 +194,11 @@ function locationLabel(inspection, result, ti) {
 }
 
 /** A base entry in the language the document fragment is written in. */
-function entryText(term, fragment, fallback) {
+function entryText(term, result, fallback) {
   if (!term) return fallback
-  const docLang = /[әғқңөұүһі]/i.test(fragment) ? 'kk' : 'ru'
+  // Judge by the whole sentence: «Нысанда» or «Пожарниктер» alone has no
+  // Kazakh-only letters, the sentence around it does.
+  const docLang = /[әғқңөұүһі]/i.test(`${result.context || ''} ${result.text}`) ? 'kk' : 'ru'
   return term[docLang] || fallback
 }
 
@@ -216,7 +218,7 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
   const location = locationLabel(inspection, result, ti)
 
   if (result.status === 'ok') {
-    const official = entryText(result.term, result.text, result.official)
+    const official = entryText(result.term, result, result.official)
     return (
       <li className={`inspector-card inspector-card--ok${selected ? ' inspector-card--selected' : ''}`}>
         <button type="button" className="inspector-ok-row" onClick={() => onShow(result)}>
@@ -272,9 +274,9 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
           <div className={`inspector-match-row ${isFix ? 'inspector-match-row--ok' : 'inspector-match-row--review'}`}>
             <span className="inspector-fix-label">🔎 {ti.matchInBase}</span>
             <span className={`inspector-fix-text ${isFix ? 'inspector-fix-text--ok' : ''}`}>
-              «{entryText(single.term, result.text, single.official)}»
+              «{entryText(single.term, result, single.official)}»
             </span>
-            {single.suggestion && !same(single.suggestion, entryText(single.term, result.text, single.official)) && (
+            {single.suggestion && !same(single.suggestion, entryText(single.term, result, single.official)) && (
               <span className="inspector-match-form">
                 {ti.inSentenceForm}: «{single.suggestion}»
               </span>
@@ -296,8 +298,8 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
                 />
                 <span className="inspector-option-body">
                   <span className="inspector-option-term">
-                    {i + 1}. «{entryText(c.term, result.text, c.official)}»
-                    {c.suggestion && !same(c.suggestion, entryText(c.term, result.text, c.official)) && ` → «${c.suggestion}»`}
+                    {i + 1}. «{entryText(c.term, result, c.official)}»
+                    {c.suggestion && !same(c.suggestion, entryText(c.term, result, c.official)) && ` → «${c.suggestion}»`}
                   </span>
                   {c.difference && <span className="inspector-option-diff">{c.difference}</span>}
                   {!c.applicable && <span className="inspector-option-diff">{ti.formNotVerified}</span>}
