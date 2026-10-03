@@ -19,12 +19,14 @@ import {
   Wand2,
   X,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
 import { CATEGORIES, categoryOf, chosenFix, decisionRecord, paragraphNumber, runInspection } from './pipeline.js'
 import { buildCorrectedFiles, buildReportDocx, downloadBlob, textToDocxFile } from './writers.js'
 import DocPreview from './DocPreview.jsx'
+import { adiletUrl, isPairTerm, pairForResult } from './confusables.js'
 
 // «Цифровой инспектор МЧС»: a real terminology check of a PDF / DOCX / photo
 // against the site's base of official terms, with corrections written back
@@ -245,15 +247,22 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
   const category = categoryOf(result)
   const headline = `${CATEGORY_ICON[category]} ${ti.categories[category]}`
 
+  const pair = pairForResult(result)
+  const fromPair = result.candidates.some((c) => isPairTerm(c.term))
+
   // Basis of the suggestion, in the agreed order of sources: the platform's
-  // base first; an external source is always marked as unconfirmed.
-  const basis = result.candidates.length
-    ? result.source === 'glossary'
-      ? ti.basisGlossary
-      : ti.basisBaseAi
-    : result.external
-      ? ti.basisExternal
-      : ti.basisNone
+  // base, then official definitions saved on the site («Не путать»); an
+  // external source is always marked as unconfirmed.
+  const basis = fromPair
+    ? ti.basisConfusable
+    : result.candidates.length
+      ? result.source === 'glossary'
+        ? ti.basisGlossary
+        : ti.basisBaseAi
+      : result.external
+        ? ti.basisExternal
+        : ti.basisNone
+  const basisSources = fromPair && pair ? pair.sources : []
 
   return (
     <li
@@ -272,7 +281,7 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
 
         {single && (
           <div className={`inspector-match-row ${isFix ? 'inspector-match-row--ok' : 'inspector-match-row--review'}`}>
-            <span className="inspector-fix-label">🔎 {ti.matchInBase}</span>
+            <span className="inspector-fix-label">🔎 {isPairTerm(single.term) ? ti.matchInPair : ti.matchInBase}</span>
             <span className={`inspector-fix-text ${isFix ? 'inspector-fix-text--ok' : ''}`}>
               «{entryText(single.term, result, single.official)}»
             </span>
@@ -354,8 +363,32 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
               </a>
             </>
           )}
+          {basisSources.map((source) => (
+            <a
+              key={source.docId + source.label[lang]}
+              className="inspector-source-link inspector-source-link--block"
+              href={adiletUrl(source.docId, lang)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {source.label[lang]} ↗
+            </a>
+          ))}
         </dd>
       </dl>
+
+      {pair && (
+        <div className="inspector-confusable">
+          <p className="inspector-confusable-title">⚠️ {ti.dontConfuse}</p>
+          <p className="inspector-confusable-pair">
+            «{pair.a.name[lang]}» {ti.dontConfuseAnd} «{pair.b.name[lang]}»
+          </p>
+          <p className="inspector-confusable-text">{pair.difference[lang]}</p>
+          <Link className="inspector-source-link" to="/not-to-confuse">
+            {ti.dontConfuseMore} →
+          </Link>
+        </div>
+      )}
 
       {!isFix && (
         <p className="inspector-card-note">
@@ -419,7 +452,8 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
           <Eye size={14} aria-hidden="true" />
           {ti.showInDocument}
         </button>
-        {(chosen ?? single ?? null)?.term && (
+        {/* A «Не путать» pair term is not a base row, so it can't go to «Мой словарь». */}
+        {(chosen ?? single ?? null)?.term && !isPairTerm((chosen ?? single).term) && (
           <button
             type="button"
             className="inspector-btn inspector-btn--small"

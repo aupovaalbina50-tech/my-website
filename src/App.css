@@ -11011,6 +11011,45 @@
   overflow-wrap: anywhere;
 }
 
+.inspector-source-link--block {
+  display: block;
+  margin-top: 4px;
+}
+
+.inspector-confusable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: var(--space-2) 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 200, 61, 0.45);
+  border-radius: 4px;
+  background: var(--insp-yellow-bg);
+
+  p {
+    margin: 0;
+  }
+}
+
+.inspector-confusable-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--insp-yellow);
+}
+
+.inspector-confusable-pair {
+  font-weight: 700;
+  color: #fff;
+}
+
+.inspector-confusable-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--insp-text);
+}
+
 .inspector-options {
   display: grid;
   gap: 6px;

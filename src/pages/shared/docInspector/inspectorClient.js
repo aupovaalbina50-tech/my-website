@@ -101,10 +101,11 @@ export async function lookupPhrases(phrases, lang) {
  * Terminology check of one chunk.
  * @param {Array<{ page: number, offset: number, text: string }>} segments
  * @param {'kk'|'ru'} lang  language of the explanations
+ * @param {Array<object>} [confusables]  «Не путать» pairs found in the chunk (confusables.js)
  * @returns {Promise<{ results: Array<object>, ai: { status: 'ok'|'failed', model?: string, error?: string }, glossarySize: number }>}
  */
-export async function analyzeChunk(segments, lang) {
-  const body = await callInspector({ action: 'analyze', lang: lang === 'kk' ? 'kk' : 'ru', segments })
+export async function analyzeChunk(segments, lang, confusables = []) {
+  const body = await callInspector({ action: 'analyze', lang: lang === 'kk' ? 'kk' : 'ru', segments, confusables })
   if (!Array.isArray(body.results)) throw new InspectorError('bad_response')
   return body
 }

@@ -21,7 +21,7 @@
 
 import type { GlossaryTerm } from './glossary.ts'
 import { termByRef, termRef } from './glossary.ts'
-import { findTerms, foldYo, formsFor, officialFormOf, primaryText, type TermMatch } from './matcher.ts'
+import { buildForms, findTerms, foldYo, formsFor, officialFormOf, primaryText, type TermForm, type TermMatch } from './matcher.ts'
 import { ANALYZER_SCHEMA, buildAnalyzerPrompt, type ErrorType } from './systemPrompt.ts'
 import { callModel, InspectionError } from './llm.ts'
 
@@ -68,6 +68,42 @@ export interface Result {
   context: string
   meaningPreserved: boolean
   source: 'glossary' | 'ai'
+}
+
+/**
+ * A «Не путать» pair from the site, with official definitions from RK legal
+ * acts. Its two terms may be suggested like base terms (refs «N1.A»,
+ * «N1.B»); they come back as candidates with term.id «confusable:<id>:A|B».
+ */
+export interface ConfusablePair {
+  id: string
+  a: { ru: string; kk: string; definition: string }
+  b: { ru: string; kk: string; definition: string }
+  difference: string
+}
+
+const pairRef = (index: number, side: 'A' | 'B') => `N${index + 1}.${side}`
+
+/** The pairs' terms as glossary-like rows, keyed by their prompt ref. */
+function pairTerms(pairs: ConfusablePair[]): Map<string, GlossaryTerm> {
+  const terms = new Map<string, GlossaryTerm>()
+  pairs.forEach((p, i) => {
+    for (const side of ['A', 'B'] as const) {
+      const t = side === 'A' ? p.a : p.b
+      terms.set(pairRef(i, side), { id: `confusable:${p.id}:${side}`, kk: t.kk || null, ru: t.ru || null, en: null, category: 'confusable' })
+    }
+  })
+  return terms
+}
+
+function pairsBlock(pairs: ConfusablePair[]): string {
+  return pairs
+    .map(
+      (p, i) => `${pairRef(i, 'A')} «${p.a.ru}» / «${p.a.kk}» — ${p.a.definition}
+${pairRef(i, 'B')} «${p.b.ru}» / «${p.b.kk}» — ${p.b.definition}
+Разница: ${p.difference}`,
+    )
+    .join('\n\n')
 }
 
 export interface AnalyzeResponse {
@@ -158,7 +194,7 @@ function matchCase(official: string, like: string): string {
     : official
 }
 
-function userMessage(segments: Segment[], matches: Array<TermMatch & { page: number }>, lang: 'kk' | 'ru'): string {
+function userMessage(segments: Segment[], matches: Array<TermMatch & { page: number }>, lang: 'kk' | 'ru', pairs: ConfusablePair[]): string {
   const seen = new Set<string>()
   const known: string[] = []
   for (const m of matches) {
@@ -178,14 +214,31 @@ function userMessage(segments: Segment[], matches: Array<TermMatch & { page: num
 
 Уже найдено автоматической сверкой с базой:
 ${known.length ? known.join('\n') : '- ничего'}
+${
+  pairs.length
+    ? `
+## Пары «Не путать» (официальные определения из нормативных актов РК)
 
+В документе встречаются термины из этих пар. Для КАЖДОГО употребления такого термина сравни описанные в предложении обстоятельства с определениями ОБОИХ терминов пары. Если по смыслу нужен другой термин пары — верни находку error_type = "confusion" (или "context"), в candidates укажи term_ref этого термина (например N1.B) и suggested_text — этот термин в нужной грамматической форме, а в reason объясни разницу по определениям. Если употребление верно — ничего не сообщай. Если обстоятельств в тексте недостаточно, чтобы решить, — confidence не выше 0.6.
+
+${pairsBlock(pairs)}
+`
+    : ''
+}
 Проверь терминологию в тексте документа ниже.
 
 ${body}`
 }
 
-export async function analyzeSegments(segments: Segment[], glossary: GlossaryTerm[], lang: 'kk' | 'ru'): Promise<AnalyzeResponse> {
+export async function analyzeSegments(
+  segments: Segment[],
+  glossary: GlossaryTerm[],
+  lang: 'kk' | 'ru',
+  pairs: ConfusablePair[] = [],
+): Promise<AnalyzeResponse> {
   const forms = formsFor(glossary)
+  const pairTermsByRef = pairTerms(pairs)
+  const pairForms: TermForm[] = buildForms([...pairTermsByRef.values()])
 
   // ---- 1. Deterministic glossary matching -------------------------------
   const matches = segments.flatMap((segment) =>
@@ -260,7 +313,7 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
   try {
     const out = await callModel({
       system: buildAnalyzerPrompt(glossary),
-      parts: [{ type: 'text', text: userMessage(segments, matches, lang) }],
+      parts: [{ type: 'text', text: userMessage(segments, matches, lang, pairs) }],
       schema: ANALYZER_SCHEMA,
       maxTokens: 16000,
     })
@@ -305,11 +358,13 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
     const candidates: Candidate[] = []
     for (const c of Array.isArray(f.candidates) ? f.candidates : []) {
       const suggestion = String(c?.suggested_text ?? '').trim()
-      let term = termByRef(glossary, String(c?.term_ref ?? ''))
-      let form = suggestion ? officialFormOf(suggestion, forms, term ?? undefined) : null
+      const ref = String(c?.term_ref ?? '').trim()
+      // A base term («T17») or a term of a «Не путать» pair («N1.B»).
+      let term = termByRef(glossary, ref) ?? pairTermsByRef.get(ref) ?? null
+      let form = suggestion ? officialFormOf(suggestion, term?.category === 'confusable' ? pairForms : forms, term ?? undefined) : null
       if (!form && suggestion) {
         // The model gave the right words with a wrong reference.
-        form = officialFormOf(suggestion, forms)
+        form = officialFormOf(suggestion, forms) ?? officialFormOf(suggestion, pairForms)
         if (form) term = form.term
       }
       if (!term || candidates.some((x) => x.term.id === term!.id)) continue
@@ -333,7 +388,10 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
     const meaningPreserved = f.meaning_preserved === true
     // Applied automatically only when unambiguous: one verified candidate,
     // high confidence, meaning kept. Several candidates -> the user chooses.
-    const autoFix = candidates.length === 1 && candidates[0].applicable && level === 'high' && meaningPreserved
+    // A confused pair term usually needs the sentence rephrased («ввели ЧС»
+    // is no better), so it is only ever applied after the user confirms.
+    const autoFix =
+      candidates.length === 1 && candidates[0].applicable && level === 'high' && meaningPreserved && candidates[0].term.category !== 'confusable'
 
     // Overlap with a deterministic match: the deterministic result wins,
     // except for errors a correctly spelled term can still have (meaning),

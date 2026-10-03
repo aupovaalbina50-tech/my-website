@@ -11,6 +11,7 @@
 
 import { extractDocument, pdfPageImage } from './extract.js'
 import { analyzeChunk, InspectorError, lookupPhrases, ocrPage } from './inspectorClient.js'
+import { pairsInText, pairsPayload } from './confusables.js'
 
 // Characters per analyze request. Long enough for whole pages, short enough
 // for a careful model pass and the Edge Function time limit.
@@ -117,7 +118,9 @@ export async function runInspection(file, lang, onProgress) {
   let glossarySize = null
   for (let i = 0; i < chunks.length; i++) {
     onProgress({ stage: 'analyze', current: i + 1, total: chunks.length })
-    const report = await analyzeChunk(chunks[i], lang)
+    // «Не путать» pairs mentioned in this chunk, with their legal definitions.
+    const pairs = pairsPayload(pairsInText(chunks[i].map((s) => s.text).join('\n')))
+    const report = await analyzeChunk(chunks[i], lang, pairs)
     results.push(...report.results)
     glossarySize = report.glossarySize ?? glossarySize
     if (report.ai?.status !== 'ok') {

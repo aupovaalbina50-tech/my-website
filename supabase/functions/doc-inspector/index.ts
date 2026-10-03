@@ -8,7 +8,8 @@
 //     -> 200 { readable: boolean, text: string, model }
 //     Verbatim transcription of one page image (scans, photos).
 //
-//   POST { action: 'analyze', lang: 'kk'|'ru', segments: [{ page, offset, text }] }
+//   POST { action: 'analyze', lang: 'kk'|'ru', segments: [{ page, offset, text }],
+//          confusables?: [{ id, a: { ru, kk, definition }, b: {…}, difference }] }
 //     -> 200 { results: Result[], ai: { status, model?, error? }, glossarySize }
 //     Terminology check of one chunk of the document (see analyze.ts).
 //
@@ -26,7 +27,7 @@
 import { decodeBase64 } from 'jsr:@std/encoding@1/base64'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { loadGlossary } from './glossary.ts'
-import { analyzeSegments, type Segment } from './analyze.ts'
+import { analyzeSegments, type ConfusablePair, type Segment } from './analyze.ts'
 import { callModel, InspectionError, type ImageMediaType } from './llm.ts'
 import { OCR_PROMPT, OCR_SCHEMA } from './systemPrompt.ts'
 import { lookupOfficial, type LookupPhrase } from './lookup.ts'
@@ -118,6 +119,21 @@ async function handleOcr(body: any) {
   return json({ readable: Boolean(out?.readable) && text.trim().length > 0, text, model })
 }
 
+// The site's «Не путать» page has 11 pairs; the browser sends those that
+// occur in the chunk. Only used as context for the model — every
+// suggestion is still verified against the pair's own term names.
+const MAX_CONFUSABLES = 20
+
+function parseConfusables(raw: unknown): ConfusablePair[] {
+  if (!Array.isArray(raw)) return []
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+  const side = (s: any) => ({ ru: str(s?.ru, 120), kk: str(s?.kk, 120), definition: str(s?.definition, 1500) })
+  return raw
+    .slice(0, MAX_CONFUSABLES)
+    .map((p: any) => ({ id: str(p?.id, 80), a: side(p?.a), b: side(p?.b), difference: str(p?.difference, 2000) }))
+    .filter((p) => /^[a-z0-9-]+$/.test(p.id) && (p.a.ru || p.a.kk) && (p.b.ru || p.b.kk))
+}
+
 async function handleAnalyze(body: any) {
   const segments = parseSegments(body.segments)
   if (!segments) return fail(400, 'bad_request', 'segments must be a non-empty array of { page, offset, text }')
@@ -133,7 +149,7 @@ async function handleAnalyze(body: any) {
     return fail(500, 'glossary_unavailable', 'The term glossary could not be loaded')
   }
 
-  const report = await analyzeSegments(segments, glossary, lang)
+  const report = await analyzeSegments(segments, glossary, lang, parseConfusables(body.confusables))
   return json({ ...report, glossarySize: glossary.length })
 }
 

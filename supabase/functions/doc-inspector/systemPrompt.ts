@@ -52,7 +52,7 @@ export const ANALYZER_SCHEMA = {
             items: {
               type: 'object',
               properties: {
-                term_ref: { type: 'string', description: 'glossary reference like T17' },
+                term_ref: { type: 'string', description: 'glossary reference like T17, or a «Не путать» pair term like N1.B' },
                 suggested_text: {
                   type: 'string',
                   description: 'this glossary term in the grammatical form needed in the sentence, replacing found_text',
