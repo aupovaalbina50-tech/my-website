@@ -82,6 +82,9 @@ const HIGH_CONFIDENCE = 0.85
 const MEDIUM_CONFIDENCE = 0.6
 const MAX_CANDIDATES = 3
 
+// Letters only Kazakh Cyrillic has: a sentence with any of them is Kazakh.
+const KK_LETTERS = /[әғқңөұүһі]/i
+
 function levelOf(confidence: number): ConfidenceLevel {
   if (confidence >= HIGH_CONFIDENCE) return 'high'
   if (confidence >= MEDIUM_CONFIDENCE) return 'medium'
@@ -249,6 +252,9 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
     const page = located.segment.page
     const text = located.segment.text.slice(located.start, located.end)
     const errorType: ErrorType = f.error_type
+    // The replacement must be in the document's language, not the UI's: a
+    // Russian sentence never gets a Kazakh term pasted into it, or vice versa.
+    const textLang: 'kk' | 'ru' = KK_LETTERS.test(sentenceAround(located.segment.text, located.start, located.end)) ? 'kk' : 'ru'
 
     // Glossary is the source of truth: every candidate must resolve to a
     // glossary row, and its replacement text must be that term in the
@@ -264,10 +270,11 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
         if (form) term = form.term
       }
       if (!term || candidates.some((x) => x.term.id === term!.id)) continue
+      if (form && form.lang !== textLang) form = null
       const applicable = Boolean(form) && !same(suggestion, text) && !/\d/.test(text) && !/\d/.test(suggestion)
       candidates.push({
         suggestion: applicable ? suggestion : null,
-        official: form?.text ?? (term[lang] || term.ru || term.kk || ''),
+        official: form?.text ?? (term[textLang] || term.ru || term.kk || ''),
         term,
         difference: String(c?.difference ?? ''),
         applicable,
