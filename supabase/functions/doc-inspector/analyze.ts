@@ -316,7 +316,8 @@ export async function analyzeSegments(segments: Segment[], glossary: GlossaryTer
       if (form && form.lang !== textLang) form = null
       const applicable = Boolean(form) && !same(suggestion, text) && !/\d/.test(text) && !/\d/.test(suggestion)
       candidates.push({
-        suggestion: applicable ? suggestion : null,
+        // Keep a capital letter at the start of a sentence.
+        suggestion: applicable ? matchCase(suggestion, text) : null,
         official: form?.text ?? (term[textLang] || term.ru || term.kk || ''),
         term,
         difference: String(c?.difference ?? ''),
