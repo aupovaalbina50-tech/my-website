@@ -121,9 +121,6 @@ const HIGH_CONFIDENCE = 0.85
 const MEDIUM_CONFIDENCE = 0.6
 const MAX_CANDIDATES = 3
 
-// Letters only Kazakh Cyrillic has: a sentence with any of them is Kazakh.
-const KK_LETTERS = /[әғқңөұүһі]/i
-
 function levelOf(confidence: number): ConfidenceLevel {
   if (confidence >= HIGH_CONFIDENCE) return 'high'
   if (confidence >= MEDIUM_CONFIDENCE) return 'medium'
@@ -377,7 +374,7 @@ export async function analyzeSegments(
     // The replacement must be in the document's language, not the UI's: a
     // Russian sentence never gets a Kazakh term pasted into it, or vice versa.
     const sentence = sentenceAround(located.segment.text, located.start, located.end)
-    const textLang: Lang = KK_LETTERS.test(sentence) ? 'kk' : sentenceLanguage(sentence.replace(foundText, ' '))
+    const textLang: Lang = sentenceLanguage(sentence) === 'kk' ? 'kk' : sentenceLanguage(sentence.replace(foundText, ' '))
 
     // Glossary is the source of truth: every candidate must resolve to a
     // glossary row, and its replacement text must be that term in the

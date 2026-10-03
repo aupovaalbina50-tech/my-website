@@ -203,7 +203,11 @@ function locationLabel(inspection, result, ti) {
  */
 function sentenceLang(result) {
   const sentence = result.context || result.text
-  if (/[әғқңөұүһі]/i.test(sentence)) return 'kk'
+  // Same rule as the Edge Function's matcher: one Kazakh-only letter is
+  // enough unless Russian function words show the sentence is Russian.
+  const kkLetters = sentence.match(/[әғқңөұүһі]/gi)?.length ?? 0
+  const russianWords = /(?<!\p{L})(?:и|в|во|на|с|со|по|не|что|для|при|от|из|к|за|или|как)(?!\p{L})/u.test(sentence.toLowerCase())
+  if (kkLetters >= 2 || (kkLetters === 1 && !russianWords)) return 'kk'
   const rest = sentence.replace(result.text, ' ')
   const cyrillic = rest.match(/\p{Script=Cyrillic}/gu)?.length ?? 0
   return cyrillic < 5 && /\p{Script=Latin}/u.test(rest) ? 'en' : 'ru'

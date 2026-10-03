@@ -271,8 +271,21 @@ function sentenceAt(lower: string, start: number, end: number): string {
   return lower.slice(from, to)
 }
 
+// Common Russian function words, absent from Kazakh text.
+const RU_FUNCTION_WORDS = /(?<!\p{L})(?:и|в|во|на|с|со|по|не|что|для|при|от|из|к|за|или|как)(?!\p{L})/u
+
+/**
+ * Is this sentence Kazakh? Two Kazakh-only letters are enough; a single one
+ * («Нысанда огнетушитель жоқ») counts when no Russian function word is
+ * around — so «Әлихан прибыл на объект» stays Russian.
+ */
+function isKazakhSentence(sentence: string): boolean {
+  const kkLetters = sentence.match(/[әғқңөұүһі]/gi)?.length ?? 0
+  return kkLetters >= 2 || (kkLetters === 1 && !RU_FUNCTION_WORDS.test(sentence.toLowerCase()))
+}
+
 function isKazakhAround(lower: string, start: number, end: number): boolean {
-  return (sentenceAt(lower, start, end).match(/[әғқңөұүһі]/g)?.length ?? 0) >= 2
+  return isKazakhSentence(sentenceAt(lower, start, end))
 }
 
 /**
@@ -282,7 +295,7 @@ function isKazakhAround(lower: string, start: number, end: number): boolean {
  * it look English.
  */
 export function sentenceLanguage(sentence: string): Lang {
-  if ((sentence.match(/[әғқңөұүһі]/gi)?.length ?? 0) >= 2) return 'kk'
+  if (isKazakhSentence(sentence)) return 'kk'
   const cyrillic = sentence.match(/\p{Script=Cyrillic}/gu)?.length ?? 0
   const latin = sentence.match(/\p{Script=Latin}/gu)?.length ?? 0
   return cyrillic < 5 && latin > 0 ? 'en' : 'ru'
