@@ -24,12 +24,29 @@ function blobToBase64(blob) {
   })
 }
 
+// Transient gateway / platform failures (546 = the Edge Function hit a
+// resource limit) are worth one or two more tries before giving up.
+const RETRY_STATUSES = new Set([502, 503, 504, 546])
+const RETRY_DELAYS_MS = [1500, 4000]
+
 /**
- * POSTs one action to the doc-inspector Edge Function. The signed-in user's
- * token is sent when available (rate limits are then per user, not per IP);
- * otherwise the public anon key. AI keys only ever live on the server.
+ * POSTs one action to the doc-inspector Edge Function, retrying transient
+ * platform failures. The signed-in user's token is sent when available
+ * (rate limits are then per user, not per IP); otherwise the public anon
+ * key. AI keys only ever live on the server.
  */
 async function callInspector(payload) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callOnce(payload)
+    } catch (error) {
+      if (!(error.transient && attempt < RETRY_DELAYS_MS.length)) throw error
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
+    }
+  }
+}
+
+async function callOnce(payload) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token || SUPABASE_ANON_KEY
 
@@ -48,10 +65,12 @@ async function callInspector(payload) {
   // 404 from the Supabase gateway = the doc-inspector function isn't deployed.
   if (res.status === 404) throw new InspectorError('service_unavailable')
   if (!res.ok) {
-    throw new InspectorError(body?.error || 'internal_error', {
+    const error = new InspectorError(body?.error || 'internal_error', {
       retryAfterSeconds: body?.retryAfterSeconds,
       reason: body?.reason,
     })
+    error.transient = RETRY_STATUSES.has(res.status) && body?.error !== 'rate_limited'
+    throw error
   }
   if (!body) throw new InspectorError('bad_response')
   return body

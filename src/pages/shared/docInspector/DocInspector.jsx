@@ -22,7 +22,7 @@ import {
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
-import { chosenFix, decisionRecord, paragraphNumber, runInspection } from './pipeline.js'
+import { CATEGORIES, categoryOf, chosenFix, decisionRecord, paragraphNumber, runInspection } from './pipeline.js'
 import { buildCorrectedFiles, buildReportDocx, downloadBlob, textToDocxFile } from './writers.js'
 import DocPreview from './DocPreview.jsx'
 
@@ -200,6 +200,8 @@ function entryText(term, fragment, fallback) {
   return term[docLang] || fallback
 }
 
+const CATEGORY_ICON = { misuse: '🔴', mismatch: '🟠', uncertain: '🟡', ambiguous: '🔵', ok: '🟢' }
+
 function ConfidenceBadge({ result, ti }) {
   const icon = { high: '🟢', medium: '🟡', low: '🔴' }[result.level]
   return (
@@ -238,28 +240,26 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
   const chosen = choice !== undefined && choice !== null ? result.candidates[choice] : null
   const rejected = decision === 'rejected'
 
-  // Headline of the status, per the agreed wording.
-  let headline
-  if (isFix) headline = `🔴 ${ti.statusFix}`
-  else if (several) headline = `🟡 ${ti.severalMatches}`
-  else if (single) headline = `🟡 ${ti.possibleMatch}`
-  else headline = `⚪ ${ti.noOfficialMatch}`
+  const category = categoryOf(result)
+  const headline = `${CATEGORY_ICON[category]} ${ti.categories[category]}`
 
-  const sourceText = result.candidates.length
+  // Basis of the suggestion, in the agreed order of sources: the platform's
+  // base first; an external source is always marked as unconfirmed.
+  const basis = result.candidates.length
     ? result.source === 'glossary'
-      ? ti.sourceGlossary
-      : ti.sourceBaseAi
+      ? ti.basisGlossary
+      : ti.basisBaseAi
     : result.external
-      ? result.external.sourceTitle
-      : ti.sourceNone
+      ? ti.basisExternal
+      : ti.basisNone
 
   return (
     <li
-      className={`inspector-card inspector-card--${result.status}${selected ? ' inspector-card--selected' : ''}${rejected ? ' inspector-card--rejected' : ''}`}
+      className={`inspector-card inspector-card--${category}${selected ? ' inspector-card--selected' : ''}${rejected ? ' inspector-card--rejected' : ''}`}
     >
       <div className="inspector-card-head">
         <span className="inspector-card-page">{location}</span>
-        <span className={`inspector-status inspector-status--${result.status}`}>{headline}</span>
+        <span className={`inspector-status inspector-status--${category}`}>{headline}</span>
       </div>
 
       <div className="inspector-match">
@@ -341,8 +341,18 @@ function ResultCard({ result, inspection, decision, choice, onDecision, onChoose
             <dd className="inspector-context">«{result.context}»</dd>
           </>
         )}
-        <dt>{ti.sourceLabel}</dt>
-        <dd>{sourceText}</dd>
+        <dt>📚 {ti.basisLabel}</dt>
+        <dd className={result.candidates.length ? undefined : 'inspector-basis--unconfirmed'}>
+          {basis}
+          {!result.candidates.length && result.external && (
+            <>
+              {' '}
+              <a className="inspector-source-link" href={result.external.sourceUrl} target="_blank" rel="noopener noreferrer">
+                {result.external.sourceTitle} ↗
+              </a>
+            </>
+          )}
+        </dd>
       </dl>
 
       {!isFix && (
@@ -432,36 +442,36 @@ function same(a, b) {
   return a.toLowerCase().replace(/ё/g, 'е').trim() === b.toLowerCase().replace(/ё/g, 'е').trim()
 }
 
+// «Matches the base» first, then the problems from most serious, as agreed.
+const SUMMARY_ORDER = ['ok', 'misuse', 'mismatch', 'uncertain', 'ambiguous']
+
 function Summary({ inspection, counts, ti }) {
   const { doc, ai, unreadablePages, glossarySize } = inspection
   return (
     <div className="inspector-summary">
       <p className="inspector-summary-title">
         <FileCheck2 size={18} aria-hidden="true" />
-        {ti.checkedTitle}
+        {ti.resultsTitle}
       </p>
       <dl className="inspector-stats">
         <div>
-          <dt>{ti.totalPages}</dt>
-          <dd>{doc.totalPages ?? '—'}</dd>
-        </div>
-        <div>
-          <dt>{ti.foundTerms}</dt>
+          <dt>{ti.checkedTerms}</dt>
           <dd>{counts.all}</dd>
         </div>
-        <div className="inspector-stat--ok">
-          <dt>🟢 {ti.statusOk}</dt>
-          <dd>{counts.ok}</dd>
-        </div>
-        <div className="inspector-stat--review">
-          <dt>🟡 {ti.statusReview}</dt>
-          <dd>{counts.review}</dd>
-        </div>
-        <div className="inspector-stat--fix">
-          <dt>🔴 {ti.statusFix}</dt>
-          <dd>{counts.fix}</dd>
-        </div>
+        {SUMMARY_ORDER.map((category) => (
+          <div key={category} className={`inspector-stat--${category}`}>
+            <dt>
+              {CATEGORY_ICON[category]} {ti.categoriesShort[category]}
+            </dt>
+            <dd>{counts[category]}</dd>
+          </div>
+        ))}
       </dl>
+      {doc.totalPages && (
+        <p className="inspector-summary-note">
+          {ti.totalPages}: {doc.totalPages}
+        </p>
+      )}
       {glossarySize && <p className="inspector-summary-note">{ti.baseNote(glossarySize)}</p>}
       {doc.kind === 'docx' && !doc.pagesKnown && <p className="inspector-summary-note">{ti.noPageInfo}</p>}
       {ai.failedChunks > 0 && (
@@ -493,22 +503,18 @@ function Summary({ inspection, counts, ti }) {
 function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices, onFixAll, building, onReport, onRecords, onReset, ti, lang }) {
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
   const { results, doc } = inspection
-  const counts = useMemo(
-    () => ({
-      all: results.length,
-      ok: results.filter((r) => r.status === 'ok').length,
-      review: results.filter((r) => r.status === 'review').length,
-      fix: results.filter((r) => r.status === 'fix').length,
-    }),
-    [results],
-  )
-  const [filter, setFilter] = useState(counts.fix ? 'fix' : counts.review ? 'review' : 'ok')
+  const counts = useMemo(() => {
+    const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c, 0]))
+    for (const r of results) byCategory[categoryOf(r)]++
+    return { all: results.length, fix: results.filter((r) => r.status === 'fix').length, ...byCategory }
+  }, [results])
+  const [filter, setFilter] = useState(CATEGORIES.find((c) => counts[c] > 0) ?? 'ok')
   const [selectedId, setSelectedId] = useState(null)
   const [pageNumber, setPageNumber] = useState(doc.pages[0].number)
   const previewRef = useRef(null)
 
   const selected = results.find((r) => r.id === selectedId) ?? null
-  const visible = results.filter((r) => r.status === filter)
+  const visible = results.filter((r) => categoryOf(r) === filter)
   const toApply = results.filter((r) => chosenFix(r, decisions[r.id], choices[r.id])).length
 
   const show = (result) => {
@@ -523,12 +529,8 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
     if (index !== null) decide(id, null) // choosing a variant undoes «Отклонить»
   }
 
-  const tabs = [
-    { key: 'fix', label: `🔴 ${ti.filterFix}`, count: counts.fix },
-    { key: 'review', label: `🟡 ${ti.filterReview}`, count: counts.review },
-    { key: 'ok', label: `🟢 ${ti.filterOk}`, count: counts.ok },
-  ]
-  const empty = { fix: ti.emptyFix, review: ti.emptyReview, ok: ti.emptyOk }[filter]
+  const tabs = CATEGORIES.map((key) => ({ key, label: `${CATEGORY_ICON[key]} ${ti.categoriesShort[key]}`, count: counts[key] }))
+  const empty = ti.categoryEmpty[filter]
 
   return (
     <div className="inspector-review">
@@ -758,21 +760,21 @@ function DocInspector() {
           where,
           r.text,
           fix && status !== 'rejected' ? fix.suggestion : `(${official})`,
-          r.errorType ? ti.errorTypes[r.errorType] : '—',
+          [ti.categories[categoryOf(r)], r.errorType ? ti.errorTypes[r.errorType] : null].filter(Boolean).join(' — '),
           `${r.matchType === 'semantic' ? ti.matchSemantic : ti.matchExact}, ${Math.round(r.confidence * 100)}%`,
           r.candidates.length ? ti.sourceBaseShort : r.external ? `${r.external.sourceTitle} — ${r.external.sourceUrl}` : '—',
           ti.reportStatus[status],
         ]
       })
-    const counts = ['ok', 'review', 'fix'].map((s) => results.filter((r) => r.status === s).length)
+    const counts = Object.fromEntries(CATEGORIES.map((c) => [c, results.filter((r) => categoryOf(r) === c).length]))
     const blob = await buildReportDocx({
       title: ti.reportTitle,
       meta: [
         `${ti.reportFile}: ${name}`,
         `${ti.reportDate}: ${new Date().toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')}`,
         `${ti.totalPages}: ${doc.totalPages ?? '—'}`,
-        `${ti.foundTerms}: ${results.length}`,
-        `🟢 ${ti.statusOk}: ${counts[0]} · 🟡 ${ti.statusReview}: ${counts[1]} · 🔴 ${ti.statusFix}: ${counts[2]}`,
+        `${ti.checkedTerms}: ${results.length}`,
+        SUMMARY_ORDER.map((c) => `${CATEGORY_ICON[c]} ${ti.categoriesShort[c]}: ${counts[c]}`).join(' · '),
         ...(inspection.glossarySize ? [ti.baseNote(inspection.glossarySize)] : []),
       ],
       columns: ti.reportColumns,

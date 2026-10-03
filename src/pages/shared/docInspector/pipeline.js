@@ -172,6 +172,29 @@ export async function runInspection(file, lang, onProgress) {
   }
 }
 
+/** Display categories, most serious first. */
+export const CATEGORIES = ['misuse', 'mismatch', 'uncertain', 'ambiguous', 'ok']
+
+// Error types that mean «the term exists but is used wrongly here».
+const MISUSE_TYPES = new Set(['context', 'confusion', 'usage'])
+
+/**
+ * The category a finding is shown under. Only a confident finding with one
+ * base-verified candidate is called an error; anything the AI is not sure
+ * about is «possible inaccuracy», never stated as a mistake.
+ *   misuse    🔴 the term exists, but is wrong in this context
+ *   mismatch  🟠 the base recommends another (official) term
+ *   uncertain 🟡 possible inaccuracy — needs additional checking
+ *   ambiguous 🔵 several possible meanings / base terms
+ *   ok        🟢 matches the base
+ */
+export function categoryOf(result) {
+  if (result.status === 'ok') return 'ok'
+  if (result.candidates.length > 1) return 'ambiguous'
+  if (result.candidates.length === 0 || result.level !== 'high' || result.errorType === 'inaccuracy') return 'uncertain'
+  return MISUSE_TYPES.has(result.errorType) ? 'misuse' : 'mismatch'
+}
+
 /**
  * The replacement to write for a result, given the user's decisions, or null.
  *   'fix'    -> the verified candidate, unless the user rejected it
