@@ -173,6 +173,32 @@ export const LOOKUP_PROMPT = `Ты — помощник терминолога �
 {"results":[{"phrase":"...","found":true,"official_term":"...","source_title":"...","source_url":"https://...","reason":"..."}]}
 reason — 1–2 предложения на языке, указанном в запросе.`
 
+// Structured output for the search-then-read lookup (lookup.ts); empty
+// strings stand for "none" since the Gemini schema subset has no nulls.
+export const LOOKUP_SCHEMA = {
+  type: 'object',
+  properties: {
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          phrase: { type: 'string' },
+          found: { type: 'boolean' },
+          official_term: { type: 'string' },
+          source_title: { type: 'string' },
+          source_url: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['phrase', 'found', 'official_term', 'source_title', 'source_url', 'reason'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['results'],
+  additionalProperties: false,
+}
+
 export const OCR_SCHEMA = {
   type: 'object',
   properties: {
