@@ -34,9 +34,17 @@ export const ERROR_TYPES = [
 
 export type ErrorType = (typeof ERROR_TYPES)[number]
 
+// Types of service documents the inspector recognises (shown to the user).
+export const DOCUMENT_TYPES = ['рапорт', 'акт', 'приказ', 'донесение', 'распоряжение', 'отчёт', 'инструкция', 'письмо', 'учебная работа', 'иное'] as const
+
 export const ANALYZER_SCHEMA = {
   type: 'object',
   properties: {
+    document_type: {
+      type: 'string',
+      enum: [...DOCUMENT_TYPES],
+      description: 'type of the service document, judged by its content and layout; «иное» if unclear',
+    },
     findings: {
       type: 'array',
       items: {
@@ -73,7 +81,7 @@ export const ANALYZER_SCHEMA = {
       },
     },
   },
-  required: ['findings'],
+  required: ['document_type', 'findings'],
   additionalProperties: false,
 }
 
@@ -87,6 +95,10 @@ export function buildAnalyzerPrompt(terms: GlossaryTerm[]): string {
   return `Ты — «Цифровой инспектор МЧС», терминологический инспектор служебных документов в сфере гражданской защиты Республики Казахстан. Документы написаны на русском или казахском языке.
 
 Твоя задача — проверить ПРОФЕССИОНАЛЬНУЮ ТЕРМИНОЛОГИЮ документа по официальной базе терминов платформы (ниже). База — главный источник истины.
+
+## Тип документа
+
+document_type — тип документа по его содержанию и оформлению (рапорт, акт, приказ, донесение, распоряжение, отчёт, инструкция, письмо, учебная работа). Если по тексту это определить нельзя — «иное». Не угадывай.
 
 ## Главный принцип
 

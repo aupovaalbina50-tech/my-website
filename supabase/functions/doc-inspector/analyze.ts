@@ -68,6 +68,8 @@ export interface Result {
   context: string
   meaningPreserved: boolean
   source: 'glossary' | 'ai'
+  /** The base matched this phrase first (as a variant / other-language term); the AI only inflected the replacement. */
+  baseMatch?: ErrorType
 }
 
 /**
@@ -109,6 +111,8 @@ ${pairRef(i, 'B')} «${p.b.ru}» / «${p.b.kk}» — ${p.b.definition}
 export interface AnalyzeResponse {
   results: Result[]
   ai: { status: 'ok' | 'failed'; model?: string; error?: string }
+  /** Type of document as the AI judged it from this chunk (DOCUMENT_TYPES), if any. */
+  documentType?: string
 }
 
 const LANGUAGE_NAME = { kk: 'казахский', ru: 'русский', en: 'английский' } as const
@@ -332,6 +336,7 @@ export async function analyzeSegments(
 
   // ---- 2. AI pass --------------------------------------------------------
   let raw: any[]
+  let documentType: string | undefined
   let model: string
   try {
     const out = await callModel({
@@ -341,6 +346,7 @@ export async function analyzeSegments(
       maxTokens: 16000,
     })
     raw = Array.isArray(out.json?.findings) ? out.json.findings : []
+    documentType = typeof out.json?.document_type === 'string' ? out.json.document_type : undefined
     model = out.model
   } catch (error) {
     const code = error instanceof InspectionError ? error.code : 'internal_error'
@@ -422,6 +428,9 @@ export async function analyzeSegments(
     // or when the AI flags a longer phrase around the term («огнетушитель
     // ручной» around «огнетушитель»).
     const overlapIndex = results.findIndex((r) => r.page === page && start < r.end && r.start < end)
+    // Set when this finding replaces a base-confirmed one: the base found the
+    // phrase, the AI only supplied the inflected form — say so to the user.
+    let baseMatch: ErrorType | undefined
     if (overlapIndex !== -1) {
       const other = results[overlapIndex]
       const widerPhrase = start <= other.start && end >= other.end && end - start > other.end - other.start
@@ -431,6 +440,7 @@ export async function analyzeSegments(
         BASE_CONFIRMED.has(other.errorType!) && candidates.some((c) => c.applicable && c.term.id === other.term?.id)
       if (BASE_CONFIRMED.has(other.errorType!) && !inflectsVariant) continue
       if (!inflectsVariant && (other.source === 'ai' || other.status === 'fix' || !(CAN_OVERRIDE_OK.has(errorType) || widerPhrase))) continue
+      if (inflectsVariant) baseMatch = other.errorType!
       results.splice(overlapIndex, 1)
     }
 
@@ -457,9 +467,10 @@ export async function analyzeSegments(
       context: String(f.context ?? '').trim() || sentenceAround(located.segment.text, located.start, located.end),
       meaningPreserved,
       source: 'ai',
+      ...(baseMatch ? { baseMatch } : {}),
     })
   }
 
   results.sort((a, b) => a.page - b.page || a.start - b.start)
-  return { results, ai: { status: 'ok', model } }
+  return { results, ai: { status: 'ok', model }, documentType }
 }

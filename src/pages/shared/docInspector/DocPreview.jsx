@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { renderPdfPage } from './extract.js'
+import { categoryOf } from './pipeline.js'
+import { isPairTerm } from './confusables.js'
+import { entryText } from './helpers.js'
 
 // Left pane of the results screen: the document page with findings marked.
 //   PDF page with a text layer -> rendered page + highlight boxes at the
@@ -8,6 +11,8 @@ import { renderPdfPage } from './extract.js'
 //   scanned PDF page / photo   -> the page image; fragment shown as text
 //   any page                   -> "Text" view: page text with <mark>s
 // Selecting a finding on the right jumps here to its page and fragment.
+// Highlights are coloured by status (green / red / orange / yellow / blue);
+// clicking one opens a small summary with «Подробнее» -> the finding card.
 
 function xAt(spans, offset) {
   const span = spans.find((s) => offset >= s.start && offset <= s.end) ?? spans.find((s) => s.start >= offset)
@@ -32,7 +37,7 @@ function fragmentRects(page, start, end) {
   }).filter((rect) => rect[0] !== null && rect[2] !== null)
 }
 
-function PdfPageView({ pdf, page, results, selectedId }) {
+function PdfPageView({ pdf, page, results, selectedId, onPick }) {
   const holderRef = useRef(null)
   const [rendered, setRendered] = useState(null) // { url, viewport, width, height }
 
@@ -63,7 +68,8 @@ function PdfPageView({ pdf, page, results, selectedId }) {
             const [x1, y1] = rendered.viewport.convertToViewportPoint(rect[2], rect[3])
             return {
               key: `${r.id}-${i}`,
-              status: r.status,
+              result: r,
+              category: categoryOf(r),
               selected: r.id === selectedId,
               style: {
                 left: `${(Math.min(x0, x1) / rendered.width) * 100}%`,
@@ -80,17 +86,20 @@ function PdfPageView({ pdf, page, results, selectedId }) {
     <div className="inspector-page-image" ref={holderRef}>
       <img src={rendered.url} alt="" />
       {boxes.map((box) => (
-        <span
+        <button
+          type="button"
           key={box.key}
-          className={`inspector-hl inspector-hl--${box.status}${box.selected ? ' inspector-hl--selected' : ''}`}
+          className={`inspector-hl inspector-hl--${box.category}${box.selected ? ' inspector-hl--selected' : ''}`}
           style={box.style}
+          onClick={() => onPick(box.result)}
+          aria-label={box.result.text}
         />
       ))}
     </div>
   )
 }
 
-function TextView({ page, results, selectedId, ti }) {
+function TextView({ page, results, selectedId, onPick, ti }) {
   const holderRef = useRef(null)
   useEffect(() => {
     holderRef.current?.querySelector('.inspector-mark--selected')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -106,7 +115,11 @@ function TextView({ page, results, selectedId, ti }) {
     parts.push(
       <mark
         key={r.id}
-        className={`inspector-mark inspector-mark--${r.status}${r.id === selectedId ? ' inspector-mark--selected' : ''}`}
+        className={`inspector-mark inspector-mark--${categoryOf(r)}${r.id === selectedId ? ' inspector-mark--selected' : ''}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => onPick(r)}
+        onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), onPick(r))}
       >
         {page.text.slice(r.start, r.end)}
       </mark>,
@@ -121,11 +134,72 @@ function TextView({ page, results, selectedId, ti }) {
   )
 }
 
-function DocPreview({ doc, pageNumber, onPageChange, results, selected, ti }) {
+/** The small window a highlighted term opens. */
+function TermPopup({ result, onClose, onDetails, ti }) {
+  const category = categoryOf(result)
+  const candidate = result.candidates[0] ?? null
+  const recommended = result.candidates.length > 1
+    ? ti.severalVariants(result.candidates.length)
+    : candidate
+      ? `«${candidate.suggestion || entryText(candidate.term, result, candidate.official)}»`
+      : result.status === 'ok'
+        ? null
+        : ti.noOfficial
+  const source = candidate
+    ? isPairTerm(candidate.term)
+      ? ti.basisConfusableShort
+      : ti.sourceOfficialBase
+    : result.external
+      ? ti.basisExternal
+      : result.status === 'ok'
+        ? ti.sourceOfficialBase
+        : ti.basisNone
+  const why = result.explanation || result.external?.reason || ''
+  return (
+    <div className={`inspector-popup inspector-popup--${category}`} role="dialog" aria-label={ti.popFound}>
+      <button type="button" className="inspector-popup-close" onClick={onClose} aria-label={ti.close}>
+        <X size={15} />
+      </button>
+      <dl>
+        <dt>{ti.popFound}</dt>
+        <dd className="inspector-popup-term">«{result.text}»</dd>
+        <dt>{ti.statusLabel}</dt>
+        <dd>{ti.categories[category]}</dd>
+        {recommended && (
+          <>
+            <dt>{ti.recommendedTerm}</dt>
+            <dd>{recommended}</dd>
+          </>
+        )}
+        {why && (
+          <>
+            <dt>{ti.whyLabel}</dt>
+            <dd>{why.length > 240 ? `${why.slice(0, 240)}…` : why}</dd>
+          </>
+        )}
+        <dt>{ti.basisSource}</dt>
+        <dd>{source}</dd>
+      </dl>
+      <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onDetails(result)}>
+        {ti.more}
+      </button>
+    </div>
+  )
+}
+
+function DocPreview({ doc, pageNumber, onPageChange, results, selected, onSelect, onDetails, ti }) {
   const pages = doc.pages
   const index = Math.max(0, pages.findIndex((p) => p.number === pageNumber))
   const page = pages[index]
-  const visualAvailable = doc.kind !== 'docx'
+  // A reopened check (kind 'saved') has only the text.
+  const visualAvailable = doc.kind === 'pdf' || doc.kind === 'image'
+  const [popup, setPopup] = useState(null)
+  const pick = (result) => {
+    setPopup(result)
+    onSelect(result)
+  }
+  // The popup belongs to the page and the filter it was opened in.
+  useEffect(() => setPopup(null), [page.number, results])
   const [mode, setMode] = useState(visualAvailable ? 'page' : 'text')
   const pageResults = results.filter((r) => r.page === page.number).sort((a, b) => a.start - b.start)
   const selectedOnPage = selected && selected.page === page.number ? selected : null
@@ -171,20 +245,31 @@ function DocPreview({ doc, pageNumber, onPageChange, results, selected, ti }) {
 
       <div className="inspector-preview-body">
         {mode === 'page' && doc.kind === 'pdf' && (
-          <PdfPageView pdf={doc.pdf} page={page} results={pageResults} selectedId={selectedOnPage?.id} />
+          <PdfPageView pdf={doc.pdf} page={page} results={pageResults} selectedId={selectedOnPage?.id} onPick={pick} />
         )}
         {mode === 'page' && doc.kind === 'image' && (
           <div className="inspector-page-image">
             <img src={page.imageUrl} alt="" />
           </div>
         )}
-        {mode === 'text' && <TextView page={page} results={pageResults} selectedId={selectedOnPage?.id} ti={ti} />}
+        {mode === 'text' && <TextView page={page} results={pageResults} selectedId={selectedOnPage?.id} onPick={pick} ti={ti} />}
+        {popup && popup.page === page.number && (
+          <TermPopup
+            result={popup}
+            onClose={() => setPopup(null)}
+            onDetails={(result) => {
+              setPopup(null)
+              onDetails(result)
+            }}
+            ti={ti}
+          />
+        )}
       </div>
 
       {/* Scans have no positions for the fragment — show it as text instead. */}
       {mode === 'page' && selectedOnPage && page.source === 'ocr' && (
         <p className="inspector-preview-fragment">
-          {ti.fragmentLabel}: <mark className={`inspector-mark inspector-mark--${selectedOnPage.status}`}>{selectedOnPage.text}</mark>
+          {ti.fragmentLabel}: <mark className={`inspector-mark inspector-mark--${categoryOf(selectedOnPage)}`}>{selectedOnPage.text}</mark>
         </p>
       )}
     </div>

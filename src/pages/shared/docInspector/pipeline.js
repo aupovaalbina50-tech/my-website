@@ -24,6 +24,8 @@ const CONTEXT_FREE_TYPES = new Set(['spelling', 'hyphenation'])
 
 // Phrases per official-source lookup request.
 const LOOKUP_BATCH = 10
+// What the OCR prompt writes for a place it cannot read.
+const ILLEGIBLE = '[неразборчиво]'
 
 /** Splits page text into ≤ CHUNK_CHARS segments at line breaks. */
 function pageSegments(page) {
@@ -98,6 +100,7 @@ export async function runInspection(file, lang, onProgress) {
   // ---- OCR for pages without a text layer ----------------------------------
   const ocrPages = doc.pages.filter((p) => p.source === 'ocr')
   let unreadablePages = 0
+  let illegiblePages = 0
   for (let i = 0; i < ocrPages.length; i++) {
     onProgress({ stage: 'ocr', current: i + 1, total: ocrPages.length })
     const page = ocrPages[i]
@@ -105,6 +108,8 @@ export async function runInspection(file, lang, onProgress) {
     const { readable, text } = await ocrPage(blob)
     page.text = readable ? text.replace(/\r\n?/g, '\n').trim() : ''
     if (!page.text) unreadablePages++
+    // The OCR marks what it could not read; never guessed text.
+    else if (page.text.includes(ILLEGIBLE)) illegiblePages++
   }
 
   const textPages = doc.pages.filter((p) => p.text.trim())
@@ -116,6 +121,7 @@ export async function runInspection(file, lang, onProgress) {
   let aiFailedChunks = 0
   let aiError = null
   let glossarySize = null
+  const documentTypes = []
   for (let i = 0; i < chunks.length; i++) {
     onProgress({ stage: 'analyze', current: i + 1, total: chunks.length })
     // «Не путать» pairs mentioned in this chunk, with their legal definitions.
@@ -123,6 +129,7 @@ export async function runInspection(file, lang, onProgress) {
     const report = await analyzeChunk(chunks[i], lang, pairs)
     results.push(...report.results)
     glossarySize = report.glossarySize ?? glossarySize
+    if (report.documentType) documentTypes.push(report.documentType)
     if (report.ai?.status !== 'ok') {
       aiFailedChunks++
       aiError = report.ai?.error ?? 'ai_unavailable'
@@ -170,6 +177,10 @@ export async function runInspection(file, lang, onProgress) {
     results,
     glossarySize,
     unreadablePages,
+    illegiblePages,
+    // The first chunk that names a definite type (the heading is there); «иное» otherwise.
+    documentType: documentTypes.find((t) => t !== 'иное') ?? documentTypes[0] ?? null,
+    checkedAt: new Date().toISOString(),
     ai: { failedChunks: aiFailedChunks, totalChunks: chunks.length, error: aiError },
     lookup: { searched: phrases.length, found: external.size, failed: lookupFailed },
   }

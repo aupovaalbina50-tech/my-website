@@ -1,46 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  BookmarkCheck,
-  BookmarkPlus,
-  Camera,
-  Check,
-  CheckCircle2,
-  CircleDashed,
-  Download,
-  Eye,
-  FileCheck2,
-  FileSearch,
-  FileText,
-  Loader2,
-  RotateCcw,
-  ScanLine,
-  ShieldAlert,
-  Upload,
-  Wand2,
-  X,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Camera, Check, CheckCircle2, CircleDashed, Download, FileSearch, FileText, ImageUp, Loader2, RotateCcw, ScanLine, ShieldAlert, Upload, Wand2 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
-import { CATEGORIES, categoryOf, chosenFix, decisionRecord, paragraphNumber, runInspection } from './pipeline.js'
+import { categoryOf, chosenFix, decisionRecord, runInspection } from './pipeline.js'
 import { buildCorrectedFiles, buildReportDocx, downloadBlob, textToDocxFile } from './writers.js'
 import DocPreview from './DocPreview.jsx'
-import FixesScreen from './FixesScreen.jsx'
-import { adiletUrl, isPairTerm, pairForResult } from './confusables.js'
+import { ChangesCompare, FixDialog } from './FixDialog.jsx'
+import { Conclusion, FilterBar, FindingCard, HistoryList, OkRow, Passport, ResultsHeader, Stepper, TermProfile } from './ExpertiseView.jsx'
+import { fixableResults, summarize } from './expertise.js'
+import { CATEGORY_ICON, documentTypeLabel, locationLabel } from './helpers.js'
+import { fromSnapshot, useInspectionHistory } from './useInspectionHistory.js'
 
-// «Цифровой инспектор МЧС»: a real terminology check of a PDF / DOCX / photo
-// against the site's base of official terms, with corrections written back
-// into the document. Screens: upload -> processing -> review -> done (or error).
+// «Цифровой инспектор терминологии»: a real terminology check of a PDF / DOCX
+// / photo / pasted text against the site's base of official terms.
+//   01 upload -> 02 terminology check (processing, review) -> 03 correction and
+//   conclusion (confirmation of fixes, corrected file, comparison, downloads).
+// Checks of a signed-in user are kept in «История экспертиз».
 
 const ACCEPT = '.pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png'
 // A pasted text is for a quick check; longer texts belong in a file.
 const MAX_PASTE_CHARS = 20000
 
-function UploadScreen({ onFile, ti }) {
+function UploadScreen({ onFile, history, onOpenHistory, ti, lang }) {
   const [dragging, setDragging] = useState(false)
   const [pasted, setPasted] = useState('')
   const fileInputRef = useRef(null)
+  const photoInputRef = useRef(null)
   const cameraInputRef = useRef(null)
 
   const pick = (event) => {
@@ -76,22 +62,30 @@ function UploadScreen({ onFile, ti }) {
         </span>
         <p className="inspector-dropzone-title">{ti.dropTitle}</p>
         <p className="inspector-dropzone-or">{ti.dropOr}</p>
-        <button type="button" className="inspector-btn inspector-btn--primary" onClick={() => fileInputRef.current?.click()}>
-          <Upload size={16} aria-hidden="true" />
-          {ti.chooseFile}
-        </button>
+        <div className="inspector-dropzone-buttons">
+          <button type="button" className="inspector-btn inspector-btn--primary" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={16} aria-hidden="true" />
+            {ti.uploadDocument}
+          </button>
+          <button type="button" className="inspector-btn" onClick={() => photoInputRef.current?.click()}>
+            <ImageUp size={16} aria-hidden="true" />
+            {ti.uploadPhoto}
+          </button>
+          {/* capture="environment" opens the rear camera on phones. */}
+          <button type="button" className="inspector-btn" onClick={() => cameraInputRef.current?.click()}>
+            <Camera size={16} aria-hidden="true" />
+            {ti.takePhoto}
+          </button>
+        </div>
         <div className="inspector-dropzone-chips">
           <code className="inspector-chip">{ti.formatsChip}</code>
           <code className="inspector-chip">{ti.limitsChip}</code>
         </div>
-        {/* capture="environment" opens the rear camera on phones. */}
-        <button type="button" className="inspector-btn" onClick={() => cameraInputRef.current?.click()}>
-          <Camera size={16} aria-hidden="true" />
-          {ti.takePhoto}
-        </button>
         <input ref={fileInputRef} type="file" accept={ACCEPT} hidden onChange={pick} />
+        <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" hidden onChange={pick} />
         <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png" capture="environment" hidden onChange={pick} />
       </div>
+      <p className="inspector-summary-note">{ti.photoHint}</p>
 
       <h3 className="inspector-subheading">{ti.pasteHeading}</h3>
       <div className="inspector-paste">
@@ -113,6 +107,8 @@ function UploadScreen({ onFile, ti }) {
           </button>
         </div>
       </div>
+
+      <HistoryList history={history} onOpen={onOpenHistory} ti={ti} lang={lang} />
 
       <h3 className="inspector-subheading">{ti.howTitle}</h3>
       <ol className="inspector-how">
@@ -187,411 +183,25 @@ function ProcessingScreen({ fileName, progress, sawOcr, ti }) {
   )
 }
 
-function locationLabel(inspection, result, ti) {
-  const { doc } = inspection
-  if (doc.kind === 'docx' && !doc.pagesKnown) {
-    const n = paragraphNumber(doc, result)
-    return n ? ti.paragraphLabel(n) : ti.pageLabel(1)
-  }
-  return ti.pageLabel(result.page)
-}
-
-/**
- * Language of the sentence a finding is in. Judged by the whole sentence:
- * «Нысанда» alone has no Kazakh-only letters, the sentence around it does;
- * English only when the sentence (without the phrase) is all but Latin.
- */
-function sentenceLang(result) {
-  const sentence = result.context || result.text
-  // Same rule as the Edge Function's matcher: one Kazakh-only letter is
-  // enough unless Russian function words show the sentence is Russian.
-  const kkLetters = sentence.match(/[әғқңөұүһі]/gi)?.length ?? 0
-  const russianWords = /(?<!\p{L})(?:и|в|во|на|с|со|по|не|что|для|при|от|из|к|за|или|как)(?!\p{L})/u.test(sentence.toLowerCase())
-  if (kkLetters >= 2 || (kkLetters === 1 && !russianWords)) return 'kk'
-  const rest = sentence.replace(result.text, ' ')
-  const cyrillic = rest.match(/\p{Script=Cyrillic}/gu)?.length ?? 0
-  return cyrillic < 5 && /\p{Script=Latin}/u.test(rest) ? 'en' : 'ru'
-}
-
-/** A base entry in the language the document fragment is written in. */
-function entryText(term, result, fallback) {
-  if (!term) return fallback
-  return term[sentenceLang(result)] || fallback
-}
-
-const TRILINGUAL = [
-  ['kk', 'ҚАЗ'],
-  ['ru', 'РУС'],
-  ['en', 'ENG'],
-]
-
-/** How the base term is written in all three languages (never translated by us). */
-function TrilingualLine({ term, ti }) {
-  if (!term || isPairTerm(term)) return null
-  return (
-    <p className="inspector-trilingual">
-      <span className="inspector-trilingual-label">{ti.trilingualLabel}:</span>
-      {TRILINGUAL.map(([key, label]) => (
-        <span key={key} className="inspector-trilingual-item">
-          <span className="inspector-trilingual-lang">{label}</span>
-          {term[key] ? term[key] : <em className="inspector-trilingual-missing">{ti.notInBase}</em>}
-        </span>
-      ))}
-    </p>
-  )
-}
-
-const CATEGORY_ICON = { misuse: '🔴', mismatch: '🟠', uncertain: '🟡', ambiguous: '🔵', ok: '🟢' }
-
-function ConfidenceBadge({ result, ti }) {
-  const icon = { high: '🟢', medium: '🟡', low: '🔴' }[result.level]
-  return (
-    <span className={`inspector-confidence inspector-confidence--${result.level}`}>
-      {icon} {ti.confidenceLevels[result.level]} · {Math.round(result.confidence * 100)}%
-    </span>
-  )
-}
-
-function ResultCard({ result, inspection, decision, choice, onDecision, onChoose, onShow, selected, ti, lang, favoriteIds, onAddToDictionary }) {
-  const typeLabel = result.errorType ? ti.errorTypes[result.errorType] || result.errorType : null
-  const location = locationLabel(inspection, result, ti)
-
-  if (result.status === 'ok') {
-    const official = entryText(result.term, result, result.official)
-    return (
-      <li className={`inspector-card inspector-card--ok${selected ? ' inspector-card--selected' : ''}`}>
-        <button type="button" className="inspector-ok-row" onClick={() => onShow(result)}>
-          <CheckCircle2 size={16} aria-hidden="true" />
-          <span className="inspector-ok-text">«{result.text}»</span>
-          <span className="inspector-ok-loc">{location}</span>
-        </button>
-        {official && official.toLowerCase() !== result.text.toLowerCase() && (
-          <p className="inspector-ok-official">
-            {ti.okNote}: «{official}»
-          </p>
-        )}
-        <TrilingualLine term={result.term} ti={ti} />
-      </li>
-    )
-  }
-
-  const isFix = result.status === 'fix'
-  const semantic = result.matchType === 'semantic'
-  const several = result.candidates.length > 1
-  const single = result.candidates.length === 1 ? result.candidates[0] : null
-  const chosen = choice !== undefined && choice !== null ? result.candidates[choice] : null
-  const rejected = decision === 'rejected'
-
-  const category = categoryOf(result)
-  const headline = `${CATEGORY_ICON[category]} ${ti.categories[category]}`
-
-  const pair = pairForResult(result)
-  const fromPair = result.candidates.some((c) => isPairTerm(c.term))
-
-  // Basis of the suggestion, in the agreed order of sources: the platform's
-  // base, then official definitions saved on the site («Не путать»); an
-  // external source is always marked as unconfirmed.
-  const basis = fromPair
-    ? ti.basisConfusable
-    : result.candidates.length
-      ? result.source === 'glossary'
-        ? ti.basisGlossary
-        : ti.basisBaseAi
-      : result.external
-        ? ti.basisExternal
-        : ti.basisNone
-  const basisSources = fromPair && pair ? pair.sources : []
-
-  return (
-    <li
-      className={`inspector-card inspector-card--${category}${selected ? ' inspector-card--selected' : ''}${rejected ? ' inspector-card--rejected' : ''}`}
-    >
-      <div className="inspector-card-head">
-        <span className="inspector-card-page">{location}</span>
-        <span className={`inspector-status inspector-status--${category}`}>{headline}</span>
-      </div>
-
-      <div className="inspector-match">
-        <div className="inspector-match-row inspector-match-row--doc">
-          <span className="inspector-fix-label">❌ {semantic ? ti.phraseLabel : ti.foundLabel}</span>
-          <span className="inspector-fix-text inspector-fix-text--error">«{result.text}»</span>
-        </div>
-
-        {single && (
-          <div className={`inspector-match-row ${isFix ? 'inspector-match-row--ok' : 'inspector-match-row--review'}`}>
-            <span className="inspector-fix-label">🔎 {isPairTerm(single.term) ? ti.matchInPair : ti.matchInBase}</span>
-            <span className={`inspector-fix-text ${isFix ? 'inspector-fix-text--ok' : ''}`}>
-              «{entryText(single.term, result, single.official)}»
-            </span>
-            {single.suggestion && !same(single.suggestion, entryText(single.term, result, single.official)) && (
-              <span className="inspector-match-form">
-                {ti.inSentenceForm}: «{single.suggestion}»
-              </span>
-            )}
-          </div>
-        )}
-
-        {several && (
-          <fieldset className="inspector-options">
-            <legend className="inspector-fix-label">🔎 {ti.possibleMatches}</legend>
-            {result.candidates.map((c, i) => (
-              <label key={c.term.id} className={`inspector-option${choice === i ? ' inspector-option--chosen' : ''}`}>
-                <input
-                  type="radio"
-                  name={`choice-${result.id}`}
-                  checked={choice === i}
-                  disabled={!c.applicable || rejected}
-                  onChange={() => onChoose(result.id, i)}
-                />
-                <span className="inspector-option-body">
-                  <span className="inspector-option-term">
-                    {i + 1}. «{entryText(c.term, result, c.official)}»
-                    {c.suggestion && !same(c.suggestion, entryText(c.term, result, c.official)) && ` → «${c.suggestion}»`}
-                  </span>
-                  {c.difference && <span className="inspector-option-diff">{c.difference}</span>}
-                  {!c.applicable && <span className="inspector-option-diff">{ti.formNotVerified}</span>}
-                </span>
-              </label>
-            ))}
-          </fieldset>
-        )}
-
-        {!result.candidates.length && result.external && (
-          <div className="inspector-match-row inspector-match-row--external">
-            <span className="inspector-fix-label">🌐 {ti.externalMatch}</span>
-            <span className="inspector-fix-text">«{result.external.officialTerm}»</span>
-            <a className="inspector-source-link" href={result.external.sourceUrl} target="_blank" rel="noopener noreferrer">
-              {result.external.sourceTitle} ↗
-            </a>
-          </div>
-        )}
-        <TrilingualLine term={(chosen ?? single)?.term ?? result.term} ti={ti} />
-      </div>
-
-      <dl className="inspector-card-meta">
-        <dt>{ti.matchTypeLabel}</dt>
-        <dd>
-          {semantic ? ti.matchSemantic : ti.matchExact} <ConfidenceBadge result={result} ti={ti} />
-        </dd>
-        {typeLabel && (
-          <>
-            <dt>{ti.typeLabel}</dt>
-            <dd>{typeLabel}</dd>
-          </>
-        )}
-        {(result.explanation || result.external?.reason) && (
-          <>
-            <dt>📌 {ti.whyLabel}</dt>
-            <dd>{result.external && !result.candidates.length ? result.external.reason || result.explanation : result.explanation}</dd>
-          </>
-        )}
-        {result.context && (
-          <>
-            <dt>{ti.contextLabel}</dt>
-            <dd className="inspector-context">«{result.context}»</dd>
-          </>
-        )}
-        <dt>📚 {ti.basisLabel}</dt>
-        <dd className={result.candidates.length ? undefined : 'inspector-basis--unconfirmed'}>
-          {basis}
-          {!result.candidates.length && result.external && (
-            <>
-              {' '}
-              <a className="inspector-source-link" href={result.external.sourceUrl} target="_blank" rel="noopener noreferrer">
-                {result.external.sourceTitle} ↗
-              </a>
-            </>
-          )}
-          {basisSources.map((source) => (
-            <a
-              key={source.docId + source.label[lang]}
-              className="inspector-source-link inspector-source-link--block"
-              href={adiletUrl(source.docId, lang)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {source.label[lang]} ↗
-            </a>
-          ))}
-        </dd>
-      </dl>
-
-      {pair && (
-        <div className="inspector-confusable">
-          <p className="inspector-confusable-title">⚠️ {ti.dontConfuse}</p>
-          <p className="inspector-confusable-pair">
-            «{pair.a.name[lang]}» {ti.dontConfuseAnd} «{pair.b.name[lang]}»
-          </p>
-          <p className="inspector-confusable-text">{pair.difference[lang]}</p>
-          <Link className="inspector-source-link" to="/not-to-confuse">
-            {ti.dontConfuseMore} →
-          </Link>
-        </div>
-      )}
-
-      {!isFix && (
-        <p className="inspector-card-note">
-          {several
-            ? ti.chooseNote
-            : single
-              ? single.applicable
-                ? ti.confirmNote
-                : result.errorType === 'unofficial_variant' && result.source === 'glossary'
-                  ? ti.variantManualNote
-                  : ti.reviewNote
-              : result.external
-                ? ti.externalNote
-                : ti.noMatchNote}
-        </p>
-      )}
-      {!isFix && !result.meaningPreserved && result.candidates.length > 0 && (
-        <p className="inspector-card-note">{ti.meaningWarning}</p>
-      )}
-
-      <div className="inspector-card-actions">
-        {rejected ? (
-          <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onDecision(result.id, null)}>
-            <RotateCcw size={14} aria-hidden="true" />
-            {ti.rejected} · {ti.undo}
-          </button>
-        ) : (
-          <>
-            {isFix && (
-              <button
-                type="button"
-                className={`inspector-btn inspector-btn--small${decision === 'accepted' ? ' inspector-btn--accepted' : ''}`}
-                onClick={() => onDecision(result.id, decision === 'accepted' ? null : 'accepted')}
-                aria-pressed={decision === 'accepted'}
-              >
-                <Check size={14} aria-hidden="true" />
-                {decision === 'accepted' ? ti.accepted : ti.accept}
-              </button>
-            )}
-            {/* Medium confidence: the user may confirm the single verified match. */}
-            {!isFix && single?.applicable && (
-              <button
-                type="button"
-                className={`inspector-btn inspector-btn--small${chosen ? ' inspector-btn--accepted' : ''}`}
-                onClick={() => onChoose(result.id, chosen ? null : 0)}
-                aria-pressed={Boolean(chosen)}
-              >
-                <Check size={14} aria-hidden="true" />
-                {chosen ? ti.confirmed : ti.confirmMatch}
-              </button>
-            )}
-            {(isFix || result.candidates.length > 0) && (
-              <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onDecision(result.id, 'rejected')}>
-                <X size={14} aria-hidden="true" />
-                {ti.reject}
-              </button>
-            )}
-          </>
-        )}
-        <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onShow(result)}>
-          <Eye size={14} aria-hidden="true" />
-          {ti.showInDocument}
-        </button>
-        {/* A «Не путать» pair term is not a base row, so it can't go to «Мой словарь». */}
-        {(chosen ?? single ?? null)?.term && !isPairTerm((chosen ?? single).term) && (
-          <button
-            type="button"
-            className="inspector-btn inspector-btn--small"
-            onClick={() => onAddToDictionary((chosen ?? single).term)}
-            disabled={favoriteIds.has((chosen ?? single).term.id)}
-            lang={lang}
-          >
-            {favoriteIds.has((chosen ?? single).term.id) ? (
-              <BookmarkCheck size={14} aria-hidden="true" />
-            ) : (
-              <BookmarkPlus size={14} aria-hidden="true" />
-            )}
-            {favoriteIds.has((chosen ?? single).term.id) ? ti.inDictionary : ti.addToDictionary}
-          </button>
-        )}
-      </div>
-    </li>
-  )
-}
-
-function same(a, b) {
-  return a.toLowerCase().replace(/ё/g, 'е').trim() === b.toLowerCase().replace(/ё/g, 'е').trim()
-}
-
-// «Matches the base» first, then the problems from most serious, as agreed.
-const SUMMARY_ORDER = ['ok', 'misuse', 'mismatch', 'uncertain', 'ambiguous']
-
-function Summary({ inspection, counts, ti }) {
-  const { doc, ai, unreadablePages, glossarySize } = inspection
-  return (
-    <div className="inspector-summary">
-      <p className="inspector-summary-title">
-        <FileCheck2 size={18} aria-hidden="true" />
-        {ti.resultsTitle}
-      </p>
-      <dl className="inspector-stats">
-        <div>
-          <dt>{ti.checkedTerms}</dt>
-          <dd>{counts.all}</dd>
-        </div>
-        {SUMMARY_ORDER.map((category) => (
-          <div key={category} className={`inspector-stat--${category}`}>
-            <dt>
-              {CATEGORY_ICON[category]} {ti.categoriesShort[category]}
-            </dt>
-            <dd>{counts[category]}</dd>
-          </div>
-        ))}
-      </dl>
-      {doc.totalPages && (
-        <p className="inspector-summary-note">
-          {ti.totalPages}: {doc.totalPages}
-        </p>
-      )}
-      {glossarySize && <p className="inspector-summary-note">{ti.baseNote(glossarySize)}</p>}
-      {doc.kind === 'docx' && !doc.pagesKnown && <p className="inspector-summary-note">{ti.noPageInfo}</p>}
-      {ai.failedChunks > 0 && (
-        <p className="inspector-warning">
-          <ShieldAlert size={15} aria-hidden="true" />
-          {ti.aiFailed(ai.failedChunks, ai.totalChunks)}
-          {ai.error && ti.errors[ai.error] ? ` (${ti.errors[ai.error]})` : ''}
-        </p>
-      )}
-      {inspection.lookup.searched > 0 && (
-        <p className="inspector-summary-note">{ti.lookupNote(inspection.lookup.searched, inspection.lookup.found)}</p>
-      )}
-      {inspection.lookup.failed > 0 && (
-        <p className="inspector-warning">
-          <ShieldAlert size={15} aria-hidden="true" />
-          {ti.lookupFailed(inspection.lookup.failed)}
-        </p>
-      )}
-      {unreadablePages > 0 && (
-        <p className="inspector-warning">
-          <ShieldAlert size={15} aria-hidden="true" />
-          {ti.unreadablePages(unreadablePages)}
-        </p>
-      )}
-    </div>
-  )
-}
-
 function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices, onOpenFixes, onReport, onRecords, onReset, ti, lang }) {
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
   const { results, doc } = inspection
-  const counts = useMemo(() => {
-    const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c, 0]))
-    for (const r of results) byCategory[categoryOf(r)]++
-    return { all: results.length, fix: results.filter((r) => r.status === 'fix').length, ...byCategory }
-  }, [results])
-  const [filter, setFilter] = useState(CATEGORIES.find((c) => counts[c] > 0) ?? 'ok')
+  const summary = useMemo(() => summarize(results), [results])
+  const [filter, setFilter] = useState(summary.issues ? 'all' : 'ok')
   const [selectedId, setSelectedId] = useState(null)
+  const [expanded, setExpanded] = useState(() => new Set())
   const [pageNumber, setPageNumber] = useState(doc.pages[0].number)
   const previewRef = useRef(null)
+  const locate = useCallback((r) => locationLabel(inspection, r, ti), [inspection, ti])
 
   const selected = results.find((r) => r.id === selectedId) ?? null
-  const visible = results.filter((r) => categoryOf(r) === filter)
-  // Findings with a base-verified replacement: what «Исправить терминологию» lists.
-  const fixable = results.filter((r) => r.status !== 'ok' && r.candidates.some((c) => c.applicable)).length
+  // The filter applies to the list and to the highlights in the document.
+  const visible = useMemo(() => (filter === 'all' ? results : results.filter((r) => categoryOf(r) === filter)), [results, filter])
+  const issues = visible.filter((r) => r.status !== 'ok')
+  const okRows = visible.filter((r) => r.status === 'ok')
+  // Findings are numbered in document order, the same in every filter.
+  const numbers = useMemo(() => new Map(results.filter((r) => r.status !== 'ok').map((r, i) => [r.id, i + 1])), [results])
+  const fixable = fixableResults(results).length
 
   const show = (result) => {
     setSelectedId(result.id)
@@ -599,23 +209,35 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
     // On narrow screens the preview is above the list — bring it into view.
     if (window.matchMedia('(max-width: 960px)').matches) previewRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+  const details = (result) => {
+    if (filter !== 'all' && categoryOf(result) !== filter) setFilter('all')
+    setSelectedId(result.id)
+    setExpanded((prev) => new Set(prev).add(result.id))
+    // The card renders expanded first; then scroll the list to it.
+    requestAnimationFrame(() => document.getElementById(`finding-${result.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+  }
+  const toggle = (id) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   const decide = (id, value) => setDecisions((prev) => ({ ...prev, [id]: value }))
   const choose = (id, index) => {
     setChoices((prev) => ({ ...prev, [id]: index }))
     if (index !== null) decide(id, null) // choosing a variant undoes «Отклонить»
   }
 
-  const tabs = CATEGORIES.map((key) => ({ key, label: `${CATEGORY_ICON[key]} ${ti.categoriesShort[key]}`, count: counts[key] }))
-  const empty = ti.categoryEmpty[filter]
-
   return (
     <div className="inspector-review">
-      <Summary inspection={inspection} counts={counts} ti={ti} />
+      <ResultsHeader inspection={inspection} summary={summary} ti={ti} lang={lang} />
+      <Passport inspection={inspection} summary={summary} ti={ti} />
 
       <div className="inspector-review-actions">
         <button type="button" className="inspector-btn inspector-btn--primary" onClick={onOpenFixes} disabled={fixable === 0}>
           <Wand2 size={16} aria-hidden="true" />
-          {ti.fixTerminology(fixable)}
+          {ti.fixConfirmed}
         </button>
         <button type="button" className="inspector-btn" onClick={onReport}>
           <Download size={15} aria-hidden="true" />
@@ -632,58 +254,64 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
       </div>
       {fixable > 0 && <p className="inspector-review-hint">{ti.fixAllHint}</p>}
 
+      <FilterBar filter={filter} onChange={setFilter} summary={summary} ti={ti} />
+
       <div className="inspector-split">
         <div className="inspector-split-preview" ref={previewRef}>
           <DocPreview
             doc={doc}
             pageNumber={pageNumber}
             onPageChange={setPageNumber}
-            results={results}
+            results={visible}
             selected={selected}
+            onSelect={(r) => setSelectedId(r.id)}
+            onDetails={details}
             ti={ti}
           />
         </div>
 
         <div className="inspector-split-results">
-          <div className="inspector-filter" role="tablist">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={filter === tab.key}
-                className="inspector-filter-tab"
-                onClick={() => setFilter(tab.key)}
-              >
-                {tab.label} <span className="inspector-filter-count">{tab.count}</span>
-              </button>
-            ))}
-          </div>
-
+          {filter !== 'ok' && (
+            <p className="inspector-issues-title">
+              {filter === 'all' ? ti.issuesTitle(summary.issues) : `${CATEGORY_ICON[filter]} ${ti.filterLabels[filter]} — ${issues.length}`}
+            </p>
+          )}
           {visible.length === 0 ? (
-            <p className="inspector-empty">{empty}</p>
+            <p className="inspector-empty">{filter === 'all' ? ti.categoryEmpty.ok : ti.categoryEmpty[filter]}</p>
           ) : (
             <ol className="inspector-cards">
-              {visible.map((result) => (
-                <ResultCard
+              {issues.map((result) => (
+                <FindingCard
                   key={result.id}
                   result={result}
-                  inspection={inspection}
+                  number={numbers.get(result.id)}
+                  location={locate(result)}
                   decision={decisions[result.id] ?? null}
                   choice={choices[result.id]}
                   onChoose={choose}
                   onDecision={decide}
                   onShow={show}
                   selected={result.id === selectedId}
-                  ti={ti}
-                  lang={lang}
+                  expanded={expanded.has(result.id)}
+                  onToggle={toggle}
                   favoriteIds={favoriteIds}
                   onAddToDictionary={(term) => !favoriteIds.has(term.id) && toggleFavorite(term)}
+                  ti={ti}
+                  lang={lang}
                 />
+              ))}
+              {okRows.length > 0 && filter === 'all' && <li className="inspector-cards-divider">{ti.okDivider(okRows.length)}</li>}
+              {okRows.map((result) => (
+                <OkRow key={result.id} result={result} location={locate(result)} selected={result.id === selectedId} onShow={show} ti={ti} />
               ))}
             </ol>
           )}
         </div>
+      </div>
+
+      <div className="inspector-review-bottom">
+        <TermProfile inspection={inspection} ti={ti} lang={lang} />
+        <Conclusion summary={summary} ti={ti} />
       </div>
 
       <p className="inspector-disclaimer">{ti.disclaimer}</p>
@@ -691,7 +319,7 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
   )
 }
 
-function DoneScreen({ inspection, output, onReport, onBack, onReset, ti }) {
+function DoneScreen({ inspection, output, decisions, choices, onReport, onRecords, onBack, onReset, locate, ti }) {
   const values = [...output.status.values()]
   const applied = values.filter((s) => s === 'applied').length
   const textOnly = values.filter((s) => s === 'text_only').length
@@ -699,7 +327,8 @@ function DoneScreen({ inspection, output, onReport, onBack, onReset, ti }) {
   const kind = inspection.doc.kind
   const primary = output.files.find((f) => f.key !== 'text') ?? output.files[0]
   const textVersion = output.files.find((f) => f.key === 'text' && f !== primary)
-  const formattingNote = { docx: ti.formattingNoteDocx, pdf: ti.formattingNotePdf, image: ti.formattingNoteImage }[kind]
+  const formattingNote = { docx: ti.formattingNoteDocx, pdf: ti.formattingNotePdf, image: ti.formattingNoteImage, saved: ti.formattingNoteSaved }[kind]
+  const summary = useMemo(() => summarize(inspection.results), [inspection])
 
   return (
     <div className="inspector-done">
@@ -717,7 +346,7 @@ function DoneScreen({ inspection, output, onReport, onBack, onReset, ti }) {
       <div className="inspector-done-actions">
         <button type="button" className="inspector-btn inspector-btn--primary" onClick={() => downloadBlob(primary.blob, primary.fileName)}>
           <Download size={16} aria-hidden="true" />
-          {kind === 'image' ? ti.downloadFixedText : ti.downloadFixed}
+          {kind === 'image' || kind === 'saved' ? ti.downloadFixedText : ti.downloadFixed}
         </button>
         {textVersion && (
           <button type="button" className="inspector-btn" onClick={() => downloadBlob(textVersion.blob, textVersion.fileName)}>
@@ -729,11 +358,19 @@ function DoneScreen({ inspection, output, onReport, onBack, onReset, ti }) {
           <Download size={15} aria-hidden="true" />
           {ti.downloadReport}
         </button>
+        <button type="button" className="inspector-btn" onClick={onRecords}>
+          <FileText size={15} aria-hidden="true" />
+          {ti.downloadRecords}
+        </button>
         <button type="button" className="inspector-btn" onClick={onReset}>
           <RotateCcw size={15} aria-hidden="true" />
           {ti.checkAnother}
         </button>
       </div>
+
+      <ChangesCompare inspection={inspection} decisions={decisions} choices={choices} locate={locate} ti={ti} />
+      <Conclusion summary={summary} ti={ti} />
+
       <button type="button" className="inspector-link-btn" onClick={onBack}>
         {ti.backToResults}
       </button>
@@ -744,8 +381,9 @@ function DoneScreen({ inspection, output, onReport, onBack, onReset, ti }) {
 function DocInspector() {
   const { t, lang } = useLanguage()
   const ti = t.inspector
+  const history = useInspectionHistory()
 
-  const [screen, setScreen] = useState('upload') // upload | processing | review | fixes | done | error
+  const [screen, setScreen] = useState('upload') // upload | processing | review | done | error
   const [fileName, setFileName] = useState('')
   const [progress, setProgress] = useState({ stage: 'read' })
   const [sawOcr, setSawOcr] = useState(false)
@@ -754,10 +392,20 @@ function DocInspector() {
   const [choices, setChoices] = useState({}) // result id -> chosen / confirmed candidate index
   const [output, setOutput] = useState(null)
   const [building, setBuilding] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [historyId, setHistoryId] = useState(null)
   const [error, setError] = useState(null)
+  const panelRef = useRef(null)
+
+  const locate = useCallback((r) => locationLabel(inspection, r, ti), [inspection, ti])
+  const closeDialog = useCallback(() => setDialogOpen(false), [])
 
   // Free the photo preview URL when the inspection is replaced.
   useEffect(() => () => inspection?.doc.pages.forEach((p) => p.imageUrl && URL.revokeObjectURL(p.imageUrl)), [inspection])
+  // Each step starts at the top of the panel.
+  useEffect(() => {
+    if (screen !== 'upload') panelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [screen])
 
   const start = async (file) => {
     setFileName(file.name)
@@ -766,6 +414,7 @@ function DocInspector() {
     setOutput(null)
     setDecisions({})
     setChoices({})
+    setHistoryId(null)
     setSawOcr(false)
     setProgress({ stage: 'read' })
     setScreen('processing')
@@ -776,6 +425,8 @@ function DocInspector() {
       })
       setInspection(result)
       setScreen('review')
+      // Saved for a signed-in user; the check itself never depends on it.
+      history.save(result, {}, {}, (r) => locationLabel(result, r, ti)).then(setHistoryId)
     } catch (err) {
       console.error('Inspection failed:', err)
       setError(err instanceof InspectorError ? err : new InspectorError('internal_error'))
@@ -783,26 +434,48 @@ function DocInspector() {
     }
   }
 
+  const openFromHistory = async (id) => {
+    const snapshot = await history.load(id)
+    if (!snapshot) {
+      setError(new InspectorError('history_unavailable'))
+      setScreen('error')
+      return
+    }
+    const restored = fromSnapshot(snapshot)
+    setFileName(restored.fileName)
+    setInspection(restored)
+    setDecisions(snapshot.decisions ?? {})
+    setChoices(snapshot.choices ?? {})
+    setOutput(null)
+    setHistoryId(id)
+    setScreen('review')
+  }
+
   const reset = () => {
     setScreen('upload')
     setInspection(null)
     setOutput(null)
     setError(null)
+    setHistoryId(null)
   }
 
-  const fixAll = async () => {
-    // Each fix carries the replacement the user ended up with (the verified
-    // candidate, or the variant they chose / confirmed).
+  /** Builds the corrected document from the decisions confirmed in the dialog. */
+  const applyFixes = async (nextDecisions, nextChoices) => {
+    setDecisions(nextDecisions)
+    setChoices(nextChoices)
     const fixes = inspection.results
-      .map((r) => ({ r, fix: chosenFix(r, decisions[r.id], choices[r.id]) }))
+      .map((r) => ({ r, fix: chosenFix(r, nextDecisions[r.id], nextChoices[r.id]) }))
       .filter(({ fix }) => fix)
       .map(({ r, fix }) => ({ ...r, suggestion: fix.suggestion }))
     setBuilding(true)
     try {
       setOutput(await buildCorrectedFiles(inspection, fixes, ti))
+      setDialogOpen(false)
       setScreen('done')
+      history.markFixed(historyId, inspection, nextDecisions, nextChoices, locate)
     } catch (err) {
       console.error('Building the corrected document failed:', err)
+      setDialogOpen(false)
       setError(new InspectorError('build_failed'))
       setScreen('error')
     } finally {
@@ -820,12 +493,12 @@ function DocInspector() {
 
   const downloadReport = async () => {
     const { results, doc, fileName: name } = inspection
+    const summary = summarize(results)
     const rows = results
       .filter((r) => r.status !== 'ok')
       .map((r, i) => {
         const status = reportStatus(r)
         const fix = chosenFix(r, decisions[r.id], choices[r.id])
-        const where = doc.kind === 'docx' && !doc.pagesKnown ? ti.paragraphLabel(paragraphNumber(doc, r) ?? 1) : String(r.page)
         const official = r.candidates.length
           ? r.candidates.map((cand) => cand.official).join(' / ')
           : r.external
@@ -833,36 +506,40 @@ function DocInspector() {
             : '—'
         return [
           String(i + 1),
-          where,
+          locate(r),
           r.text,
           fix && status !== 'rejected' ? fix.suggestion : `(${official})`,
           [ti.categories[categoryOf(r)], r.errorType ? ti.errorTypes[r.errorType] : null].filter(Boolean).join(' — '),
           `${r.matchType === 'semantic' ? ti.matchSemantic : ti.matchExact}, ${Math.round(r.confidence * 100)}%`,
-          r.candidates.length ? ti.sourceBaseShort : r.external ? `${r.external.sourceTitle} — ${r.external.sourceUrl}` : '—',
+          r.candidates.length ? ti.sourceBaseShort : r.external ? `${r.external.sourceTitle} — ${r.external.sourceUrl}` : ti.noOfficial,
           ti.reportStatus[status],
         ]
       })
-    const counts = Object.fromEntries(CATEGORIES.map((c) => [c, results.filter((r) => categoryOf(r) === c).length]))
+    const type = documentTypeLabel(inspection.documentType, ti)
     const blob = await buildReportDocx({
       title: ti.reportTitle,
       meta: [
         `${ti.reportFile}: ${name}`,
-        `${ti.reportDate}: ${new Date().toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')}`,
-        `${ti.totalPages}: ${doc.totalPages ?? '—'}`,
-        `${ti.checkedTerms}: ${results.length}`,
-        SUMMARY_ORDER.map((c) => `${CATEGORY_ICON[c]} ${ti.categoriesShort[c]}: ${counts[c]}`).join(' · '),
+        ...(type ? [`${ti.metaType}: ${type} ${ti.metaTypeByAi}`] : []),
+        `${ti.reportDate}: ${new Date(inspection.checkedAt ?? Date.now()).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')}`,
+        ...(doc.totalPages ? [`${ti.totalPages}: ${doc.totalPages}`] : []),
+        `${ti.passport.checked}: ${summary.total}`,
+        ['ok', 'misuse', 'mismatch', 'uncertain', 'ambiguous'].map((c) => `${CATEGORY_ICON[c]} ${ti.categoriesShort[c]}: ${summary.counts[c]}`).join(' · '),
+        ...(summary.compliance !== null ? [`${ti.passport.compliance}: ${summary.compliance}%`] : []),
         ...(inspection.glossarySize ? [ti.baseNote(inspection.glossarySize)] : []),
       ],
       columns: ti.reportColumns,
       rows,
     })
-    downloadBlob(blob, `${name.replace(/.[^.]+$/, '')}_отчёт_проверки.docx`)
+    downloadBlob(blob, `${name.replace(/.[^.]+$/, '')}_отчёт_экспертизы.docx`)
   }
 
   /** Basis of every decision in the agreed JSON record format. */
   const downloadRecords = () => {
     const records = inspection.results.map((r) => ({
       page: r.page,
+      location: locate(r),
+      status: categoryOf(r),
       ...decisionRecord(r, ti, chosenFix(r, decisions[r.id], choices[r.id])),
       ...(r.status === 'ok' ? {} : { userDecision: reportStatus(r) }),
     }))
@@ -872,13 +549,14 @@ function DocInspector() {
 
   return (
     <section id="docs" className="section-static inspector-section">
-      <div className="inspector-panel">
+      <div className="inspector-panel" ref={panelRef}>
         <header className="inspector-header">
           <h2 className="inspector-title">{ti.title}</h2>
           {screen === 'upload' && <p className="inspector-lead">{ti.lead}</p>}
+          <Stepper screen={screen} ti={ti} />
         </header>
 
-        {screen === 'upload' && <UploadScreen onFile={start} ti={ti} />}
+        {screen === 'upload' && <UploadScreen onFile={start} history={history} onOpenHistory={openFromHistory} ti={ti} lang={lang} />}
         {screen === 'processing' && <ProcessingScreen fileName={fileName} progress={progress} sawOcr={sawOcr} ti={ti} />}
         {screen === 'review' && inspection && (
           <ReviewScreen
@@ -887,25 +565,10 @@ function DocInspector() {
             setDecisions={setDecisions}
             choices={choices}
             setChoices={setChoices}
-            onOpenFixes={() => setScreen('fixes')}
+            onOpenFixes={() => setDialogOpen(true)}
             onRecords={downloadRecords}
             onReport={downloadReport}
             onReset={reset}
-            ti={ti}
-            lang={lang}
-          />
-        )}
-        {screen === 'fixes' && inspection && (
-          <FixesScreen
-            inspection={inspection}
-            decisions={decisions}
-            setDecisions={setDecisions}
-            choices={choices}
-            setChoices={setChoices}
-            onBuild={fixAll}
-            building={building}
-            onBack={() => setScreen('review')}
-            locate={(result) => locationLabel(inspection, result, ti)}
             ti={ti}
             lang={lang}
           />
@@ -914,9 +577,13 @@ function DocInspector() {
           <DoneScreen
             inspection={inspection}
             output={output}
+            decisions={decisions}
+            choices={choices}
             onReport={downloadReport}
-            onBack={() => setScreen('fixes')}
+            onRecords={downloadRecords}
+            onBack={() => setScreen('review')}
             onReset={reset}
+            locate={locate}
             ti={ti}
           />
         )}
@@ -932,6 +599,19 @@ function DocInspector() {
           </div>
         )}
       </div>
+
+      {dialogOpen && inspection && (
+        <FixDialog
+          inspection={inspection}
+          decisions={decisions}
+          choices={choices}
+          onApply={applyFixes}
+          onCancel={closeDialog}
+          building={building}
+          locate={locate}
+          ti={ti}
+        />
+      )}
     </section>
   )
 }
