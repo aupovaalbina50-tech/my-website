@@ -102,7 +102,8 @@ function SmartReportEditor() {
   const dirty = useRef(false)
 
   const template = templateFor(draft?.report_type)
-  const lang = draft?.lang ?? uiLang
+  // Interface labels follow the site language; the report text keeps its own (draft.lang).
+  const lang = uiLang
 
   // ---- load an existing report ----
   useEffect(() => {

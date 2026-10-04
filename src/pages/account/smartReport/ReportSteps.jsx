@@ -311,7 +311,7 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
 
 // ---- 3. Профессиональная формулировка ---------------------------------------
 
-export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, tr, lang }) {
+export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, tr }) {
   const variants = draft.content?.variants ?? []
   const matcher = termMatcher(draft.terms)
   return (
@@ -346,7 +346,7 @@ export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, 
       )}
 
       <h3 className="report-subtitle">{tr.step3.termsTitle}</h3>
-      <TermList terms={draft.terms} lang={lang} tr={tr} />
+      <TermList terms={draft.terms} lang={draft.lang} tr={tr} />
 
       {variants.length > 0 && (
         <>
@@ -745,7 +745,7 @@ export function StepCheck({
           )}
 
           <h3 className="report-subtitle">{tr.step3.termsTitle}</h3>
-          <TermList terms={draft.terms} lang={lang} tr={tr} />
+          <TermList terms={draft.terms} lang={draft.lang} tr={tr} />
           <button type="button" className="report-btn report-btn--small" onClick={onRecheck} disabled={checking}>
             <RotateCcw size={16} aria-hidden="true" />
             {checking ? tr.step5.checking : tr.step5.recheck}
