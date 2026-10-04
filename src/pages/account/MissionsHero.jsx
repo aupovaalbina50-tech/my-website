@@ -7,7 +7,7 @@ import { Silhouette } from '../../components/fireGearArt.jsx'
 
 // Missions hero — «Сынаққа дайынсыз ба?»: the call to action and the path
 // in three figures, on a background in the style of an МЧС field tablet —
-// topographic contours, the emblem (eight-pointed star) in radar range rings
+// topographic contours, the international civil defence sign in radar rings
 // and technical drawings of fire equipment. «Жалғастыру» leads to the first
 // mission not completed yet (real progress from useMissionsProgress).
 
@@ -31,15 +31,29 @@ const CONTOURS = [
   ...[16, 32, 50, 70, 92].map((r, i) => ({ d: contourPath(120, 250, r, 2.1 + i * 0.15), index: i })),
 ]
 
-/** Eight-pointed star of the МЧС emblem, centred on (0, 0). */
-function starPath(outer, inner) {
-  const points = []
-  for (let i = 0; i < 16; i++) {
-    const r = i % 2 === 0 ? outer : inner
-    const a = ((i * 22.5 - 90) * Math.PI) / 180
-    points.push(`${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a)).toFixed(1)}`)
-  }
-  return `M${points.join(' L')} Z`
+/**
+ * International distinctive sign of civil defence (Additional Protocol I to
+ * the Geneva Conventions, art. 66; Annex I, art. 16): an equilateral blue
+ * triangle on an orange ground, point up, not touching the edge of the ground.
+ */
+function CivilDefenceSign({ r = 58 }) {
+  // Equilateral triangle, point up, vertices well inside the orange disc.
+  const R = r * 0.64
+  const d =
+    [-90, 30, 150]
+      .map((deg, i) => {
+        const a = (deg * Math.PI) / 180
+        return `${i ? 'L' : 'M'}${(R * Math.cos(a)).toFixed(1)},${(R * Math.sin(a)).toFixed(1)}`
+      })
+      .join(' ') + ' Z'
+  return (
+    <g className="mission-hero-cds">
+      <circle r={r + 10} className="mission-hero-cds-halo" />
+      <circle r={r} className="mission-hero-cds-ground" />
+      <circle r={r - 4} className="mission-hero-cds-rim" />
+      <path d={d} className="mission-hero-cds-triangle" />
+    </g>
+  )
 }
 
 function CornerGrid({ x, y, flipX, flipY, label }) {
@@ -76,10 +90,8 @@ function HeroBackground() {
           ))}
           <line x1="-150" y1="0" x2="150" y2="0" />
           <line x1="0" y1="-150" x2="0" y2="150" />
-          <path className="mission-hero-star" d={starPath(64, 30)} />
-          <circle className="mission-hero-star-ring" r="22" />
-          <circle className="mission-hero-star-ring" r="72" />
           {!prefersReducedMotion && <line className="mission-hero-radar-sweep" x1="0" y1="0" x2="140" y2="0" />}
+          <CivilDefenceSign r={56} />
         </g>
         <CornerGrid x={10} y={10} label="N 48°" />
         <CornerGrid x={590} y={10} flipX label="E 68°" />
