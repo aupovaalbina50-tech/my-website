@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, Check, CheckCircle2, CircleDashed, Download, FileSearch, FileText, ImageUp, Loader2, RotateCcw, ScanLine, ShieldAlert, Upload, Wand2 } from 'lucide-react'
+import { Camera, Check, CheckCircle2, CircleDashed, Download, FileSearch, FileText, ImageUp, Info, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Upload, Wand2 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
@@ -156,7 +156,9 @@ function ProcessingScreen({ fileName, progress, sawOcr, ti }) {
   return (
     <div className="inspector-processing" role="status" aria-live="polite">
       <p className="inspector-processing-title">
-        <ScanLine size={18} aria-hidden="true" />
+        <span className="inspector-processing-badge" aria-hidden="true">
+          <FileText size={22} strokeWidth={1.75} />
+        </span>
         {ti.processingTitle}
       </p>
       <p className="inspector-processing-file">
@@ -169,16 +171,26 @@ function ProcessingScreen({ fileName, progress, sawOcr, ti }) {
           const state = index < current ? 'done' : index === current ? 'active' : 'waiting'
           return (
             <li key={step.stage} className={`inspector-step inspector-step--${state}`}>
-              {state === 'done' && <Check size={16} aria-hidden="true" />}
-              {state === 'active' && <Loader2 size={16} className="inspector-spin" aria-hidden="true" />}
-              {state === 'waiting' && <CircleDashed size={16} aria-hidden="true" />}
-              <span>{step.label}</span>
-              {step.detail && <span className="inspector-step-detail">{step.detail}</span>}
+              <span className="inspector-step-mark" aria-hidden="true">
+                {state === 'done' && <Check size={18} strokeWidth={3} />}
+                {state === 'active' && <Loader2 size={26} className="inspector-spin" />}
+                {state === 'waiting' && <CircleDashed size={24} />}
+              </span>
+              <span className="inspector-step-label">{step.label}</span>
+              {step.detail && (
+                <span className="inspector-step-detail">
+                  <FileText size={15} aria-hidden="true" />
+                  {step.detail}
+                </span>
+              )}
             </li>
           )
         })}
       </ol>
-      <p className="inspector-processing-note">{ti.processingNote}</p>
+      <p className="inspector-processing-note">
+        <Info size={20} aria-hidden="true" />
+        <span>{ti.processingNote}</span>
+      </p>
     </div>
   )
 }
@@ -551,7 +563,10 @@ function DocInspector() {
     <section id="docs" className="section-static inspector-section">
       <div className="inspector-panel" ref={panelRef}>
         <header className="inspector-header">
-          <h2 className="inspector-title">{ti.title}</h2>
+          <h2 className="inspector-title">
+            <ShieldCheck className="inspector-title-icon" size={44} strokeWidth={1.5} aria-hidden="true" />
+            {ti.title}
+          </h2>
           {screen === 'upload' && <p className="inspector-lead">{ti.lead}</p>}
           <Stepper screen={screen} ti={ti} />
         </header>

@@ -5,7 +5,7 @@
 // the real results of the check (see expertise.js).
 
 import { useEffect, useRef } from 'react'
-import { BookmarkCheck, BookmarkPlus, Check, ChevronDown, ClipboardCheck, Eye, FolderOpen, History, RotateCcw, ShieldAlert, Trash2, X } from 'lucide-react'
+import { BookmarkCheck, BookmarkPlus, Check, ChevronDown, CircleCheck, ClipboardCheck, CloudUpload, Eye, FolderOpen, History, RotateCcw, Search, ShieldAlert, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { categoryOf, chosenFix } from './pipeline.js'
 import { adiletUrl, isPairTerm, pairForResult } from './confusables.js'
@@ -16,21 +16,26 @@ import { ConfidenceBadge, TrilingualLine } from './ui.jsx'
 // ---- 01 / 02 / 03 --------------------------------------------------------------
 
 const STEP_OF_SCREEN = { upload: 0, processing: 1, review: 1, error: 1, fixes: 2, done: 2 }
+const STEP_ICONS = [CloudUpload, Search, CircleCheck]
 
 export function Stepper({ screen, ti }) {
   const active = STEP_OF_SCREEN[screen] ?? 0
   return (
     <ol className="inspector-stepper" aria-label={ti.stepperLabel}>
-      {ti.stages.map((label, i) => (
-        <li
-          key={label}
-          className={`inspector-stepper-item${i === active ? ' inspector-stepper-item--active' : ''}${i < active ? ' inspector-stepper-item--done' : ''}`}
-          aria-current={i === active ? 'step' : undefined}
-        >
-          <span className="inspector-stepper-num">{String(i + 1).padStart(2, '0')}</span>
-          <span className="inspector-stepper-label">{label}</span>
-        </li>
-      ))}
+      {ti.stages.map((label, i) => {
+        const Icon = STEP_ICONS[i]
+        return (
+          <li
+            key={label}
+            className={`inspector-stepper-item${i === active ? ' inspector-stepper-item--active' : ''}${i < active ? ' inspector-stepper-item--done' : ''}`}
+            aria-current={i === active ? 'step' : undefined}
+          >
+            <span className="inspector-stepper-num">{String(i + 1).padStart(2, '0')}</span>
+            <Icon className="inspector-stepper-icon" size={26} strokeWidth={1.75} aria-hidden="true" />
+            <span className="inspector-stepper-label">{label}</span>
+          </li>
+        )
+      })}
     </ol>
   )
 }
