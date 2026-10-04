@@ -71,6 +71,7 @@ function Sidebar() {
               to={to}
               end={end}
               className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+              title={key === 'quotes' ? t.nav.quotes : undefined}
               onClick={() => setOpen(false)}
             >
               <Icon size={18} className="sidebar-link-icon" aria-hidden="true" />
