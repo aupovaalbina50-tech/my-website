@@ -126,7 +126,7 @@ async function handleExtract(body: any, lang: 'kk' | 'ru') {
     system: extractPrompt(lang),
     parts: [{ type: 'text', text: `Описание ситуации:\n"""\n${text}\n"""` }],
     schema: EXTRACT_SCHEMA,
-    maxTokens: 4000,
+    maxTokens: 6000,
   })
 
   // Keep a fact only if its quote really is in the description (or it has no

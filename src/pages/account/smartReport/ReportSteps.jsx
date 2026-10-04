@@ -1,5 +1,5 @@
 import { ArrowRight, CircleAlert, CircleCheck, ClipboardCopy, Download, Loader2, Lock, LockOpen, RotateCcw, Save, Sparkles, TriangleAlert, Wand2 } from 'lucide-react'
-import { hasPlaceholder, missingFacts } from './templates/index.js'
+import { hasPlaceholder, missingFacts, timelineIssues } from './templates/index.js'
 
 // The five steps of «Рапортты құрастыру». Each step is a plain view over the
 // draft; the editor owns the state, saving and the server calls.
@@ -69,63 +69,104 @@ export function StepSituation({ draft, patch, onExtract, busy, error, readOnly, 
 
 // ---- 2. Основные сведения ---------------------------------------------------
 
+/** «Сообщение 22:00 → Прибытие 09:00 — 11 ч 0 мин» for the chronology warnings. */
+function timelineText(issue, template, lang, tr) {
+  const label = (key) => template.facts.find((f) => f.key === key)?.label[lang]
+  const h = Math.floor(issue.gapMin / 60)
+  const m = issue.gapMin % 60
+  return tr.step2.chronoGap(label(issue.from), issue.fromTime, label(issue.to), issue.toTime, h, m)
+}
+
+function FactField({ field, fact, onChange, readOnly, tr, lang }) {
+  const empty = !fact.value?.trim()
+  return (
+    <div
+      className={`report-fact${field.required && empty ? ' report-fact--missing' : ''}${field.wide ? ' report-fact--wide' : ''}${
+        field.time ? ' report-fact--time' : ''
+      }`}
+    >
+      <label className="report-fact-label" htmlFor={`fact-${field.key}`}>
+        {field.label[lang]}
+        {field.required && (
+          <span className="report-required" title={tr.step2.required}>
+            *
+          </span>
+        )}
+      </label>
+      <input
+        id={`fact-${field.key}`}
+        className="report-input report-input--compact"
+        value={fact.value ?? ''}
+        onChange={(e) => onChange(field.key, e.target.value)}
+        placeholder={field.time ? '00:00' : ''}
+        readOnly={readOnly}
+      />
+      {fact.quote && (
+        <p className="report-quote" title={fact.quote}>
+          «{fact.quote}»
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function StepFacts({ draft, template, patch, onCompose, busy, error, readOnly, tr, lang }) {
   const missing = missingFacts(template, draft.facts)
+  const chrono = timelineIssues(template, draft.facts)
   const setFact = (key, value) => patch({ facts: { ...draft.facts, [key]: { ...(draft.facts?.[key] ?? { quote: '' }), value } } })
+  const factOf = (key) => draft.facts?.[key] ?? { value: '', quote: '' }
+
   return (
     <div className="report-step">
       <p className="report-step-hint">{tr.step2.hint}</p>
 
-      <div className={`report-notice${missing.length ? ' report-notice--warn' : ' report-notice--ok'}`}>
-        {missing.length ? <TriangleAlert size={20} aria-hidden="true" /> : <CircleCheck size={20} aria-hidden="true" />}
-        <div>
-          <strong>{missing.length ? tr.step2.missingTitle : tr.step2.missingNone}</strong>
-          {missing.length > 0 && (
-            <>
-              <ul className="report-chip-list">
-                {missing.map((key) => (
-                  <li key={key} className="report-chip report-chip--warn">
-                    {template.facts.find((f) => f.key === key)?.label[lang]}
+      <div className="report-title-row">
+        <label className="report-fact-label" htmlFor="report-title">
+          {tr.step2.titleLabel}
+        </label>
+        <input id="report-title" className="report-input report-input--compact" value={draft.title} onChange={(e) => patch({ title: e.target.value })} readOnly={readOnly} />
+      </div>
+
+      {template.groups.map((group) => {
+        const fields = template.facts.filter((f) => f.group === group.key)
+        const filled = fields.filter((f) => factOf(f.key).value?.trim()).length
+        const missingHere = fields.filter((f) => missing.includes(f.key)).length
+        const chronoHere = group.key === 'timeline' && chrono.length > 0
+        // Key groups stay open; the others open by themselves when they hold something.
+        const startOpen = group.open || filled > 0
+        return (
+          <details key={group.key} className="report-group" open={startOpen}>
+            <summary className="report-group-head">
+              <span className="report-group-title">{group.title[lang]}</span>
+              <span className="report-group-count">
+                {filled}/{fields.length}
+              </span>
+              {missingHere > 0 && <span className="report-group-flag report-group-flag--warn">{tr.step2.missingCount(missingHere)}</span>}
+              {chronoHere && <span className="report-group-flag report-group-flag--warn">{tr.step2.chronoFlag}</span>}
+            </summary>
+            {chronoHere && (
+              <ul className="report-chrono">
+                {chrono.map((issue) => (
+                  <li key={`${issue.from}-${issue.to}`}>
+                    <TriangleAlert size={16} aria-hidden="true" />
+                    {timelineText(issue, template, lang, tr)}
                   </li>
                 ))}
               </ul>
-              <p className="report-muted">{tr.step2.missingHint}</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      <label className="report-label" htmlFor="report-title">
-        {tr.step2.titleLabel}
-      </label>
-      <input id="report-title" className="report-input" value={draft.title} onChange={(e) => patch({ title: e.target.value })} readOnly={readOnly} />
-
-      <div className="report-facts">
-        {template.facts.map((field) => {
-          const fact = draft.facts?.[field.key] ?? { value: '', quote: '' }
-          const empty = !fact.value?.trim()
-          return (
-            <div key={field.key} className={`report-fact${field.required && empty ? ' report-fact--missing' : ''}`}>
-              <label className="report-label" htmlFor={`fact-${field.key}`}>
-                {field.label[lang]}
-                {field.required && <span className="report-required">{tr.step2.required}</span>}
-              </label>
-              <input
-                id={`fact-${field.key}`}
-                className="report-input"
-                value={fact.value ?? ''}
-                onChange={(e) => setFact(field.key, e.target.value)}
-                readOnly={readOnly}
-              />
-              {fact.quote && (
-                <p className="report-quote">
-                  {tr.step2.fromText} «{fact.quote}»
-                </p>
-              )}
+            )}
+            <div className={`report-facts${group.key === 'timeline' || group.key === 'people' ? ' report-facts--times' : ''}`}>
+              {fields.map((field) => (
+                <FactField key={field.key} field={field} fact={factOf(field.key)} onChange={setFact} readOnly={readOnly} tr={tr} lang={lang} />
+              ))}
             </div>
-          )
-        })}
-      </div>
+          </details>
+        )
+      })}
+
+      <p className={`report-summary-line${missing.length ? ' report-summary-line--warn' : ' report-summary-line--ok'}`}>
+        {missing.length ? <TriangleAlert size={18} aria-hidden="true" /> : <CircleCheck size={18} aria-hidden="true" />}
+        {missing.length ? tr.step2.missingSummary(missing.length) : tr.step2.missingNone}
+      </p>
 
       {!readOnly && (
         <div className="report-actions">
@@ -323,6 +364,7 @@ export function StepCheck({
   lang,
 }) {
   const missing = missingFacts(template, draft.facts)
+  const chrono = timelineIssues(template, draft.facts)
   const sectionTexts = template.sections.map((s) => draft.content?.sections?.[s.key] ?? '')
   const placeholders = sectionTexts.some(hasPlaceholder)
   const emptySections = sectionTexts.some((s) => !s.trim())
@@ -334,6 +376,9 @@ export function StepCheck({
         ? tr.step5.factsMissing(missing.map((k) => template.facts.find((f) => f.key === k)?.label[lang]).join(', '))
         : tr.step5.factsOk,
     },
+    ...(chrono.length
+      ? chrono.map((issue) => ({ ok: false, text: timelineText(issue, template, lang, tr) }))
+      : [{ ok: true, text: tr.step5.chronoOk }]),
     { ok: !placeholders, text: placeholders ? tr.step5.placeholdersLeft : tr.step5.placeholdersOk },
     { ok: !emptySections, text: emptySections ? tr.step5.sectionsEmpty : tr.step5.sectionsOk },
     { ok: draft.terms?.length > 0, text: draft.terms?.length ? tr.step5.termsOk(draft.terms.length) : tr.step5.termsNone, info: true },

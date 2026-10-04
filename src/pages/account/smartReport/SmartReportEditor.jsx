@@ -42,6 +42,20 @@ function emptyDraft(lang, profile) {
   }
 }
 
+/**
+ * Reports made before the fields were split keep one «casualties» field
+ * (пострадавшие, спасённые); its text moves to «Другая информация» so it
+ * stays visible and is not lost.
+ */
+function withLegacyFacts(row) {
+  const legacy = row.facts?.casualties?.value?.trim()
+  if (!legacy) return row
+  const { casualties, ...facts } = row.facts
+  const label = row.lang === 'kk' ? 'Зардап шеккендер, құтқарылғандар' : 'Пострадавшие, спасённые'
+  const other = [facts.other?.value?.trim(), `${label}: ${legacy}`].filter(Boolean).join('; ')
+  return { ...row, facts: { ...facts, other: { value: other, quote: casualties.quote ?? '' } } }
+}
+
 /** The report as header / title / paragraphs / date / signature (preview, copy, DOCX). */
 function assemble(draft, template) {
   const lang = draft.lang
@@ -96,7 +110,7 @@ function SmartReportEditor() {
       .then((row) => {
         if (cancelled) return
         if (!row) setNotFound(true)
-        else setDraft(row)
+        else setDraft(withLegacyFacts(row))
       })
       .catch(() => !cancelled && setNotFound(true))
     loadVersions(id)
