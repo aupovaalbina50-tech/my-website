@@ -1397,3 +1397,20 @@
     padding: var(--space-3) var(--space-4);
   }
 }
+
+/* Narrow fields (Пострадало / Погибло, times): the input and the status pill
+   stay inside their own column instead of running into the neighbour. */
+.report-fact {
+  min-width: 0;
+}
+.report-fact .report-input--compact {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.report-fact-status .report-dot {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+  padding: 2px 8px;
+}
