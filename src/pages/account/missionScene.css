@@ -1,16 +1,32 @@
-/* Animated mission scenes (MissionScene.jsx). States: .ms-r1 … .ms-r4 on
-   the root = operation stages completed. Everything that changes between
-   states is a transition, so the operation plays as an animation. */
+/* Realistic mission scenes (MissionScene.jsx + missionParticles.js).
+   States: .ms-r1 … .ms-r4 on the root = operation stages completed;
+   every change between states is a transition. */
 
 .ms-scene {
   position: relative;
   border-radius: 14px;
   overflow: hidden;
+  background: #1c2836;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 .ms-svg {
   display: block;
   width: 100%;
   height: auto;
+}
+.ms-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* Soft lens vignette for a photographic feel. */
+.ms-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(8, 14, 24, 0.32) 100%);
 }
 .ms-caption {
   position: absolute;
@@ -18,11 +34,12 @@
   left: 12px;
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(16, 35, 63, 0.78);
+  background: rgba(12, 22, 38, 0.78);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  backdrop-filter: blur(3px);
 }
 
 /* ---- appear by stage ---- */
@@ -31,7 +48,7 @@
 .ms-on3,
 .ms-on4 {
   opacity: 0;
-  transition: opacity 0.6s ease, transform 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.7s ease, transform 1.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .ms-r1 .ms-on1,
 .ms-r2 .ms-on2,
@@ -39,247 +56,144 @@
 .ms-r4 .ms-on4 {
   opacity: 1;
 }
-
 /* Vehicles drive in from the right. */
 .ms-arrive {
-  transform: translateX(220px);
+  transform: translateX(240px);
 }
 .ms-r2 .ms-arrive {
   transform: none;
 }
-
-/* ---- common pieces ---- */
-.ms-ground-line {
-  stroke: #b3c3d3;
-  stroke-width: 1;
-}
-.ms-building rect:not(.ms-window):not(.ms-door),
-.ms-building path,
-.ms-hq path,
-.ms-tank rect {
-  fill: #eef2f6;
-  stroke: #5b6b80;
-  stroke-width: 1.4;
-}
-.ms-roof {
-  fill: #c9d3de !important;
-}
-.ms-window {
-  fill: #b9cde0;
-  transition: fill 1s ease;
-}
-.ms-door {
-  fill: #8696a8;
-}
-.ms-tank line {
-  stroke: #5b6b80;
-  stroke-width: 1.2;
+/* A parked vehicle settles on its suspension. */
+.ms-vehicle {
+  animation: ms-idle 0.24s ease-in-out infinite alternate;
 }
 
-.ms-person circle,
-.ms-person path {
-  fill: #33465e;
+/* ---- text on vehicles and signs ---- */
+.ms-truck-text {
+  font: 700 7px/1 sans-serif;
+  fill: #fff;
 }
+.ms-truck-text--red {
+  fill: #e2343f;
+}
+.ms-sign-text {
+  font: 900 11px/1 sans-serif;
+  fill: #222;
+  text-anchor: middle;
+}
+
+/* ---- beacons light up their surroundings ---- */
+.ms-beacon-glow {
+  animation: ms-beacon 0.8s steps(2, jump-none) infinite;
+  mix-blend-mode: screen;
+}
+.ms-beacon--red .ms-beacon-glow {
+  animation-delay: 0.4s;
+}
+
+/* ---- people ---- */
 .ms-person {
   animation: ms-bob 0.9s ease-in-out infinite;
 }
 
-.ms-wheel {
-  fill: #2b3442;
-  stroke: #9aa7b6;
-  stroke-width: 2;
-}
-.ms-truck-body {
-  fill: #c81f2e;
-}
-.ms-truck-glass {
-  fill: #bfe0f5;
-}
-.ms-truck-ladder {
-  stroke: #e6ebf0;
-  stroke-width: 2;
-}
-.ms-truck-panel {
-  fill: #a51624;
-}
-.ms-amb-body {
-  fill: #f8fafc;
-  stroke: #9aa7b6;
-  stroke-width: 1;
-}
-.ms-amb-stripe {
-  fill: #c81f2e;
-}
-.ms-cross {
-  fill: #c81f2e;
-}
-.ms-beacon {
-  fill: #ff4d4d;
-  animation: ms-blink 0.7s steps(2, jump-none) infinite;
-}
-.ms-beacon--blue {
-  fill: #3b82f6;
-}
-.ms-pole {
-  stroke: #5b6b80;
-  stroke-width: 3;
-  stroke-linecap: round;
+/* ---- cordon ---- */
+.ms-tape {
+  fill: none;
+  stroke: #e9b400;
+  stroke-width: 2.6;
+  stroke-dasharray: 7 5;
 }
 
-.ms-cordon .ms-tape {
-  stroke: #e0a100;
-  stroke-width: 3;
-  stroke-dasharray: 8 6;
-}
-.ms-cone {
-  fill: #f2711c;
-}
-.ms-cone-band {
-  fill: #fff;
-}
-
+/* ---- waves (siren / radio) ---- */
 .ms-waves path {
   fill: none;
-  stroke: #c81f2e;
   stroke-width: 2;
   stroke-linecap: round;
   opacity: 0;
   animation: ms-wave 1.6s ease-out infinite;
 }
-
-/* ---- fire ---- */
-.ms-flame {
-  fill: url(#ms-flame);
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: ms-flicker 0.55s ease-in-out infinite alternate;
-}
-.ms-fire {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  transition: transform 1.6s ease, opacity 1.6s ease;
-}
-.ms-r2 .ms-fire {
-  transform: scale(0.75);
-}
-.ms-r3 .ms-fire {
-  transform: scale(0.35);
-  opacity: 0.8;
-}
-.ms-r4 .ms-fire {
-  transform: scale(0);
-  opacity: 0;
-}
-.ms-burning .ms-window {
-  fill: #ffb347;
-  animation: ms-glow 0.9s ease-in-out infinite alternate;
-}
-.ms-r4 .ms-burning .ms-window {
-  fill: #9aa7b6;
-  animation: none;
-}
-
-.ms-smoke circle {
-  fill: #9aa7b6;
-  opacity: 0;
-  animation: ms-rise 3.2s ease-out infinite;
-}
-.ms-smoke--dark circle {
-  fill: #4b5563;
-}
-.ms-smoke {
-  transition: opacity 1.6s ease;
-}
-.ms-r3 .ms-smoke--dark circle {
-  fill: #b8c2cd;
-}
-.ms-r4 .ms-smoke {
-  opacity: 0;
-}
-
-/* Water from the nozzle: a moving dashed arc. */
-.ms-hose {
-  fill: none;
-  stroke: #8a5a2b;
-  stroke-width: 3;
-}
-.ms-stream {
-  fill: none;
-  stroke: url(#ms-water);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-dasharray: 10 8;
-  animation: ms-flow 0.6s linear infinite;
+.ms-siren-waves,
+.ms-alarm,
+.ms-waves:not([class*='ms-on']) {
   transition: opacity 1s ease;
 }
-.ms-stream--curtain {
-  stroke-width: 6;
-  opacity: 0.85;
-}
-.ms-r4 .ms-stream,
-.ms-r4 .ms-hose {
+.ms-r4 .ms-siren-waves,
+.ms-r4 .ms-alarm,
+.ms-r4 .ms-waves:not([class*='ms-on']) {
   opacity: 0;
+}
+
+/* ---- fire: light, glowing windows, soot ---- */
+.ms-fire-light {
+  mix-blend-mode: screen;
+  animation: ms-firelight 0.35s ease-in-out infinite alternate;
+  transition: opacity 1.8s ease;
+}
+.ms-r2 .ms-fire-light {
+  opacity: 0.75;
+}
+.ms-r3 .ms-fire-light {
+  opacity: 0.35;
+}
+.ms-r4 .ms-fire-light {
+  opacity: 0;
+}
+.ms-win-fire {
+  animation: ms-winflicker 0.5s ease-in-out infinite alternate;
+  transition: opacity 1.6s ease;
+}
+.ms-r4 .ms-win-fire {
+  opacity: 0.25;
+  animation: none;
+}
+.ms-hose {
+  fill: none;
+  stroke: #7a5a32;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.ms-r4 .ms-hose {
+  opacity: 0.6;
 }
 
 /* ---- flood ---- */
 .ms-flood {
-  transition: transform 2.2s ease;
+  transition: transform 2.4s ease;
 }
-.ms-water-body {
-  fill: url(#ms-water);
-  opacity: 0.55;
-}
-.ms-water-wave {
+.ms-flood-shine {
   fill: none;
-  stroke: #e9f4fd;
-  stroke-width: 2;
-  stroke-dasharray: 14 10;
-  animation: ms-flow 2.4s linear infinite;
+  stroke: rgba(235, 244, 250, 0.7);
+  stroke-width: 1.4;
+  stroke-dasharray: 16 12;
+  animation: ms-flow 2.6s linear infinite;
+}
+.ms-flood-shine--2 {
+  opacity: 0.5;
+  animation-duration: 3.4s;
+}
+.ms-flood-body {
+  opacity: 0.82;
 }
 .ms-r3 .ms-flood {
   transform: translateY(14px);
 }
 .ms-r4 .ms-flood {
-  transform: translateY(30px);
+  transform: translateY(44px);
 }
 .ms-sandbag {
-  fill: #c8a46b;
-  stroke: #8a6a3b;
+  fill: #c3a06a;
+  stroke: #87683c;
   stroke-width: 1;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transform: translateY(-8px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 .ms-r2 .ms-sandbag {
   opacity: 1;
+  transform: none;
 }
 
-/* ---- gas leak ---- */
-.ms-gas {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: ms-swell 3s ease-in-out infinite alternate;
-  transition: opacity 1.6s ease;
-}
-.ms-gas--2 {
-  animation-delay: 1.2s;
-}
-.ms-leak {
-  transform-box: fill-box;
-  transform-origin: 30% 80%;
-  transition: transform 1.8s ease, opacity 1.8s ease;
-}
-.ms-r2 .ms-leak {
-  transform: scale(0.7);
-}
-.ms-r3 .ms-leak {
-  transform: scale(0.4);
-  opacity: 0.6;
-}
-.ms-r4 .ms-leak {
-  opacity: 0;
-}
-
-/* ---- evacuation / shelter: people walking ---- */
+/* ---- evacuation / shelter: walking people ---- */
 .ms-walkers {
   opacity: 0;
   transition: opacity 0.6s ease;
@@ -291,163 +205,77 @@
   opacity: 0;
 }
 .ms-walker {
-  animation: ms-walk-evac 4s linear infinite;
+  animation: ms-walk-evac 4.2s linear infinite;
 }
 .ms-walkers--shelter .ms-walker {
   animation-name: ms-walk-shelter;
 }
 .ms-flag {
-  fill: #15803d;
-}
-.ms-bus rect:first-child {
-  fill: #f2b705;
-  stroke: #9a7300;
-  stroke-width: 1;
-}
-.ms-alarm,
-.ms-scene .ms-waves:not([class*='ms-on']) {
-  transition: opacity 1s ease;
-}
-.ms-r4 .ms-alarm,
-.ms-r4 .ms-waves:not([class*='ms-on']) {
-  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: ms-flag 1.2s ease-in-out infinite alternate;
 }
 
-/* ---- response ---- */
-.ms-hq path {
-  fill: #e4ecf4 !important;
-}
+/* ---- response: convoy along the road ---- */
 .ms-route {
   fill: none;
-  stroke: #1b4f8c;
-  stroke-width: 2.5;
-  stroke-dasharray: 2 8;
+  stroke: #f2c230;
+  stroke-width: 2;
+  stroke-dasharray: 3 9;
   stroke-linecap: round;
-}
-.ms-incident-zone {
-  fill: rgba(200, 31, 46, 0.12);
-  stroke: #c81f2e;
-  stroke-dasharray: 5 6;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: ms-swell 1.8s ease-in-out infinite alternate;
-  transition: fill 1.2s ease, stroke 1.2s ease, transform 1.2s ease;
-}
-.ms-incident-core {
-  fill: #c81f2e;
-  transition: fill 1.2s ease;
-}
-.ms-r3 .ms-incident-zone {
-  animation: none;
-  transform: scale(0.6);
-}
-.ms-r4 .ms-incident-zone {
-  fill: rgba(21, 128, 61, 0.12);
-  stroke: #15803d;
-}
-.ms-r4 .ms-incident-core {
-  fill: #15803d;
+  animation: ms-flow 1s linear infinite;
 }
 .ms-drive {
-  animation: ms-drive 5s ease-in-out infinite alternate;
+  animation: ms-drive 6s ease-in-out infinite alternate;
 }
 .ms-drive--2 {
-  animation-delay: 1s;
+  animation-delay: 1.2s;
 }
 .ms-r4 .ms-drive {
   animation: none;
 }
 
-/* ---- civil defence: siren, shelter ---- */
-.ms-siren-head {
-  fill: #5b6b80;
-}
-.ms-shelter path {
-  fill: #d7dee6;
-  stroke: #5b6b80;
-  stroke-width: 1.4;
-}
-.ms-shelter-door {
-  fill: #33465e;
-}
-.ms-shelter-gate {
-  fill: #15803d;
-}
-
 /* ---- restoration ---- */
-.ms-ruins path {
-  fill: #d7dee6;
-  stroke: #5b6b80;
-  stroke-width: 1.4;
-  transition: opacity 1.4s ease;
-}
-.ms-rubble {
-  fill: #b9a68b !important;
+.ms-ruins {
+  transition: opacity 1.6s ease;
 }
 .ms-r3 .ms-ruins {
   opacity: 0;
-  transition: opacity 1.4s ease;
-}
-.ms-rebuilt rect {
-  fill: #eef2f6;
-  stroke: #5b6b80;
-  stroke-width: 1.4;
-}
-.ms-pole--crane {
-  stroke: #e0a100;
-}
-.ms-cable {
-  stroke: #33465e;
-  stroke-width: 1.5;
-}
-.ms-slab {
-  fill: #9aa7b6;
 }
 .ms-hook {
-  animation: ms-lift 3s ease-in-out infinite alternate;
+  animation: ms-lift 3.2s ease-in-out infinite alternate;
 }
 .ms-r4 .ms-hook {
   animation: none;
   opacity: 0;
 }
 
-/* ---- medical aid ---- */
-.ms-tent path:first-child {
-  fill: #f1f5f9;
-  stroke: #5b6b80;
-  stroke-width: 1.4;
-}
-.ms-stretcher {
-  fill: #9aa7b6;
-}
-.ms-casualty {
-  fill: #33465e;
-}
+/* ---- medical ---- */
 .ms-casualties {
-  transition: transform 1.6s ease, opacity 1.6s ease;
+  transition: transform 1.8s ease, opacity 1.6s ease;
 }
 .ms-r3 .ms-casualties {
-  transform: translateX(-120px);
+  transform: translateX(-130px);
 }
 .ms-r4 .ms-casualties {
   opacity: 0;
 }
-.ms-monitor rect {
-  fill: #0f2440;
-  stroke: #5b6b80;
-}
 .ms-pulse {
   fill: none;
   stroke-width: 2;
-  stroke-dasharray: 160;
-  animation: ms-trace 1.6s linear infinite;
+  stroke-linejoin: round;
+  stroke-dasharray: 170;
+  animation: ms-trace 1.5s linear infinite;
   transition: opacity 1s ease;
+  filter: drop-shadow(0 0 2px currentColor);
 }
 .ms-pulse--alarm {
-  stroke: #ff4d4d;
+  stroke: #ff5a5a;
+  color: #ff5a5a;
 }
 .ms-pulse--steady {
   stroke: #34d399;
+  color: #34d399;
   opacity: 0;
 }
 .ms-r3 .ms-pulse--alarm {
@@ -458,53 +286,31 @@
 }
 
 /* ---- communications ---- */
-.ms-tower path {
-  fill: none;
-  stroke: #5b6b80;
-  stroke-width: 2;
-}
-.ms-tower-bent {
-  stroke: #c81f2e !important;
-}
-.ms-spark path {
-  fill: #ffd34d;
-  animation: ms-blink 0.5s steps(2, jump-none) infinite;
-  transition: opacity 1s ease;
-}
-.ms-r2 .ms-spark {
-  opacity: 0;
-}
-.ms-van {
-  fill: #1b4f8c;
-}
 .ms-mast {
-  stroke: #33465e;
-  stroke-width: 3;
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  transform: scaleY(0.2);
-  transition: transform 1.6s ease 0.6s;
+  transform: scaleY(0.15);
+  transition: transform 1.8s ease 0.5s;
 }
 .ms-r3 .ms-mast {
   transform: none;
 }
 .ms-link {
   fill: none;
-  stroke: #1b4f8c;
+  stroke: #5aa0ff;
   stroke-width: 2;
   stroke-dasharray: 4 6;
-  animation: ms-flow 1s linear infinite;
+  animation: ms-flow 0.9s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(90, 160, 255, 0.7));
 }
-.ms-r4 .ms-house .ms-window {
-  fill: #ffd34d;
-}
-.ms-scene .ms-waves.ms-on3 path {
-  stroke: #1b4f8c;
+.ms-mission-ensure-communications.ms-r4 .ms-house .ms-win {
+  fill: #ffd76a;
 }
 
-/* ---- done ---- */
+/* ---- resolved ---- */
 .ms-done circle {
-  fill: #15803d;
+  fill: #16a34a;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 .ms-done path {
   fill: none;
@@ -515,43 +321,19 @@
 }
 
 /* ---- keyframes ---- */
-@keyframes ms-flicker {
-  0% {
-    transform: scale(1, 1) skewX(0deg);
-  }
-  50% {
-    transform: scale(0.92, 1.08) skewX(3deg);
-  }
-  100% {
-    transform: scale(1.05, 0.94) skewX(-3deg);
-  }
-}
-@keyframes ms-glow {
+@keyframes ms-idle {
   to {
-    fill: #ff7b2e;
+    transform: translateY(0.4px);
   }
 }
-@keyframes ms-rise {
-  0% {
-    opacity: 0;
-    transform: translate(0, 10px) scale(0.6);
-  }
-  25% {
-    opacity: 0.55;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(18px, -60px) scale(1.6);
-  }
-}
-@keyframes ms-flow {
-  to {
-    stroke-dashoffset: -36;
-  }
-}
-@keyframes ms-blink {
+@keyframes ms-beacon {
   50% {
-    opacity: 0.25;
+    opacity: 0.1;
+  }
+}
+@keyframes ms-bob {
+  50% {
+    transform: translateY(-1.2px);
   }
 }
 @keyframes ms-wave {
@@ -562,14 +344,25 @@
     opacity: 0;
   }
 }
-@keyframes ms-bob {
-  50% {
-    transform: translateY(-1.5px);
+@keyframes ms-firelight {
+  from {
+    filter: brightness(0.9);
+  }
+  to {
+    filter: brightness(1.15);
   }
 }
-@keyframes ms-swell {
+@keyframes ms-winflicker {
+  from {
+    opacity: 0.85;
+  }
   to {
-    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+@keyframes ms-flow {
+  to {
+    stroke-dashoffset: -40;
   }
 }
 @keyframes ms-walk-evac {
@@ -577,10 +370,10 @@
     transform: translateX(0);
     opacity: 0;
   }
-  10% {
+  8% {
     opacity: 1;
   }
-  85% {
+  88% {
     opacity: 1;
   }
   100% {
@@ -593,15 +386,23 @@
     transform: translateX(0);
     opacity: 0;
   }
-  10% {
+  8% {
     opacity: 1;
   }
-  85% {
+  88% {
     opacity: 1;
   }
   100% {
-    transform: translateX(310px);
+    transform: translateX(316px);
     opacity: 0;
+  }
+}
+@keyframes ms-flag {
+  from {
+    transform: skewY(-3deg) scaleX(0.94);
+  }
+  to {
+    transform: skewY(3deg) scaleX(1);
   }
 }
 @keyframes ms-drive {
@@ -609,7 +410,7 @@
     transform: translateX(-30px);
   }
   to {
-    transform: translateX(40px);
+    transform: translateX(46px);
   }
 }
 @keyframes ms-lift {
@@ -617,12 +418,12 @@
     transform: translateY(0);
   }
   to {
-    transform: translateY(-26px);
+    transform: translateY(-28px);
   }
 }
 @keyframes ms-trace {
   from {
-    stroke-dashoffset: 160;
+    stroke-dashoffset: 170;
   }
   to {
     stroke-dashoffset: 0;
@@ -633,7 +434,23 @@
   .ms-scene * {
     animation: none !important;
   }
-  .ms-walker {
-    opacity: 1;
-  }
+}
+
+/* Continuous water jet under the spray particles. */
+.ms-jet {
+  fill: none;
+  stroke: rgba(190, 222, 248, 0.85);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-dasharray: 22 6;
+  animation: ms-flow 0.45s linear infinite;
+  filter: drop-shadow(0 0 2px rgba(150, 200, 245, 0.8));
+  transition: opacity 1s ease;
+}
+.ms-jet--thin {
+  stroke-width: 2;
+  opacity: 0.7;
+}
+.ms-r4 .ms-jet {
+  opacity: 0;
 }
