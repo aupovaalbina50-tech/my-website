@@ -454,3 +454,146 @@
 .ms-r4 .ms-jet {
   opacity: 0;
 }
+
+/* ---- people in motion ---- */
+.ms-person--walk {
+  animation: ms-bob 0.5s ease-in-out infinite;
+}
+.ms-person--walk .ms-leg {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: ms-step 0.5s ease-in-out infinite alternate;
+}
+.ms-person--walk .ms-leg--back {
+  animation-direction: alternate-reverse;
+}
+.ms-arm-wave {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  animation: ms-wave-arm 0.6s ease-in-out infinite alternate;
+}
+.ms-truck-text--blue {
+  fill: #1f4fa8;
+}
+
+/* Street lamps glow at dusk. */
+.ms-lamp-glow {
+  mix-blend-mode: screen;
+  animation: ms-lamp 3s ease-in-out infinite alternate;
+}
+
+/* Flood: people waiting on the roof are taken off by the boat. */
+.ms-stranded {
+  transition: opacity 1.2s ease;
+}
+.ms-r3 .ms-stranded {
+  opacity: 0;
+}
+.ms-boat-move {
+  transform: translateX(-120px);
+}
+.ms-r2 .ms-boat-move {
+  transform: none;
+  animation: ms-boat 4s ease-in-out infinite alternate;
+}
+.ms-car-sunk {
+  transition: transform 2.4s ease;
+}
+.ms-r4 .ms-car-sunk {
+  transform: translate(206px, 186px);
+}
+
+/* Fire: the breathing-apparatus team goes into the building. */
+.ms-gdzs {
+  transition: transform 3s linear, opacity 1s ease;
+}
+.ms-r3 .ms-gdzs {
+  transform: translateX(-30px);
+}
+.ms-r4 .ms-gdzs {
+  opacity: 0;
+}
+
+/* Accident: workers leave the danger zone. */
+.ms-walker-out {
+  animation: ms-walk-out 4.5s linear infinite;
+}
+.ms-leaving {
+  transition: opacity 0.8s ease;
+}
+.ms-r2 .ms-leaving {
+  opacity: 0;
+}
+
+/* Bystanders go once the area is cordoned off. */
+.ms-crowd {
+  transition: opacity 1s ease;
+}
+.ms-r2 .ms-crowd {
+  opacity: 0.4;
+}
+.ms-r4 .ms-crowd {
+  opacity: 0;
+}
+
+/* Medical: the stretcher team carries the casualty to the tent. */
+.ms-stretcher {
+  transition: opacity 0.6s ease, transform 2.6s ease;
+}
+.ms-r4 .ms-stretcher {
+  transform: translateX(-120px);
+  opacity: 0;
+}
+.ms-r3 .ms-casualties {
+  opacity: 0;
+  transform: none;
+}
+
+@keyframes ms-step {
+  from {
+    transform: rotate(-14deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+@keyframes ms-wave-arm {
+  from {
+    transform: rotate(-12deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+@keyframes ms-lamp {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ms-boat {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(26px, -2px);
+  }
+}
+@keyframes ms-walk-out {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-150px);
+    opacity: 0;
+  }
+}
