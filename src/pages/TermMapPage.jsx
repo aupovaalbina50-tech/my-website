@@ -1,8 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronRight, LayoutGrid, Link2, Search, Siren, Waypoints, X, Layers } from 'lucide-react'
+import { ArrowLeft, ChevronRight, LayoutGrid, Link2, Network, Search, Siren, Waypoints, X, Layers } from 'lucide-react'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { EMERGENCY_HAZARDS } from '../data/emergencyHazards'
+import { ACTIVITY_AREAS } from '../data/activityAreas'
 import { CATEGORIES } from '../i18n/translations'
 import { useAllTerms } from './shared/useAllTerms.js'
 import {
@@ -20,7 +21,13 @@ const MAX_RELATED_TERMS = 6
 const MAX_SEARCH_RESULTS = 8
 const MAX_EXPLORE_INITIAL = 6
 const MAX_EXPLORE_EXPANDED = 12
-const HAZARD_IDS = EMERGENCY_HAZARDS.map((hazard) => hazard.id)
+// Two layers of top-level nodes: kinds of emergency, and areas of activity
+// common to all of them (see activityAreas.js). Node ids are unique across
+// both, so every helper keyed by node id works for either layer.
+const LAYERS = { hazards: EMERGENCY_HAZARDS, activities: ACTIVITY_AREAS }
+const ALL_NODES = [...EMERGENCY_HAZARDS, ...ACTIVITY_AREAS]
+const HAZARD_IDS = ALL_NODES.map((node) => node.id)
+const layerOf = (nodeId) => (ACTIVITY_AREAS.some((node) => node.id === nodeId) ? 'activities' : 'hazards')
 
 // Evenly spaces `count` nodes on a circle around the center (percentage
 // coordinates in a 0-100 square), starting at the top and going clockwise.
@@ -35,7 +42,7 @@ function getRingPositions(count, radius = 37) {
   })
 }
 
-const HAZARD_POSITIONS = getRingPositions(EMERGENCY_HAZARDS.length)
+const LAYER_POSITIONS = { hazards: getRingPositions(EMERGENCY_HAZARDS.length), activities: getRingPositions(ACTIVITY_AREAS.length) }
 const CENTER = { x: 50, y: 50 }
 
 // Buckets a hazard's matched terms into display groups (real thematic
@@ -59,10 +66,10 @@ function buildDisplayGroups(hazardId, allTerms, t) {
 // search boxes use (see DashboardTermSearch.jsx / HomePage.jsx) — "пож"
 // matches "Пожар" and "Пожарная безопасность" but not "непожарный".
 function startsWithQuery(text, query) {
-  return (text || '')
-    .toLowerCase()
-    .split(/[\s,;()/-]+/)
-    .some((word) => word.startsWith(query))
+  const lower = (text || '').toLowerCase()
+  // A phrase of several words («іздеу тобы») matches from the start of a word.
+  if (/\s/.test(query)) return lower.startsWith(query) || lower.includes(` ${query}`)
+  return lower.split(/[\s,;()/-]+/).some((word) => word.startsWith(query))
 }
 
 function HighlightedText({ text, query }) {
@@ -88,6 +95,7 @@ function HighlightedText({ text, query }) {
 function TermMapPage() {
   const { lang, t } = useLanguage()
   const { terms, loading: termsLoading, error: termsError } = useAllTerms()
+  const [layer, setLayer] = useState('hazards') // 'hazards' | 'activities'
   const [selectedHazardId, setSelectedHazardId] = useState(null)
   const [selectedGroupId, setSelectedGroupId] = useState(null) // null = "All" filter
   const [viewDisplay, setViewDisplay] = useState('map') // 'map' | 'list'
@@ -104,7 +112,7 @@ function TermMapPage() {
   const searchWrapRef = useRef(null)
 
   const selectedHazard = useMemo(
-    () => EMERGENCY_HAZARDS.find((hazard) => hazard.id === selectedHazardId) || null,
+    () => ALL_NODES.find((hazard) => hazard.id === selectedHazardId) || null,
     [selectedHazardId],
   )
 
@@ -155,7 +163,7 @@ function TermMapPage() {
   const termHazards = useMemo(() => {
     if (!openTerm) return []
     return getTermHazards(openTerm, HAZARD_IDS)
-      .map((id) => EMERGENCY_HAZARDS.find((hazard) => hazard.id === id))
+      .map((id) => ALL_NODES.find((hazard) => hazard.id === id))
       .filter(Boolean)
   }, [openTerm])
 
@@ -209,7 +217,7 @@ function TermMapPage() {
     const map = new Map()
     const list = []
     const seen = new Set()
-    for (const hazard of EMERGENCY_HAZARDS) {
+    for (const hazard of ALL_NODES) {
       const matches = matchHazardTerms(hazard.id, terms)
       for (const term of matches) {
         if (!map.has(term.id)) map.set(term.id, hazard.id)
@@ -227,7 +235,7 @@ function TermMapPage() {
 
   const searchResults = useMemo(() => {
     if (!query) return []
-    const hazardHits = EMERGENCY_HAZARDS.filter(
+    const hazardHits = ALL_NODES.filter(
       (hazard) =>
         startsWithQuery(hazard.name.kk, query) ||
         startsWithQuery(hazard.name.ru, query) ||
@@ -266,6 +274,7 @@ function TermMapPage() {
   }, [openTerm, pendingResult, searchFocused])
 
   function openHazard(hazardId) {
+    setLayer(layerOf(hazardId))
     setSelectedHazardId(hazardId)
     setSelectedGroupId(null)
     setViewDisplay('map')
@@ -321,6 +330,7 @@ function TermMapPage() {
     const groups = buildDisplayGroups(hazardId, terms, t)
     const targetGroup = groups.find((group) => group.items.some((item) => item.id === term.id)) || null
 
+    setLayer(layerOf(hazardId))
     setSelectedHazardId(hazardId)
     setSelectedGroupId(targetGroup?.id ?? null)
     setHoveredId(null)
@@ -399,6 +409,12 @@ function TermMapPage() {
     navigateToTerm(term, targetHazardId)
   }
 
+  function switchLayer(next) {
+    if (next === layer) return
+    backToOverview()
+    setLayer(next)
+  }
+
   function clearSearch() {
     setSearchQuery('')
   }
@@ -428,14 +444,15 @@ function TermMapPage() {
   const viewedCount = viewedIdsRef.current.size
 
   let ringNodes
-  if (!selectedHazard) ringNodes = EMERGENCY_HAZARDS
+  const layerNodes = LAYERS[layer]
+  if (!selectedHazard) ringNodes = layerNodes
   else if (showConnectionsView) ringNodes = exploreNodes
   else ringNodes = activeTermItems
-  const ringPositions = selectedHazard ? getRingPositions(ringNodes.length) : HAZARD_POSITIONS
+  const ringPositions = selectedHazard ? getRingPositions(ringNodes.length) : LAYER_POSITIONS[layer]
   const hazardTermsReady = Boolean(selectedHazard) && !termsLoading && !termsError
 
   const networkKey = !selectedHazard
-    ? 'overview'
+    ? `overview:${layer}`
     : showConnectionsView
       ? `connections:${openTerm.id}`
       : `${selectedHazardId}:${selectedGroupId ?? 'all'}`
@@ -446,7 +463,9 @@ function TermMapPage() {
       ? { icon: <Layers size={24} strokeWidth={1.75} />, label: selectedGroup.label[lang] }
       : selectedHazard
         ? { icon: <selectedHazard.Icon size={26} strokeWidth={1.75} />, label: selectedHazard.name[lang] }
-        : { icon: <Siren size={28} strokeWidth={1.75} />, label: t.termMap.centerLabel }
+        : layer === 'activities'
+          ? { icon: <Network size={28} strokeWidth={1.75} />, label: t.termMap.centerLabelActivities }
+          : { icon: <Siren size={28} strokeWidth={1.75} />, label: t.termMap.centerLabel }
 
   return (
     <SiteSectionLayout activeSection="termMap">
@@ -516,7 +535,7 @@ function TermMapPage() {
 
                     const resultCrossCount = getTermHazards(result.term, HAZARD_IDS).length
                     const homeHazardName =
-                      EMERGENCY_HAZARDS.find((h) => h.id === termHazardMap.get(result.term.id))?.name[lang] || ''
+                      ALL_NODES.find((h) => h.id === termHazardMap.get(result.term.id))?.name[lang] || ''
 
                     return (
                       <li key={result.key} role="option" aria-selected="false">
@@ -554,7 +573,7 @@ function TermMapPage() {
                 {pendingResult.kind === 'hazard'
                   ? t.termMap.crossHazardFound(
                       toSentenceCase(pendingResult.term[lang] || pendingResult.term.ru),
-                      EMERGENCY_HAZARDS.find((h) => h.id === pendingResult.hazardId)?.name[lang] || '',
+                      ALL_NODES.find((h) => h.id === pendingResult.hazardId)?.name[lang] || '',
                     )
                   : t.termMap.crossGroupFound(pendingResult.groupLabel)}
               </p>
@@ -574,6 +593,24 @@ function TermMapPage() {
                   {t.termMap.crossHazardCancel}
                 </button>
               </div>
+            </div>
+          )}
+
+          {!selectedHazard && (
+            <div className="term-map-layer-switch term-map-mode-switch" role="radiogroup" aria-label={t.termMap.layerLabel}>
+              {['hazards', 'activities'].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={layer === key}
+                  className={`term-map-mode-btn${layer === key ? ' active' : ''}`}
+                  onClick={() => switchLayer(key)}
+                >
+                  {key === 'hazards' ? <Siren size={14} aria-hidden="true" /> : <Network size={14} aria-hidden="true" />}
+                  {t.termMap.layers[key]}
+                </button>
+              ))}
             </div>
           )}
 
@@ -677,7 +714,13 @@ function TermMapPage() {
                 className="term-map-node term-map-node-center"
                 style={{ left: `${CENTER.x}%`, top: `${CENTER.y}%` }}
                 title={
-                  selectedGroup ? selectedGroup.label[lang] : selectedHazard ? selectedHazard.name[lang] : t.termMap.centerLabelFull
+                  selectedGroup
+                    ? selectedGroup.label[lang]
+                    : selectedHazard
+                      ? selectedHazard.name[lang]
+                      : layer === 'activities'
+                        ? t.termMap.centerLabelActivitiesFull
+                        : t.termMap.centerLabelFull
                 }
               >
                 <span className="term-map-node-icon" aria-hidden="true">
@@ -687,8 +730,8 @@ function TermMapPage() {
               </div>
 
               {!selectedHazard &&
-                EMERGENCY_HAZARDS.map((hazard, i) => {
-                  const pos = HAZARD_POSITIONS[i]
+                layerNodes.map((hazard, i) => {
+                  const pos = LAYER_POSITIONS[layer][i]
                   const label = hazard.name[lang]
                   const isDimmed = hoveredId !== null && hoveredId !== hazard.id
 

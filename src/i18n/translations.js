@@ -26,12 +26,12 @@ function ruConnectionWord(n) {
   return 'связей'
 }
 
-function ruHazardWord(n) {
+function ruSectionWord(n) {
   const mod10 = n % 10
   const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'вид'
-  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'вида'
-  return 'видов'
+  if (mod10 === 1 && mod100 !== 11) return 'раздел'
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'раздела'
+  return 'разделов'
 }
 
 /** Russian plural: ruPlural(5, 'термин', 'термина', 'терминов') -> 'терминов'. */
@@ -271,9 +271,13 @@ export const translations = {
     },
     termMap: {
       title: 'Терминдер картасы',
-      lead: 'Төтенше жағдай түрлері арқылы азаматтық қорғаныстың кәсіби терминдерін зерттеңіз.',
+      lead: 'Азаматтық қорғаныстың кәсіби терминдерін төтенше жағдай түрлері және қызмет бағыттары бойынша зерттеңіз.',
       centerLabel: 'ТЖ ТҮРЛЕРІ',
       centerLabelFull: 'Төтенше жағдайлардың түрлері',
+      centerLabelActivities: 'БАҒЫТТАР',
+      centerLabelActivitiesFull: 'Қызмет бағыттары',
+      layerLabel: 'Карта қабаты',
+      layers: { hazards: 'ТЖ түрлері', activities: 'Қызмет бағыттары' },
       hint: 'Терминдерін көру үшін төтенше жағдай түрін таңдаңыз.',
       backToAll: 'Барлық ТЖ түрлері',
       loading: 'Терминдер жүктелуде…',
@@ -288,7 +292,7 @@ export const translations = {
       panel: {
         close: 'Жабу',
         detailsLink: 'Термин туралы толығырақ',
-        hazardLabel: 'Төтенше жағдай түрі',
+        hazardLabel: 'Карта бөлімі',
         groupLabel: 'Тақырыптық топ',
         relatedLabel: 'Байланысты терминдер',
       },
@@ -303,9 +307,9 @@ export const translations = {
       filterAll: 'Барлығы',
       viewMap: 'Карта',
       viewList: 'Тізім',
-      crossHazardsLabel: 'Байланысты ТЖ түрлері',
-      crossCountBadge: (n) => `${n} ТЖ түрі`,
-      crossCountTooltip: (n) => `${n} төтенше жағдай түрімен байланысты`,
+      crossHazardsLabel: 'Картаның байланысты бөлімдері',
+      crossCountBadge: (n) => `${n} бөлім`,
+      crossCountTooltip: (n) => `${n} карта бөлімімен байланысты`,
       showConnections: 'Байланыстарды көрсету',
       hideConnections: 'Байланыстарды жасыру',
       connectionsHint: (term) => `«${term}»: өту үшін байланысты элементті таңдаңыз.`,
@@ -498,7 +502,7 @@ export const translations = {
         reason: 'Себебі',
         problem: 'Мәселе анықталды',
         requisiteTitle: 'Деректеменің септігі',
-        requisiteDetails: (field, word, expected) => `«${field}» деректемесі «${word}» деп басталады. Орыс тіліндегі рапортта «Кому» барыс (дательный), «От кого» ілік (родительный) септікте жазылады: «Начальнику…» / «Начальника…».`,
+        requisiteDetails: (field, word) => `«${field}» деректемесі «${word}» деп басталады. Орыс тіліндегі рапортта «Кому» барыс (дательный), «От кого» ілік (родительный) септікте жазылады: «Начальнику…» / «Начальника…».`,
         basisLabel: 'Негіздеме',
         basisBase: 'ресми терминологиялық база',
         basisDoc: 'нормативтік құжат',
@@ -1693,9 +1697,13 @@ export const translations = {
     },
     termMap: {
       title: 'Карта терминов',
-      lead: 'Исследуйте профессиональные термины гражданской защиты через виды чрезвычайных ситуаций.',
+      lead: 'Исследуйте профессиональные термины гражданской защиты по видам чрезвычайных ситуаций и направлениям деятельности.',
       centerLabel: 'ВИДЫ ЧС',
       centerLabelFull: 'Виды чрезвычайных ситуаций',
+      centerLabelActivities: 'НАПРАВЛЕНИЯ',
+      centerLabelActivitiesFull: 'Направления деятельности',
+      layerLabel: 'Слой карты',
+      layers: { hazards: 'Виды ЧС', activities: 'Направления деятельности' },
       hint: 'Выберите вид ЧС, чтобы увидеть связанные термины.',
       backToAll: 'Все виды ЧС',
       loading: 'Загрузка терминов…',
@@ -1710,7 +1718,7 @@ export const translations = {
       panel: {
         close: 'Закрыть',
         detailsLink: 'Подробнее о термине',
-        hazardLabel: 'Вид ЧС',
+        hazardLabel: 'Раздел карты',
         groupLabel: 'Тематическая группа',
         relatedLabel: 'Связанные термины',
       },
@@ -1725,9 +1733,9 @@ export const translations = {
       filterAll: 'Все',
       viewMap: 'Карта',
       viewList: 'Список',
-      crossHazardsLabel: 'Связанные виды ЧС',
-      crossCountBadge: (n) => `${n} ${ruHazardWord(n)} ЧС`,
-      crossCountTooltip: (n) => `Связан с ${n} видами чрезвычайных ситуаций`,
+      crossHazardsLabel: 'Связанные разделы карты',
+      crossCountBadge: (n) => `${n} ${ruSectionWord(n)} карты`,
+      crossCountTooltip: (n) => `Связан с разделами карты: ${n}`,
       showConnections: 'Показать связи',
       hideConnections: 'Скрыть связи',
       connectionsHint: (term) => `«${term}»: выберите связанный элемент, чтобы перейти к нему.`,

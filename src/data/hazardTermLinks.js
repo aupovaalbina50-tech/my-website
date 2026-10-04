@@ -27,4 +27,12 @@ export const HAZARD_TERM_LINKS = {
   chemical: { categories: [], keywords: ['химическ', 'химиялық', 'токсич', 'отравля'] },
   radiation: { categories: [], keywords: ['радиац', 'радиоактив'] },
   industrial: { categories: ['industrial_safety'], keywords: [] },
+  // Second layer — areas of activity (see activityAreas.js): one category each.
+  'act-rescue': { categories: ['rescue_ops'], keywords: [] },
+  'act-medicine': { categories: ['disaster_medicine'], keywords: [] },
+  'act-evacuation': { categories: ['evacuation'], keywords: [] },
+  'act-alerting': { categories: ['alerting_comms'], keywords: [] },
+  'act-coordination': { categories: ['coordination'], keywords: [] },
+  'act-civil-defense': { categories: ['civil_defense'], keywords: [] },
+  'act-emergencies': { categories: ['emergencies'], keywords: [] },
 }

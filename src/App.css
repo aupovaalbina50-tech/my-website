@@ -2825,6 +2825,15 @@
   animation: term-map-fade-in 0.3s ease both;
 }
 
+/* Layer switch above the overview ring: Виды ЧС | Направления деятельности. */
+.term-map-layer-switch {
+  margin: 0 auto;
+  align-self: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+}
+
 .term-map-mode-btn {
   display: inline-flex;
   align-items: center;
