@@ -74,16 +74,25 @@ function AllTermsContent({
     setSearch('')
   }, [categoryKey])
 
+  // Sort by the label shown in the current language, using that language's
+  // alphabet (Kazakh letters ә, ғ, қ, ң, ө, ұ, ү, һ, і in their proper place).
+  const sortedTerms = useMemo(() => {
+    const label = (term) => term[lang] || term.ru || term.kk || term.en || ''
+    return [...terms].sort((a, b) =>
+      label(a).localeCompare(label(b), lang, { sensitivity: 'base' }),
+    )
+  }, [terms, lang])
+
   const query = search.trim().toLowerCase()
   const visibleTerms = useMemo(() => {
-    if (!query) return terms
-    return terms.filter(
+    if (!query) return sortedTerms
+    return sortedTerms.filter(
       (term) =>
         term.kk?.toLowerCase().includes(query) ||
         term.ru?.toLowerCase().includes(query) ||
         term.en?.toLowerCase().includes(query),
     )
-  }, [terms, query])
+  }, [sortedTerms, query])
 
   const displayedTerms = useMemo(() => {
     if (!letterFilter) return visibleTerms
