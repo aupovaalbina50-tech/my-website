@@ -1,0 +1,639 @@
+/* Animated mission scenes (MissionScene.jsx). States: .ms-r1 … .ms-r4 on
+   the root = operation stages completed. Everything that changes between
+   states is a transition, so the operation plays as an animation. */
+
+.ms-scene {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ms-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ms-caption {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(16, 35, 63, 0.78);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ---- appear by stage ---- */
+.ms-on1,
+.ms-on2,
+.ms-on3,
+.ms-on4 {
+  opacity: 0;
+  transition: opacity 0.6s ease, transform 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ms-r1 .ms-on1,
+.ms-r2 .ms-on2,
+.ms-r3 .ms-on3,
+.ms-r4 .ms-on4 {
+  opacity: 1;
+}
+
+/* Vehicles drive in from the right. */
+.ms-arrive {
+  transform: translateX(220px);
+}
+.ms-r2 .ms-arrive {
+  transform: none;
+}
+
+/* ---- common pieces ---- */
+.ms-ground-line {
+  stroke: #b3c3d3;
+  stroke-width: 1;
+}
+.ms-building rect:not(.ms-window):not(.ms-door),
+.ms-building path,
+.ms-hq path,
+.ms-tank rect {
+  fill: #eef2f6;
+  stroke: #5b6b80;
+  stroke-width: 1.4;
+}
+.ms-roof {
+  fill: #c9d3de !important;
+}
+.ms-window {
+  fill: #b9cde0;
+  transition: fill 1s ease;
+}
+.ms-door {
+  fill: #8696a8;
+}
+.ms-tank line {
+  stroke: #5b6b80;
+  stroke-width: 1.2;
+}
+
+.ms-person circle,
+.ms-person path {
+  fill: #33465e;
+}
+.ms-person {
+  animation: ms-bob 0.9s ease-in-out infinite;
+}
+
+.ms-wheel {
+  fill: #2b3442;
+  stroke: #9aa7b6;
+  stroke-width: 2;
+}
+.ms-truck-body {
+  fill: #c81f2e;
+}
+.ms-truck-glass {
+  fill: #bfe0f5;
+}
+.ms-truck-ladder {
+  stroke: #e6ebf0;
+  stroke-width: 2;
+}
+.ms-truck-panel {
+  fill: #a51624;
+}
+.ms-amb-body {
+  fill: #f8fafc;
+  stroke: #9aa7b6;
+  stroke-width: 1;
+}
+.ms-amb-stripe {
+  fill: #c81f2e;
+}
+.ms-cross {
+  fill: #c81f2e;
+}
+.ms-beacon {
+  fill: #ff4d4d;
+  animation: ms-blink 0.7s steps(2, jump-none) infinite;
+}
+.ms-beacon--blue {
+  fill: #3b82f6;
+}
+.ms-pole {
+  stroke: #5b6b80;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.ms-cordon .ms-tape {
+  stroke: #e0a100;
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+}
+.ms-cone {
+  fill: #f2711c;
+}
+.ms-cone-band {
+  fill: #fff;
+}
+
+.ms-waves path {
+  fill: none;
+  stroke: #c81f2e;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: ms-wave 1.6s ease-out infinite;
+}
+
+/* ---- fire ---- */
+.ms-flame {
+  fill: url(#ms-flame);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ms-flicker 0.55s ease-in-out infinite alternate;
+}
+.ms-fire {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 1.6s ease, opacity 1.6s ease;
+}
+.ms-r2 .ms-fire {
+  transform: scale(0.75);
+}
+.ms-r3 .ms-fire {
+  transform: scale(0.35);
+  opacity: 0.8;
+}
+.ms-r4 .ms-fire {
+  transform: scale(0);
+  opacity: 0;
+}
+.ms-burning .ms-window {
+  fill: #ffb347;
+  animation: ms-glow 0.9s ease-in-out infinite alternate;
+}
+.ms-r4 .ms-burning .ms-window {
+  fill: #9aa7b6;
+  animation: none;
+}
+
+.ms-smoke circle {
+  fill: #9aa7b6;
+  opacity: 0;
+  animation: ms-rise 3.2s ease-out infinite;
+}
+.ms-smoke--dark circle {
+  fill: #4b5563;
+}
+.ms-smoke {
+  transition: opacity 1.6s ease;
+}
+.ms-r3 .ms-smoke--dark circle {
+  fill: #b8c2cd;
+}
+.ms-r4 .ms-smoke {
+  opacity: 0;
+}
+
+/* Water from the nozzle: a moving dashed arc. */
+.ms-hose {
+  fill: none;
+  stroke: #8a5a2b;
+  stroke-width: 3;
+}
+.ms-stream {
+  fill: none;
+  stroke: url(#ms-water);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 10 8;
+  animation: ms-flow 0.6s linear infinite;
+  transition: opacity 1s ease;
+}
+.ms-stream--curtain {
+  stroke-width: 6;
+  opacity: 0.85;
+}
+.ms-r4 .ms-stream,
+.ms-r4 .ms-hose {
+  opacity: 0;
+}
+
+/* ---- flood ---- */
+.ms-flood {
+  transition: transform 2.2s ease;
+}
+.ms-water-body {
+  fill: url(#ms-water);
+  opacity: 0.55;
+}
+.ms-water-wave {
+  fill: none;
+  stroke: #e9f4fd;
+  stroke-width: 2;
+  stroke-dasharray: 14 10;
+  animation: ms-flow 2.4s linear infinite;
+}
+.ms-r3 .ms-flood {
+  transform: translateY(14px);
+}
+.ms-r4 .ms-flood {
+  transform: translateY(30px);
+}
+.ms-sandbag {
+  fill: #c8a46b;
+  stroke: #8a6a3b;
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.ms-r2 .ms-sandbag {
+  opacity: 1;
+}
+
+/* ---- gas leak ---- */
+.ms-gas {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ms-swell 3s ease-in-out infinite alternate;
+  transition: opacity 1.6s ease;
+}
+.ms-gas--2 {
+  animation-delay: 1.2s;
+}
+.ms-leak {
+  transform-box: fill-box;
+  transform-origin: 30% 80%;
+  transition: transform 1.8s ease, opacity 1.8s ease;
+}
+.ms-r2 .ms-leak {
+  transform: scale(0.7);
+}
+.ms-r3 .ms-leak {
+  transform: scale(0.4);
+  opacity: 0.6;
+}
+.ms-r4 .ms-leak {
+  opacity: 0;
+}
+
+/* ---- evacuation / shelter: people walking ---- */
+.ms-walkers {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.ms-r2 .ms-walkers {
+  opacity: 1;
+}
+.ms-r4 .ms-walkers {
+  opacity: 0;
+}
+.ms-walker {
+  animation: ms-walk-evac 4s linear infinite;
+}
+.ms-walkers--shelter .ms-walker {
+  animation-name: ms-walk-shelter;
+}
+.ms-flag {
+  fill: #15803d;
+}
+.ms-bus rect:first-child {
+  fill: #f2b705;
+  stroke: #9a7300;
+  stroke-width: 1;
+}
+.ms-alarm,
+.ms-scene .ms-waves:not([class*='ms-on']) {
+  transition: opacity 1s ease;
+}
+.ms-r4 .ms-alarm,
+.ms-r4 .ms-waves:not([class*='ms-on']) {
+  opacity: 0;
+}
+
+/* ---- response ---- */
+.ms-hq path {
+  fill: #e4ecf4 !important;
+}
+.ms-route {
+  fill: none;
+  stroke: #1b4f8c;
+  stroke-width: 2.5;
+  stroke-dasharray: 2 8;
+  stroke-linecap: round;
+}
+.ms-incident-zone {
+  fill: rgba(200, 31, 46, 0.12);
+  stroke: #c81f2e;
+  stroke-dasharray: 5 6;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ms-swell 1.8s ease-in-out infinite alternate;
+  transition: fill 1.2s ease, stroke 1.2s ease, transform 1.2s ease;
+}
+.ms-incident-core {
+  fill: #c81f2e;
+  transition: fill 1.2s ease;
+}
+.ms-r3 .ms-incident-zone {
+  animation: none;
+  transform: scale(0.6);
+}
+.ms-r4 .ms-incident-zone {
+  fill: rgba(21, 128, 61, 0.12);
+  stroke: #15803d;
+}
+.ms-r4 .ms-incident-core {
+  fill: #15803d;
+}
+.ms-drive {
+  animation: ms-drive 5s ease-in-out infinite alternate;
+}
+.ms-drive--2 {
+  animation-delay: 1s;
+}
+.ms-r4 .ms-drive {
+  animation: none;
+}
+
+/* ---- civil defence: siren, shelter ---- */
+.ms-siren-head {
+  fill: #5b6b80;
+}
+.ms-shelter path {
+  fill: #d7dee6;
+  stroke: #5b6b80;
+  stroke-width: 1.4;
+}
+.ms-shelter-door {
+  fill: #33465e;
+}
+.ms-shelter-gate {
+  fill: #15803d;
+}
+
+/* ---- restoration ---- */
+.ms-ruins path {
+  fill: #d7dee6;
+  stroke: #5b6b80;
+  stroke-width: 1.4;
+  transition: opacity 1.4s ease;
+}
+.ms-rubble {
+  fill: #b9a68b !important;
+}
+.ms-r3 .ms-ruins {
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+.ms-rebuilt rect {
+  fill: #eef2f6;
+  stroke: #5b6b80;
+  stroke-width: 1.4;
+}
+.ms-pole--crane {
+  stroke: #e0a100;
+}
+.ms-cable {
+  stroke: #33465e;
+  stroke-width: 1.5;
+}
+.ms-slab {
+  fill: #9aa7b6;
+}
+.ms-hook {
+  animation: ms-lift 3s ease-in-out infinite alternate;
+}
+.ms-r4 .ms-hook {
+  animation: none;
+  opacity: 0;
+}
+
+/* ---- medical aid ---- */
+.ms-tent path:first-child {
+  fill: #f1f5f9;
+  stroke: #5b6b80;
+  stroke-width: 1.4;
+}
+.ms-stretcher {
+  fill: #9aa7b6;
+}
+.ms-casualty {
+  fill: #33465e;
+}
+.ms-casualties {
+  transition: transform 1.6s ease, opacity 1.6s ease;
+}
+.ms-r3 .ms-casualties {
+  transform: translateX(-120px);
+}
+.ms-r4 .ms-casualties {
+  opacity: 0;
+}
+.ms-monitor rect {
+  fill: #0f2440;
+  stroke: #5b6b80;
+}
+.ms-pulse {
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 160;
+  animation: ms-trace 1.6s linear infinite;
+  transition: opacity 1s ease;
+}
+.ms-pulse--alarm {
+  stroke: #ff4d4d;
+}
+.ms-pulse--steady {
+  stroke: #34d399;
+  opacity: 0;
+}
+.ms-r3 .ms-pulse--alarm {
+  opacity: 0;
+}
+.ms-r3 .ms-pulse--steady {
+  opacity: 1;
+}
+
+/* ---- communications ---- */
+.ms-tower path {
+  fill: none;
+  stroke: #5b6b80;
+  stroke-width: 2;
+}
+.ms-tower-bent {
+  stroke: #c81f2e !important;
+}
+.ms-spark path {
+  fill: #ffd34d;
+  animation: ms-blink 0.5s steps(2, jump-none) infinite;
+  transition: opacity 1s ease;
+}
+.ms-r2 .ms-spark {
+  opacity: 0;
+}
+.ms-van {
+  fill: #1b4f8c;
+}
+.ms-mast {
+  stroke: #33465e;
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scaleY(0.2);
+  transition: transform 1.6s ease 0.6s;
+}
+.ms-r3 .ms-mast {
+  transform: none;
+}
+.ms-link {
+  fill: none;
+  stroke: #1b4f8c;
+  stroke-width: 2;
+  stroke-dasharray: 4 6;
+  animation: ms-flow 1s linear infinite;
+}
+.ms-r4 .ms-house .ms-window {
+  fill: #ffd34d;
+}
+.ms-scene .ms-waves.ms-on3 path {
+  stroke: #1b4f8c;
+}
+
+/* ---- done ---- */
+.ms-done circle {
+  fill: #15803d;
+}
+.ms-done path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- keyframes ---- */
+@keyframes ms-flicker {
+  0% {
+    transform: scale(1, 1) skewX(0deg);
+  }
+  50% {
+    transform: scale(0.92, 1.08) skewX(3deg);
+  }
+  100% {
+    transform: scale(1.05, 0.94) skewX(-3deg);
+  }
+}
+@keyframes ms-glow {
+  to {
+    fill: #ff7b2e;
+  }
+}
+@keyframes ms-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 10px) scale(0.6);
+  }
+  25% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(18px, -60px) scale(1.6);
+  }
+}
+@keyframes ms-flow {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+@keyframes ms-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes ms-wave {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes ms-bob {
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes ms-swell {
+  to {
+    transform: scale(1.12);
+  }
+}
+@keyframes ms-walk-evac {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(300px);
+    opacity: 0;
+  }
+}
+@keyframes ms-walk-shelter {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(310px);
+    opacity: 0;
+  }
+}
+@keyframes ms-drive {
+  from {
+    transform: translateX(-30px);
+  }
+  to {
+    transform: translateX(40px);
+  }
+}
+@keyframes ms-lift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-26px);
+  }
+}
+@keyframes ms-trace {
+  from {
+    stroke-dashoffset: 160;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-scene * {
+    animation: none !important;
+  }
+  .ms-walker {
+    opacity: 1;
+  }
+}

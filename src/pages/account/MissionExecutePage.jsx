@@ -4,36 +4,9 @@ import { ArrowLeft, CheckCircle2, Trophy, X, XCircle } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionOperation } from './useMissionOperation.js'
+import MissionScene from './MissionScene.jsx'
 
 const STAGE_KEYS = ['assess', 'identify', 'action', 'control']
-
-function OperationVisual({ stabilized }) {
-  return (
-    <div className="mission-op-visual">
-      <svg className="mission-op-svg" viewBox="0 0 640 220" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-        <line className="mission-brief-ground" x1="0" y1="188" x2="640" y2="188" />
-        <g className="mission-brief-facility">
-          <rect x="40" y="108" width="90" height="80" />
-          <rect x="140" y="130" width="60" height="58" />
-          <rect x="210" y="70" width="26" height="118" />
-          <rect className="mission-brief-window" x="60" y="128" width="14" height="14" />
-          <rect className="mission-brief-window" x="90" y="128" width="14" height="14" />
-          <rect className="mission-brief-window" x="60" y="152" width="14" height="14" />
-          <rect className="mission-brief-window" x="90" y="152" width="14" height="14" />
-        </g>
-        <g transform="translate(420 152)">
-          <circle
-            className={`mission-op-containment${stabilized ? ' mission-op-containment--stabilized' : ''}`}
-            r="70"
-          />
-          {!stabilized && <circle className="mission-brief-ring mission-brief-ring--1" r="18" />}
-          {!stabilized && <circle className="mission-brief-ring mission-brief-ring--2" r="18" />}
-          <circle className={`mission-op-core${stabilized ? ' mission-op-core--stabilized' : ''}`} r="9" />
-        </g>
-      </svg>
-    </div>
-  )
-}
 
 function MissionExecutePage() {
   const { missionId } = useParams()
@@ -99,7 +72,7 @@ function MissionExecutePage() {
 
         <div className="mission-complete-op-card">
           <div className="mission-op-hero mission-op-hero--final">
-            <OperationVisual stabilized />
+            <MissionScene missionId={mission.id} reached={4} />
             <span className="mission-op-final-label">
               <CheckCircle2 size={16} aria-hidden="true" /> {e.stabilizedLabel}
             </span>
@@ -147,6 +120,9 @@ function MissionExecutePage() {
 
   const stateLabel = op.percent >= 90 ? e.stateLabels.excellent : e.stateLabels.passed
   const visibleStageKeys = STAGE_KEYS.slice(0, Math.min(op.totalStages, STAGE_KEYS.length))
+  const stageMeta = (key) => (key === 'action' ? { number: '03', title: mission.actionLabel[lang] } : e.stages[key])
+  const currentKey = visibleStageKeys[Math.min(op.stageIndex, visibleStageKeys.length - 1)]
+  const stageCaption = currentKey ? `${stageMeta(currentKey).number} · ${stageMeta(currentKey).title}` : null
 
   return (
     <div className="mission-page">
@@ -170,7 +146,7 @@ function MissionExecutePage() {
       </div>
 
       <div className="mission-brief-hero mission-op-hero">
-        <OperationVisual stabilized={false} />
+        <MissionScene missionId={mission.id} reached={op.completedStages.size} caption={stageCaption} />
         <div className="mission-op-readout">
           <span className="mission-op-readout-label">{e.readinessLabel}</span>
           <span className="mission-op-readout-value">{op.percent}%</span>

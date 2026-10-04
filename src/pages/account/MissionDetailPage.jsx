@@ -17,42 +17,9 @@ import { MISSIONS } from '../../data/missions.js'
 import { useMissionsProgress } from './useMissionsProgress.js'
 import { useMissionAttemptStats } from './useMissionAttemptStats.js'
 import { useMissionStageStatus } from './useMissionStageStatus.js'
+import MissionScene from './MissionScene.jsx'
 
 const STAGE_ICONS = { study: BookOpen, test: ClipboardCheck, result: Target, finish: ShieldCheck }
-
-function MissionBriefVisual() {
-  return (
-    <div className="mission-brief-visual">
-      <svg
-        className="mission-brief-svg"
-        viewBox="0 0 640 220"
-        preserveAspectRatio="xMidYMax meet"
-        aria-hidden="true"
-      >
-        <line className="mission-brief-ground" x1="0" y1="188" x2="640" y2="188" />
-
-        <g className="mission-brief-facility">
-          <rect x="40" y="108" width="90" height="80" />
-          <rect x="140" y="130" width="60" height="58" />
-          <rect x="210" y="70" width="26" height="118" />
-          <rect className="mission-brief-window" x="60" y="128" width="14" height="14" />
-          <rect className="mission-brief-window" x="90" y="128" width="14" height="14" />
-          <rect className="mission-brief-window" x="60" y="152" width="14" height="14" />
-          <rect className="mission-brief-window" x="90" y="152" width="14" height="14" />
-          <circle className="mission-brief-beacon" cx="223" cy="62" r="6" />
-        </g>
-
-        <g className="mission-brief-zone" transform="translate(420 152)">
-          <circle className="mission-brief-containment" r="70" />
-          <circle className="mission-brief-ring mission-brief-ring--1" r="18" />
-          <circle className="mission-brief-ring mission-brief-ring--2" r="18" />
-          <circle className="mission-brief-core" r="7" />
-        </g>
-      </svg>
-      <span className="mission-brief-scanline" aria-hidden="true" />
-    </div>
-  )
-}
 
 function MissionDetailPage() {
   const { missionId } = useParams()
@@ -140,7 +107,7 @@ function MissionDetailPage() {
       </div>
 
       <div className="mission-brief-hero">
-        <MissionBriefVisual />
+        <MissionScene missionId={mission.id} reached={0} />
       </div>
 
       {state.status === 'completed' && (
