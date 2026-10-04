@@ -26,7 +26,7 @@ export const ACCOUNT_NAV_ITEMS = [
   { key: 'quotes', to: '/quotes', Icon: Quote },
   { key: 'missions', to: '/account/missions', Icon: Siren },
   { key: 'docs', to: '/account/docs', Icon: FileText },
-  { key: 'smartReport', to: '/account/smart-report', Icon: FilePenLine },
+  { key: 'documents', to: '/account/documents', Icon: FilePenLine },
   // Shown to admins only (the page itself also checks the role).
   { key: 'knowledge', to: '/account/knowledge', Icon: Library, adminOnly: true },
 ]

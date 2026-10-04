@@ -63,7 +63,7 @@ const TOOL_LINKS = [
 
 const MATERIAL_LINKS = [
   { key: 'docs', to: '/account/docs', Icon: FileText },
-  { key: 'smartReport', to: '/account/smart-report', Icon: FilePenLine },
+  { key: 'documents', to: '/account/documents', Icon: FilePenLine },
   { key: 'committees', to: '/account/committees', Icon: Landmark },
   { key: 'quotes', to: '/quotes', Icon: Quote },
 ]

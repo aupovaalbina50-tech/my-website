@@ -19,6 +19,14 @@
 //   POST { action: 'terms', lang, texts: string[] }       (no AI)
 //     -> 200 { terms, variants }
 //
+// «Конструктор профессиональной документации» (docs.ts):
+//   POST { action: 'doc_suggest', lang, query, catalog: [{ id, title, purpose }] } -> { suggestions: [{ id, why }] }
+//   POST { action: 'doc_fill', lang, text, today, documentTitle, fields: [{ key, label, type, hint, options }] }
+//     -> { values: [{ key, value, quote }], missing: [key] }
+//   POST { action: 'doc_check', lang, documentTitle, blocks: [{ key, label, text }] }
+//     -> { issues: [{ category, target, was, now, title, reason, basis, confirmed }], terms, variants }
+//   POST { action: 'doc_photo', mediaType, data (base64) } -> { lines: [{ text, sure }], lang }
+//
 //   terms:    [{ id, kk, ru, en, category, matches: [fragment as written] }]
 //   variants: [{ text, official }]
 //
@@ -32,6 +40,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { composeReport, extractFacts, reviewReport, termsForTexts } from './pipeline.ts'
 import { InspectionError } from '../doc-inspector/llm.ts'
 import { enforceReportLimits } from './rateLimit.ts'
+import { checkDocument, fillFields, readPhoto, suggestDocument } from './docs.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,7 +48,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const ACTIONS = ['extract', 'compose', 'review', 'terms']
+const ACTIONS = ['extract', 'compose', 'review', 'terms', 'doc_suggest', 'doc_fill', 'doc_check', 'doc_photo']
 
 const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
@@ -93,6 +102,11 @@ Deno.serve(async (req: Request) => {
     }
     if (body.action === 'extract') return json(await extractFacts(body.text, lang, body.today))
     if (body.action === 'compose') return json(await composeReport(body, lang))
+    if (body.action === 'doc_suggest') return json(await suggestDocument(body, lang))
+    if (body.action === 'doc_fill') return json(await fillFields(body, lang))
+    if (body.action === 'doc_check') return json(await checkDocument(body, lang))
+    if (body.action === 'doc_photo') return json(await readPhoto(body))
+    if (body.action !== 'review') return fail(400, 'bad_request', 'unknown action')
     return json(await reviewReport(body, lang))
   } catch (error) {
     if (error instanceof InspectionError) {

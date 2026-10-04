@@ -1,44 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../../supabaseClient'
-import { useAuth } from '../../../auth/AuthContext.jsx'
 
 // Storage of «Рапортты құрастыру» (tables work_reports and
 // work_report_versions). Row level security limits every query to the
 // signed-in user's own rows; user_id is still set explicitly on insert.
-
-const LIST_COLUMNS = 'id, title, report_type, lang, status, step, current_version, created_at, updated_at'
-
-/** «Мои рапорты»: the user's reports, most recently changed first. */
-export function useWorkReports() {
-  const { user } = useAuth()
-  const [reports, setReports] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-
-  const refresh = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
-    const { data, error: fetchError } = await supabase
-      .from('work_reports')
-      .select(LIST_COLUMNS)
-      .order('updated_at', { ascending: false })
-    setError(Boolean(fetchError))
-    setReports(data ?? [])
-    setLoading(false)
-  }, [user])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
-  const remove = useCallback(async (id) => {
-    const { error: deleteError } = await supabase.from('work_reports').delete().eq('id', id)
-    if (!deleteError) setReports((current) => current.filter((r) => r.id !== id))
-    return !deleteError
-  }, [])
-
-  return { reports, loading, error, refresh, remove }
-}
+// The list of reports is part of «Мои документы» (documents/useDocuments.js).
 
 export async function loadReport(id) {
   const { data, error } = await supabase.from('work_reports').select('*').eq('id', id).maybeSingle()

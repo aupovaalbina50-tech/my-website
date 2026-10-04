@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import RequireAuth from './auth/RequireAuth.jsx'
 import BackgroundDecor from './components/BackgroundDecor.jsx'
 import AIAssistant from './components/ai-assistant/AIAssistant.jsx'
@@ -29,7 +29,9 @@ const AccountCategoriesPage = lazy(() => import('./pages/account/AccountCategori
 const AccountAlphabetPage = lazy(() => import('./pages/account/AccountAlphabetPage.jsx'))
 const AccountNetworkPage = lazy(() => import('./pages/account/AccountNetworkPage.jsx'))
 const AccountDocsPage = lazy(() => import('./pages/account/AccountDocsPage.jsx'))
-const SmartReportPage = lazy(() => import('./pages/account/smartReport/SmartReportPage.jsx'))
+const DocumentBuilderPage = lazy(() => import('./pages/account/documents/DocumentBuilderPage.jsx'))
+const DocumentEditor = lazy(() => import('./pages/account/documents/DocumentEditor.jsx'))
+const NewDocument = lazy(() => import('./pages/account/documents/DocumentEditor.jsx').then((m) => ({ default: m.NewDocument })))
 const SmartReportEditor = lazy(() => import('./pages/account/smartReport/SmartReportEditor.jsx'))
 const KnowledgeBasePage = lazy(() => import('./pages/account/knowledge/KnowledgeBasePage.jsx'))
 const AccountCommitteesPage = lazy(() => import('./pages/account/AccountCommitteesPage.jsx'))
@@ -187,11 +189,29 @@ function App() {
                     </RequireAuth>
                   }
                 />
+                {/* «Мои рапорты» now live in «Мои документы» of the constructor. */}
+                <Route path="smart-report" element={<Navigate to="/account/documents?tab=mine" replace />} />
                 <Route
-                  path="smart-report"
+                  path="documents"
                   element={
                     <RequireAuth>
-                      <SmartReportPage />
+                      <DocumentBuilderPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="documents/new/:templateId"
+                  element={
+                    <RequireAuth>
+                      <NewDocument />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="documents/:id"
+                  element={
+                    <RequireAuth>
+                      <DocumentEditor />
                     </RequireAuth>
                   }
                 />
