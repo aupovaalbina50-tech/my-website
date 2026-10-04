@@ -808,7 +808,7 @@
   }
 }
 .report-group .report-facts--times {
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 
   @media (max-width: 520px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1413,4 +1413,33 @@
   white-space: normal;
   line-height: 1.35;
   padding: 2px 8px;
+}
+
+/* Step 2 — larger, easier-to-read type in the fact groups. */
+.report-group-title {
+  font-size: 18px;
+}
+.report-group-count {
+  font-size: 15px;
+}
+.report-group-flag {
+  font-size: 14px;
+}
+.report-fact {
+  gap: 6px;
+}
+.report-fact-label {
+  font-size: 15.5px;
+}
+.report-fact .report-input--compact {
+  font-size: 16.5px;
+}
+.report-fact-status .report-dot {
+  font-size: 13.5px;
+}
+.report-fact .report-confirm {
+  font-size: 14px;
+}
+.report-fact .report-quote {
+  font-size: 14px;
 }
