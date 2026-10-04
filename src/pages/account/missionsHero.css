@@ -3,7 +3,11 @@
    main action as the only warm accent. */
 
 .mission-hero--v2 {
-  min-height: 0;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 420px;
+  display: flex;
+  align-items: center;
   border-color: rgba(34, 211, 238, 0.35);
   box-shadow:
     0 0 0 1px rgba(34, 211, 238, 0.08),
@@ -14,14 +18,7 @@
 .mission-hero-grid {
   position: relative;
   z-index: 3;
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-5);
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
+  max-width: 560px;
 }
 
 .mission-hero--v2 .mission-hero-body {
@@ -42,14 +39,14 @@
 .mission-hero-star {
   fill: none;
   stroke: #9cc8ec;
-  stroke-width: 1.2;
-  opacity: 0.16;
+  stroke-width: 1.4;
+  opacity: 0.3;
 }
 .mission-hero-star-ring {
   fill: none;
   stroke: #9cc8ec;
-  stroke-width: 1;
-  opacity: 0.2;
+  stroke-width: 1.2;
+  opacity: 0.32;
 }
 .mission-hero--v2 .mission-hero-radar .mission-hero-radar-sweep {
   stroke: var(--cyan);
@@ -58,17 +55,21 @@
 .mission-hero-drawing {
   position: absolute;
   color: #9cc8ec;
-  opacity: 0.16;
+  opacity: 0.2;
   pointer-events: none;
 }
 .mission-hero-drawing--truck {
-  left: 2%;
-  bottom: 4%;
-  width: min(300px, 42%);
+  right: 3%;
+  bottom: 5%;
+  width: min(300px, 36%);
+
+  @media (max-width: 900px) {
+    opacity: 0.08;
+  }
 }
 .mission-hero-drawing--helmet {
-  left: 41%;
-  top: 5%;
+  right: 4%;
+  top: 7%;
   width: 96px;
 
   @media (max-width: 900px) {
@@ -183,216 +184,8 @@
   color: var(--cyan);
 }
 
-/* ---- route of the 9 missions ---- */
-.mh-route {
-  padding: 14px 14px 10px;
-  border: 1px solid rgba(156, 200, 236, 0.2);
-  border-radius: 10px;
-  background: rgba(4, 16, 32, 0.55);
-  backdrop-filter: blur(3px);
-}
-.mh-route-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.mh-route-title {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--canvas-text-soft);
-}
-.mh-route-count {
-  font-family: var(--mono);
-  font-size: 14px;
-  color: var(--canvas-text-soft);
-
-  strong {
-    font-size: 20px;
-    color: var(--cyan);
-  }
-}
-.mh-route-map {
-  position: relative;
-  width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
-  aspect-ratio: 360 / 420;
-}
-.mh-route-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.mh-route-path {
-  fill: none;
-  stroke: rgba(156, 200, 236, 0.35);
-  stroke-width: 2;
-  stroke-dasharray: 6 7;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-.mh-route-path--lit {
-  stroke: var(--cyan);
-  stroke-width: 3;
-  stroke-dasharray: none;
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.55));
-}
-
-.mh-stop {
-  position: absolute;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  transform: translate(-50%, -50%);
-  animation: mh-stop-in 0.4s ease both;
-  animation-delay: calc(var(--i, 0) * 0.06s + 0.2s);
-
-  &:focus-visible {
-    outline: none;
-  }
-  &:focus-visible .mh-stop-circle {
-    outline: 2px solid var(--cyan);
-    outline-offset: 3px;
-  }
-}
-.mh-stop-circle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: 2px solid rgba(156, 200, 236, 0.45);
-  border-radius: 50%;
-  background: #0b2546;
-  color: rgba(214, 232, 248, 0.75);
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-.mh-stop:hover .mh-stop-circle {
-  transform: scale(1.1);
-  border-color: var(--cyan);
-}
-.mh-stop-number {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--canvas-text-soft);
-}
-.mh-stop--in_progress .mh-stop-circle {
-  border-color: var(--cyan);
-  color: var(--cyan);
-}
-.mh-stop--completed .mh-stop-circle {
-  border-color: #34d399;
-  background: #34d399;
-  color: #052e1f;
-}
-/* The next stop to do pulses. */
-.mh-stop--next .mh-stop-circle {
-  border-color: var(--cyan);
-  color: #fff;
-  background: #0e3a66;
-  animation: mh-stop-pulse 2s ease-out infinite;
-}
-.mh-stop-tip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  z-index: 5;
-  display: grid;
-  gap: 2px;
-  width: max-content;
-  max-width: 220px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #fff;
-  color: #10233f;
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(3, 12, 26, 0.35);
-  opacity: 0;
-  transform: translate(-50%, 4px);
-  pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-
-  span {
-    color: #5b6b80;
-  }
-}
-.mh-stop:hover .mh-stop-tip,
-.mh-stop:focus-visible .mh-stop-tip {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.mh-goal {
-  position: absolute;
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-.mh-goal-circle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 58px;
-  height: 58px;
-  border: 2px dashed rgba(245, 184, 61, 0.6);
-  border-radius: 50%;
-  background: rgba(245, 184, 61, 0.08);
-  color: #f5b83d;
-}
-.mh-goal--reached .mh-goal-circle {
-  border-style: solid;
-  background: #f5b83d;
-  color: #3a2600;
-  box-shadow: 0 0 22px rgba(245, 184, 61, 0.55);
-}
-.mh-goal-label {
-  max-width: 140px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #f5b83d;
-}
-
-@keyframes mh-stop-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -40%) scale(0.85);
-  }
-}
-@keyframes mh-stop-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.55);
-  }
-  70% {
-    box-shadow: 0 0 0 12px rgba(34, 211, 238, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .mission-hero-tile,
-  .mh-stop,
-  .mh-stop--next .mh-stop-circle {
+  .mission-hero-tile {
     animation: none;
   }
 }
