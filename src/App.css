@@ -4080,17 +4080,37 @@
   margin-bottom: 0;
 }
 
+/* Readable on the blue page: a deep panel with white text (as the quotes hero). */
 .my-dictionary-head {
-  max-width: 640px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
   margin: 0 auto;
+  padding: var(--space-5) var(--space-5);
   text-align: center;
+  background: linear-gradient(160deg, #0a213f 0%, #0f305a 55%, #123d70 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 3px solid #e2343f;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(4, 14, 30, 0.4);
+
+  .account-title {
+    color: #fff;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+  }
+
+  @media (max-width: 640px) {
+    padding: var(--space-4) var(--space-3);
+  }
 }
 
 .my-dictionary-hint {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--text-soft);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.65;
+  color: #e6eef8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 /* ============================================================
