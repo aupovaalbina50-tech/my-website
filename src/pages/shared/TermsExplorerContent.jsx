@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LayoutGrid, ALargeSmall, RotateCcw, Search as SearchIcon, X } from 'lucide-react'
-import { supabase } from '../../supabaseClient'
+import { fetchAllTerms } from '../../utils/fetchAllTerms.js'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { categoryLucideIcon } from '../../constants/categoryIcons.js'
@@ -18,9 +18,7 @@ function TermsExplorerContent({ initialView = 'categories', lockView = false, te
 
   useEffect(() => {
     let cancelled = false
-    supabase
-      .from('terms')
-      .select('id, kk, ru, en, category')
+    fetchAllTerms('id, kk, ru, en, category')
       .then(({ data, error }) => {
         if (cancelled) return
         if (!error && data) setTerms(data)

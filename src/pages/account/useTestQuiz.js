@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../supabaseClient'
+import { fetchAllTerms } from '../../utils/fetchAllTerms.js'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 
@@ -34,9 +35,7 @@ export function useTestQuiz() {
 
   useEffect(() => {
     let active = true
-    supabase
-      .from('terms')
-      .select('id, ru, kk, en, category')
+    fetchAllTerms('id, ru, kk, en, category')
       .then(({ data, error }) => {
         if (!active) return
         if (!error && data) setTerms(data)

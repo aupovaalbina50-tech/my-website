@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../supabaseClient'
+import { fetchAllTerms } from '../../utils/fetchAllTerms.js'
 
 export function useAllTerms() {
   const [terms, setTerms] = useState([])
@@ -8,9 +8,7 @@ export function useAllTerms() {
 
   useEffect(() => {
     let cancelled = false
-    supabase
-      .from('terms')
-      .select('id, kk, ru, en, category')
+    fetchAllTerms('id, kk, ru, en, category')
       .then(({ data, error: fetchError }) => {
         if (cancelled) return
         if (fetchError) {

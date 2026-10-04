@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, List, Search as SearchIcon, Star, X } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
+import { fetchAllTerms } from '../../utils/fetchAllTerms.js'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
@@ -49,13 +50,9 @@ function AllTermsContent({
       return
     }
     setLoading(true)
-    let query = supabase
-      .from('terms')
-      .select('id, ru, kk, en, category')
-      .order('kk', { ascending: true })
-    if (categoryKey) query = query.eq('category', categoryKey)
-
-    const { data, error: fetchError } = await query
+    const { data, error: fetchError } = await fetchAllTerms('id, ru, kk, en, category', (query) =>
+      categoryKey ? query.eq('category', categoryKey) : query,
+    )
     if (fetchError) {
       setError(t.alerts.loadFailed)
     } else {
