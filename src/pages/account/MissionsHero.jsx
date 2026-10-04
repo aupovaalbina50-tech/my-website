@@ -7,7 +7,7 @@ import { Silhouette } from '../../components/fireGearArt.jsx'
 
 // Missions hero — «Сынаққа дайынсыз ба?»: the call to action and the path
 // in three figures, on a background in the style of an МЧС field tablet —
-// topographic contours, the international civil defence sign in radar rings
+// topographic contours, the rescue-service emblem in radar rings
 // and technical drawings of fire equipment. «Жалғастыру» leads to the first
 // mission not completed yet (real progress from useMissionsProgress).
 
@@ -31,27 +31,68 @@ const CONTOURS = [
   ...[16, 32, 50, 70, 92].map((r, i) => ({ d: contourPath(120, 250, r, 2.1 + i * 0.15), index: i })),
 ]
 
+const pt = (r, deg) => {
+  const a = (deg * Math.PI) / 180
+  return `${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a)).toFixed(1)}`
+}
+
+const xy = (r, deg) => {
+  const a = (deg * Math.PI) / 180
+  return [r * Math.cos(a), r * Math.sin(a)]
+}
+const poly = (points) => `M${points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L')} Z`
+
+/** One hollow point of the star: a kite with a smaller copy of itself cut out. */
+function starPoint(deg, length, base, halfAngle, hollow = 0.62) {
+  const outer = [xy(length, deg), xy(base, deg + halfAngle), xy(base * 0.8, deg), xy(base, deg - halfAngle)]
+  const cx = outer.reduce((s, p) => s + p[0], 0) / 4
+  const cy = outer.reduce((s, p) => s + p[1], 0) / 4
+  const inner = outer.map(([x, y]) => [cx + (x - cx) * hollow, cy + (y - cy) * hollow])
+  return `${poly(outer)} ${poly(inner)}`
+}
+
 /**
- * International distinctive sign of civil defence (Additional Protocol I to
- * the Geneva Conventions, art. 66; Annex I, art. 16): an equilateral blue
- * triangle on an orange ground, point up, not touching the edge of the ground.
+ * Emblem of the emergency services: a silver eight-pointed star (long points
+ * to the cardinal directions, shorter diagonals) around a silver ring with
+ * the civil defence sign — a blue equilateral triangle on an orange disc.
  */
-function CivilDefenceSign({ r = 58 }) {
-  // Equilateral triangle, point up, vertices well inside the orange disc.
-  const R = r * 0.64
-  const d =
-    [-90, 30, 150]
-      .map((deg, i) => {
-        const a = (deg * Math.PI) / 180
-        return `${i ? 'L' : 'M'}${(R * Math.cos(a)).toFixed(1)},${(R * Math.sin(a)).toFixed(1)}`
-      })
-      .join(' ') + ' Z'
+function RescueEmblem({ R = 118 }) {
+  const ring = R * 0.34
+  const disc = ring * 0.86
+  const tri = disc * 0.84
+  const triangle = `M${pt(tri, -90)} L${pt(tri, 30)} L${pt(tri, 150)} Z`
+  const triangleInner = `M${pt(tri * 0.78, -90)} L${pt(tri * 0.78, 30)} L${pt(tri * 0.78, 150)} Z`
   return (
-    <g className="mission-hero-cds">
-      <circle r={r + 10} className="mission-hero-cds-halo" />
-      <circle r={r} className="mission-hero-cds-ground" />
-      <circle r={r - 4} className="mission-hero-cds-rim" />
-      <path d={d} className="mission-hero-cds-triangle" />
+    <g className="mission-hero-emblem">
+      <defs>
+        <linearGradient id="mh-silver" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="0.45" stopColor="#c9d0d8" />
+          <stop offset="0.7" stopColor="#f1f4f7" />
+          <stop offset="1" stopColor="#8f99a5" />
+        </linearGradient>
+        <radialGradient id="mh-orange" cx="0.4" cy="0.35" r="0.75">
+          <stop offset="0" stopColor="#ffa040" />
+          <stop offset="1" stopColor="#e2660f" />
+        </radialGradient>
+        <linearGradient id="mh-blue" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#2a5fb0" />
+          <stop offset="1" stopColor="#173e7d" />
+        </linearGradient>
+      </defs>
+      <circle r={R * 0.62} className="mission-hero-emblem-halo" />
+      <g className="mission-hero-emblem-star">
+        {[0, 90, 180, 270].map((deg) => (
+          <path key={deg} d={starPoint(deg - 90, R, ring * 1.02, 17)} fillRule="evenodd" fill="url(#mh-silver)" />
+        ))}
+        {[45, 135, 225, 315].map((deg) => (
+          <path key={deg} d={starPoint(deg - 90, R * 0.68, ring * 1.02, 19)} fillRule="evenodd" fill="url(#mh-silver)" />
+        ))}
+      </g>
+      <circle r={ring} fill="url(#mh-silver)" />
+      <circle r={disc} fill="url(#mh-orange)" />
+      <path d={`${triangle} ${triangleInner}`} fillRule="evenodd" fill="url(#mh-silver)" />
+      <path d={triangleInner} fill="url(#mh-blue)" />
     </g>
   )
 }
@@ -91,7 +132,9 @@ function HeroBackground() {
           <line x1="-150" y1="0" x2="150" y2="0" />
           <line x1="0" y1="-150" x2="0" y2="150" />
           {!prefersReducedMotion && <line className="mission-hero-radar-sweep" x1="0" y1="0" x2="140" y2="0" />}
-          <CivilDefenceSign r={56} />
+        </g>
+        <g transform="translate(472 150)">
+          <RescueEmblem R={110} />
         </g>
         <CornerGrid x={10} y={10} label="N 48°" />
         <CornerGrid x={590} y={10} flipX label="E 68°" />

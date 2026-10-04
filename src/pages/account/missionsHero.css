@@ -36,33 +36,16 @@
 }
 
 /* ---- background: emblem-radar and technical drawings ---- */
-/* International civil defence sign: blue triangle on orange. */
-.mission-hero-radar .mission-hero-cds-halo {
-  opacity: 1;
-  stroke: none;
-  fill: rgba(255, 140, 26, 0.12);
-  filter: blur(6px);
+/* Emergency-service emblem: silver eight-pointed star, civil defence sign. */
+.mission-hero-emblem {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
-.mission-hero-radar .mission-hero-cds-ground {
-  opacity: 1;
-  stroke: none;
-  fill: #f47c20;
-  filter: drop-shadow(0 0 14px rgba(244, 124, 32, 0.45));
+.mission-hero-emblem-halo {
+  fill: rgba(255, 150, 60, 0.1);
+  filter: blur(14px);
 }
-.mission-hero-radar .mission-hero-cds-rim {
-  opacity: 1;
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.35);
-  stroke-width: 1;
-}
-.mission-hero-cds-triangle {
-  fill: #1f4fa8;
-}
-.mission-hero-cds {
-  opacity: 0.92;
-}
-.mission-hero--v2 .mission-hero-radar .mission-hero-radar-sweep {
-  stroke: var(--cyan);
+.mission-hero-emblem-star {
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.5));
 }
 
 .mission-hero-drawing {
