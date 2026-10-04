@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
+  FilePenLine,
   BookOpen,
   LayoutGrid,
   ALargeSmall,
@@ -62,6 +63,7 @@ const TOOL_LINKS = [
 
 const MATERIAL_LINKS = [
   { key: 'docs', to: '/account/docs', Icon: FileText },
+  { key: 'smartReport', to: '/account/smart-report', Icon: FilePenLine },
   { key: 'committees', to: '/account/committees', Icon: Landmark },
   { key: 'quotes', to: '/quotes', Icon: Quote },
 ]

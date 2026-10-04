@@ -7,6 +7,7 @@ import {
   Star,
   Eye,
   FileText,
+  FilePenLine,
   Landmark,
   User,
   ClipboardList,
@@ -24,6 +25,7 @@ export const ACCOUNT_NAV_ITEMS = [
   { key: 'quotes', to: '/quotes', Icon: Quote },
   { key: 'missions', to: '/account/missions', Icon: Siren },
   { key: 'docs', to: '/account/docs', Icon: FileText },
+  { key: 'smartReport', to: '/account/smart-report', Icon: FilePenLine },
 ]
 
 // Not shown in the main sidebar (kept reachable by direct link).

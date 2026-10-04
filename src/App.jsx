@@ -29,6 +29,8 @@ const AccountCategoriesPage = lazy(() => import('./pages/account/AccountCategori
 const AccountAlphabetPage = lazy(() => import('./pages/account/AccountAlphabetPage.jsx'))
 const AccountNetworkPage = lazy(() => import('./pages/account/AccountNetworkPage.jsx'))
 const AccountDocsPage = lazy(() => import('./pages/account/AccountDocsPage.jsx'))
+const SmartReportPage = lazy(() => import('./pages/account/smartReport/SmartReportPage.jsx'))
+const SmartReportEditor = lazy(() => import('./pages/account/smartReport/SmartReportEditor.jsx'))
 const AccountCommitteesPage = lazy(() => import('./pages/account/AccountCommitteesPage.jsx'))
 const FavoriteQuotesPage = lazy(() => import('./pages/account/FavoriteQuotesPage.jsx'))
 const MyDictionaryPage = lazy(() => import('./pages/account/MyDictionaryPage.jsx'))
@@ -181,6 +183,30 @@ function App() {
                   element={
                     <RequireAuth>
                       <AccountDocsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="smart-report"
+                  element={
+                    <RequireAuth>
+                      <SmartReportPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="smart-report/new"
+                  element={
+                    <RequireAuth>
+                      <SmartReportEditor />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="smart-report/:id"
+                  element={
+                    <RequireAuth>
+                      <SmartReportEditor />
                     </RequireAuth>
                   }
                 />
