@@ -38,14 +38,19 @@ async function callReport(payload) {
   return body
 }
 
-/** Facts of step 2 from the user's description. */
-export function extractFacts(text, lang) {
-  return callReport({ action: 'extract', lang, text })
+/** Facts of step 2 from the user's description. `today` resolves «сегодня». */
+export function extractFacts(text, lang, today) {
+  return callReport({ action: 'extract', lang, text, today })
 }
 
-/** Professional wording + the draft's sections. `facts` is { key: string }. */
-export function composeReport({ text, facts, sections, lang }) {
-  return callReport({ action: 'compose', lang, text, facts, sections })
+/** Professional wording + the draft's sections. `facts` is { key: string }, `inferred` unconfirmed keys. */
+export function composeReport({ text, facts, inferred, sections, lang }) {
+  return callReport({ action: 'compose', lang, text, facts, inferred, sections })
+}
+
+/** Proof-reading and logic check: corrections (было / стало / причина) and contradictions. */
+export function reviewReport({ header, sections, facts, lang }) {
+  return callReport({ action: 'review', lang, header, sections, facts })
 }
 
 /** Base terms found in the (edited) report text — no AI. */

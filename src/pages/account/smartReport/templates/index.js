@@ -41,12 +41,34 @@ export function timelineIssues(template, facts) {
     if (prev) {
       const gapMin = (minutes - prev.minutes + 24 * 60) % (24 * 60)
       if (point.maxGapMin && gapMin > point.maxGapMin) {
-        issues.push({ from: prev.key, to: point.key, fromTime: prev.value, toTime: value, gapMin })
+        // More than half a day «later» almost always means «earlier the same day».
+        const order = gapMin > 12 * 60 && minutes < prev.minutes
+        issues.push({ from: prev.key, to: point.key, fromTime: prev.value, toTime: value, gapMin, order })
       }
     }
     prev = { key: point.key, minutes, value }
   }
   return issues
+}
+
+function toDate(value) {
+  const m = String(value ?? '').match(/(\d{1,2})[./-](\d{1,2})[./-](\d{4})/)
+  if (!m) return null
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/** The incident cannot happen after the report is written. */
+export function dateIssue(incidentDate, reportDate) {
+  const incident = toDate(incidentDate)
+  const report = toDate(reportDate)
+  if (!incident || !report || incident <= report) return null
+  return { incidentDate, reportDate }
+}
+
+/** Fields the model filled from context (not stated outright) and the user has not confirmed. */
+export function inferredFacts(template, facts) {
+  return template.facts.filter((f) => facts?.[f.key]?.inferred && facts[f.key].value?.trim()).map((f) => f.key)
 }
 
 export const PLACEHOLDERS = ['[не указано]', '[көрсетілмеген]']

@@ -1,5 +1,21 @@
-import { ArrowRight, CircleAlert, CircleCheck, ClipboardCopy, Download, Loader2, Lock, LockOpen, RotateCcw, Save, Sparkles, TriangleAlert, Wand2 } from 'lucide-react'
-import { hasPlaceholder, missingFacts, timelineIssues } from './templates/index.js'
+import {
+  ArrowRight,
+  Check,
+  CircleCheck,
+  ClipboardCopy,
+  Download,
+  Loader2,
+  Lock,
+  LockOpen,
+  RotateCcw,
+  Save,
+  SearchCheck,
+  Sparkles,
+  TriangleAlert,
+  Wand2,
+  X,
+} from 'lucide-react'
+import { dateIssue, hasPlaceholder, inferredFacts, missingFacts, timelineIssues } from './templates/index.js'
 
 // The five steps of «Рапортты құрастыру». Each step is a plain view over the
 // draft; the editor owns the state, saving and the server calls.
@@ -10,6 +26,51 @@ function Busy({ label }) {
       <Loader2 size={18} className="report-spin" aria-hidden="true" />
       {label}
     </span>
+  )
+}
+
+// ---- base terms, highlighted where they stand in the text ---------------------
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** One regex over every fragment the server matched; longest first. */
+function termMatcher(terms) {
+  const byFragment = new Map()
+  for (const term of terms ?? []) for (const m of term.matches ?? []) byFragment.set(m.toLowerCase(), term)
+  if (!byFragment.size) return null
+  const source = [...byFragment.keys()].sort((a, b) => b.length - a.length).map(escapeRe).join('|')
+  return { regex: new RegExp(`(${source})`, 'giu'), byFragment }
+}
+
+/** Text with base terms marked; hovering a mark shows the term in three languages. */
+export function Highlighted({ text, matcher }) {
+  if (!matcher || !text) return text
+  return text.split(matcher.regex).map((part, i) => {
+    const term = i % 2 === 1 ? matcher.byFragment.get(part.toLowerCase()) : null
+    return term ? (
+      <mark key={i} className="report-term" title={[term.kk, term.ru, term.en].filter(Boolean).join(' · ')}>
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  })
+}
+
+function TermList({ terms, lang, tr }) {
+  if (!terms?.length) return <p className="report-muted">{tr.step3.termsNone}</p>
+  return (
+    <p className="report-term-list">
+      <span className="report-term-list-lead">{tr.step3.termsLead(terms.length)}</span>{' '}
+      {terms.map((term, i) => (
+        <span key={term.id}>
+          <span className="report-term-name" title={[term.kk, term.ru, term.en].filter(Boolean).join(' · ')}>
+            {term[lang] || term.ru || term.kk}
+          </span>
+          {i < terms.length - 1 ? ', ' : ''}
+        </span>
+      ))}
+    </p>
   )
 }
 
@@ -67,23 +128,40 @@ export function StepSituation({ draft, patch, onExtract, busy, error, readOnly, 
   )
 }
 
+// ---- status line: ОБНАРУЖЕНО / ИСПРАВЛЕНО / ТРЕБУЕТ ПРОВЕРКИ / НЕ ЗАПОЛНЕНО ---
+
+function StatusBar({ items }) {
+  return (
+    <ul className="report-statusbar">
+      {items.map((item) => (
+        <li key={item.key} className={`report-statusbar-item report-statusbar-item--${item.key}`}>
+          <span className="report-statusbar-num">{item.value}</span>
+          <span className="report-statusbar-label">{item.label}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 // ---- 2. Основные сведения ---------------------------------------------------
 
-/** «Сообщение 22:00 → Прибытие 09:00 — 11 ч 0 мин» for the chronology warnings. */
+/** «Сообщение 22:00 → Прибытие 09:00 — 11 ч 0 мин» / «Выезд раньше сообщения». */
 function timelineText(issue, template, lang, tr) {
   const label = (key) => template.facts.find((f) => f.key === key)?.label[lang]
+  if (issue.order) return tr.step2.chronoOrder(label(issue.to), issue.toTime, label(issue.from), issue.fromTime)
   const h = Math.floor(issue.gapMin / 60)
   const m = issue.gapMin % 60
   return tr.step2.chronoGap(label(issue.from), issue.fromTime, label(issue.to), issue.toTime, h, m)
 }
 
-function FactField({ field, fact, onChange, readOnly, tr, lang }) {
+function FactField({ field, fact, onChange, onConfirm, readOnly, tr, lang }) {
   const empty = !fact.value?.trim()
+  const inferred = fact.inferred && !empty
   return (
     <div
-      className={`report-fact${field.required && empty ? ' report-fact--missing' : ''}${field.wide ? ' report-fact--wide' : ''}${
-        field.time ? ' report-fact--time' : ''
-      }`}
+      className={`report-fact${field.required && empty ? ' report-fact--missing' : ''}${inferred ? ' report-fact--inferred' : ''}${
+        field.wide ? ' report-fact--wide' : ''
+      }${field.time ? ' report-fact--time' : ''}`}
     >
       <label className="report-fact-label" htmlFor={`fact-${field.key}`}>
         {field.label[lang]}
@@ -101,7 +179,14 @@ function FactField({ field, fact, onChange, readOnly, tr, lang }) {
         placeholder={field.time ? '00:00' : ''}
         readOnly={readOnly}
       />
-      {fact.quote && (
+      {inferred && !readOnly && (
+        <button type="button" className="report-confirm" onClick={() => onConfirm(field.key)} title={fact.quote ? `«${fact.quote}»` : undefined}>
+          <span className="report-confirm-tag">{tr.step2.inferredTag}</span>
+          <Check size={13} aria-hidden="true" />
+          {tr.step2.confirm}
+        </button>
+      )}
+      {!inferred && fact.quote && (
         <p className="report-quote" title={fact.quote}>
           «{fact.quote}»
         </p>
@@ -112,13 +197,24 @@ function FactField({ field, fact, onChange, readOnly, tr, lang }) {
 
 export function StepFacts({ draft, template, patch, onCompose, busy, error, readOnly, tr, lang }) {
   const missing = missingFacts(template, draft.facts)
+  const inferred = inferredFacts(template, draft.facts)
   const chrono = timelineIssues(template, draft.facts)
-  const setFact = (key, value) => patch({ facts: { ...draft.facts, [key]: { ...(draft.facts?.[key] ?? { quote: '' }), value } } })
   const factOf = (key) => draft.facts?.[key] ?? { value: '', quote: '' }
+  // Editing a value is the user's own statement — it is no longer a guess.
+  const setFact = (key, value) => patch({ facts: { ...draft.facts, [key]: { ...factOf(key), value, inferred: false } } })
+  const confirm = (key) => patch({ facts: { ...draft.facts, [key]: { ...factOf(key), inferred: false } } })
+  const filled = template.facts.filter((f) => factOf(f.key).value?.trim()).length
 
   return (
     <div className="report-step">
       <p className="report-step-hint">{tr.step2.hint}</p>
+      <StatusBar
+        items={[
+          { key: 'found', value: filled, label: tr.status.found },
+          { key: 'review', value: inferred.length + chrono.length, label: tr.status.review },
+          { key: 'missing', value: missing.length, label: tr.status.missing },
+        ]}
+      />
 
       <div className="report-title-row">
         <label className="report-fact-label" htmlFor="report-title">
@@ -129,20 +225,22 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
 
       {template.groups.map((group) => {
         const fields = template.facts.filter((f) => f.group === group.key)
-        const filled = fields.filter((f) => factOf(f.key).value?.trim()).length
+        const filledHere = fields.filter((f) => factOf(f.key).value?.trim()).length
         const missingHere = fields.filter((f) => missing.includes(f.key)).length
+        const inferredHere = fields.filter((f) => inferred.includes(f.key)).length
         const chronoHere = group.key === 'timeline' && chrono.length > 0
         // Key groups stay open; the others open by themselves when they hold something.
-        const startOpen = group.open || filled > 0
+        const startOpen = group.open || filledHere > 0
         return (
           <details key={group.key} className="report-group" open={startOpen}>
             <summary className="report-group-head">
               <span className="report-group-title">{group.title[lang]}</span>
               <span className="report-group-count">
-                {filled}/{fields.length}
+                {filledHere}/{fields.length}
               </span>
-              {missingHere > 0 && <span className="report-group-flag report-group-flag--warn">{tr.step2.missingCount(missingHere)}</span>}
-              {chronoHere && <span className="report-group-flag report-group-flag--warn">{tr.step2.chronoFlag}</span>}
+              {missingHere > 0 && <span className="report-group-flag report-group-flag--missing">{tr.step2.missingCount(missingHere)}</span>}
+              {inferredHere > 0 && <span className="report-group-flag report-group-flag--review">{tr.step2.inferredCount(inferredHere)}</span>}
+              {chronoHere && <span className="report-group-flag report-group-flag--review">{tr.step2.chronoFlag}</span>}
             </summary>
             {chronoHere && (
               <ul className="report-chrono">
@@ -156,17 +254,21 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
             )}
             <div className={`report-facts${group.key === 'timeline' || group.key === 'people' ? ' report-facts--times' : ''}`}>
               {fields.map((field) => (
-                <FactField key={field.key} field={field} fact={factOf(field.key)} onChange={setFact} readOnly={readOnly} tr={tr} lang={lang} />
+                <FactField
+                  key={field.key}
+                  field={field}
+                  fact={factOf(field.key)}
+                  onChange={setFact}
+                  onConfirm={confirm}
+                  readOnly={readOnly}
+                  tr={tr}
+                  lang={lang}
+                />
               ))}
             </div>
           </details>
         )
       })}
-
-      <p className={`report-summary-line${missing.length ? ' report-summary-line--warn' : ' report-summary-line--ok'}`}>
-        {missing.length ? <TriangleAlert size={18} aria-hidden="true" /> : <CircleCheck size={18} aria-hidden="true" />}
-        {missing.length ? tr.step2.missingSummary(missing.length) : tr.step2.missingNone}
-      </p>
 
       {!readOnly && (
         <div className="report-actions">
@@ -184,27 +286,21 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
 
 // ---- 3. Профессиональная формулировка ---------------------------------------
 
-export function TermChips({ terms, lang }) {
-  return (
-    <ul className="report-chip-list">
-      {terms.map((term) => (
-        <li key={term.id} className="report-chip report-chip--term" title={[term.kk, term.ru, term.en].filter(Boolean).join(' · ')}>
-          {term[lang] || term.ru || term.kk}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, tr, lang }) {
   const variants = draft.content?.variants ?? []
+  const matcher = termMatcher(draft.terms)
   return (
     <div className="report-step">
       <p className="report-step-hint">{tr.step3.hint}</p>
-      {draft.phrasing?.length ? (
-        <ol className="report-phrasing">
+      {busy ? (
+        <div className="report-phrasing-loading">
+          <Busy label={tr.step2.composing} />
+        </div>
+      ) : draft.phrasing?.length ? (
+        // A new key per composition replays the animation after «Составить заново».
+        <ol className="report-phrasing" key={draft.phrasing.map((p) => p.professional).join('|').length}>
           {draft.phrasing.map((p, i) => (
-            <li key={i} className="report-phrasing-item">
+            <li key={i} className="report-phrasing-item" style={{ '--i': i }}>
               <div>
                 <span className="report-phrasing-label">{tr.step3.original}</span>
                 <p className="report-phrasing-original">{p.original}</p>
@@ -212,7 +308,9 @@ export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, 
               <ArrowRight className="report-phrasing-arrow" size={20} aria-hidden="true" />
               <div>
                 <span className="report-phrasing-label">{tr.step3.professional}</span>
-                <p className="report-phrasing-pro">{p.professional}</p>
+                <p className="report-phrasing-pro">
+                  <Highlighted text={p.professional} matcher={matcher} />
+                </p>
               </div>
             </li>
           ))}
@@ -222,15 +320,15 @@ export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, 
       )}
 
       <h3 className="report-subtitle">{tr.step3.termsTitle}</h3>
-      {draft.terms?.length ? <TermChips terms={draft.terms} lang={lang} /> : <p className="report-muted">{tr.step3.termsNone}</p>}
+      <TermList terms={draft.terms} lang={lang} tr={tr} />
 
       {variants.length > 0 && (
         <>
           <h3 className="report-subtitle">{tr.step3.variantsTitle}</h3>
-          <ul className="report-chip-list">
+          <ul className="report-plain-list">
             {variants.map((v) => (
-              <li key={v.text} className="report-chip report-chip--warn">
-                {v.text} → {tr.step3.variantOfficial} {v.official}
+              <li key={v.text}>
+                «{v.text}» → {tr.step3.variantOfficial} «{v.official}»
               </li>
             ))}
           </ul>
@@ -248,7 +346,6 @@ export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, 
           {tr.step3.next}
           <ArrowRight size={18} aria-hidden="true" />
         </button>
-        {busy && <Busy label={tr.step2.composing} />}
       </div>
       {error && <p className="report-error">{error}</p>}
     </div>
@@ -268,15 +365,18 @@ export function StepDraft({ draft, template, patchContent, onNext, readOnly, tr,
           {template.header.map((field) => (
             <label key={field.key} className="report-header-field">
               <span className="report-label">{field.label[lang]}</span>
-              <input
-                className="report-input"
+              {/* Several lines: position, rank and name each on its own line. */}
+              <textarea
+                className="report-textarea report-textarea--header"
                 value={content.header?.[field.key] ?? ''}
                 placeholder={field.placeholder[lang]}
                 onChange={(e) => patchContent({ header: { ...content.header, [field.key]: e.target.value } })}
                 readOnly={readOnly}
+                rows={3}
               />
             </label>
           ))}
+          <p className="report-muted report-header-hint">{tr.step4.headerHint}</p>
         </fieldset>
 
         <p className="report-paper-title">{template.docTitle[lang]}</p>
@@ -304,7 +404,13 @@ export function StepDraft({ draft, template, patchContent, onNext, readOnly, tr,
           </label>
           <label className="report-header-field">
             <span className="report-label">{tr.step4.signatureLabel}</span>
-            <input className="report-input" value={content.signature ?? ''} onChange={(e) => patchContent({ signature: e.target.value })} readOnly={readOnly} />
+            <textarea
+              className="report-textarea report-textarea--header"
+              value={content.signature ?? ''}
+              onChange={(e) => patchContent({ signature: e.target.value })}
+              readOnly={readOnly}
+              rows={2}
+            />
           </label>
         </div>
       </div>
@@ -320,8 +426,9 @@ export function StepDraft({ draft, template, patchContent, onNext, readOnly, tr,
 
 // ---- 5. Финальная проверка -----------------------------------------------------
 
-/** The report as a sheet of paper (preview / what gets exported). */
-export function ReportPaper({ doc }) {
+/** The report as a sheet of paper (preview / what gets exported); base terms marked. */
+export function ReportPaper({ doc, terms }) {
+  const matcher = termMatcher(terms)
   return (
     <div className="report-paper">
       <div className="report-paper-requisites">
@@ -336,14 +443,66 @@ export function ReportPaper({ doc }) {
         .filter((p) => p?.trim())
         .map((p, i) => (
           <p key={i} className="report-paper-para">
-            {p}
+            <Highlighted text={p} matcher={matcher} />
           </p>
         ))}
       <div className="report-paper-sign">
         <span>{doc.date}</span>
-        <span>{doc.signature}</span>
+        <span className="report-paper-signature">{doc.signature}</span>
       </div>
     </div>
+  )
+}
+
+const KIND_ORDER = ['requisites', 'grammar', 'spelling', 'term', 'style']
+
+function CorrectionCard({ correction, template, onApply, onReject, readOnly, tr, lang }) {
+  const where = correction.target.startsWith('header.')
+    ? template.header.find((h) => `header.${h.key}` === correction.target)?.label[lang]
+    : template.sections.find((s) => s.key === correction.target)?.title[lang]
+  const done = correction.status !== 'pending'
+  return (
+    <li className={`report-fix report-fix--${correction.status}`}>
+      <div className="report-fix-head">
+        <span className={`report-fix-kind report-fix-kind--${correction.kind}`}>{tr.step5.kinds[correction.kind] ?? correction.kind}</span>
+        <span className="report-muted">{where}</span>
+        {correction.status === 'applied' && <span className="report-fix-state report-fix-state--applied">{tr.status.fixed}</span>}
+        {correction.status === 'rejected' && <span className="report-fix-state">{tr.step5.rejected}</span>}
+        {correction.status === 'stale' && <span className="report-fix-state">{tr.step5.stale}</span>}
+      </div>
+      <dl className="report-fix-body">
+        <dt>{tr.step5.was}</dt>
+        <dd className="report-fix-was">«{correction.was}»</dd>
+        <dt>{tr.step5.now}</dt>
+        <dd className="report-fix-now">«{correction.now}»</dd>
+        <dt>{tr.step5.reason}</dt>
+        <dd>{correction.reason}</dd>
+      </dl>
+      {!done && !readOnly && (
+        <div className="report-fix-actions">
+          <button type="button" className="report-btn report-btn--small report-btn--primary" onClick={() => onApply(correction.id)}>
+            <Check size={16} aria-hidden="true" />
+            {tr.step5.apply}
+          </button>
+          <button type="button" className="report-btn report-btn--small" onClick={() => onReject(correction.id)}>
+            <X size={16} aria-hidden="true" />
+            {tr.step5.reject}
+          </button>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function IssueCard({ title, children }) {
+  return (
+    <li className="report-issue">
+      <TriangleAlert size={20} aria-hidden="true" />
+      <div>
+        <strong>{title}</strong>
+        <div className="report-issue-details">{children}</div>
+      </div>
+    </li>
   )
 }
 
@@ -360,48 +519,126 @@ export function StepCheck({
   onCopy,
   versions,
   busy,
+  reviewing,
+  reviewError,
+  reviewOutdated,
+  onReview,
+  onApply,
+  onApplyAll,
+  onReject,
+  readOnly,
   tr,
   lang,
 }) {
   const missing = missingFacts(template, draft.facts)
+  const inferred = inferredFacts(template, draft.facts)
   const chrono = timelineIssues(template, draft.facts)
+  const dates = dateIssue(draft.facts?.date?.value, draft.content?.docDate)
   const sectionTexts = template.sections.map((s) => draft.content?.sections?.[s.key] ?? '')
   const placeholders = sectionTexts.some(hasPlaceholder)
-  const emptySections = sectionTexts.some((s) => !s.trim())
   const variants = draft.content?.variants ?? []
-  const checks = [
-    {
-      ok: missing.length === 0,
-      text: missing.length
-        ? tr.step5.factsMissing(missing.map((k) => template.facts.find((f) => f.key === k)?.label[lang]).join(', '))
-        : tr.step5.factsOk,
-    },
-    ...(chrono.length
-      ? chrono.map((issue) => ({ ok: false, text: timelineText(issue, template, lang, tr) }))
-      : [{ ok: true, text: tr.step5.chronoOk }]),
-    { ok: !placeholders, text: placeholders ? tr.step5.placeholdersLeft : tr.step5.placeholdersOk },
-    { ok: !emptySections, text: emptySections ? tr.step5.sectionsEmpty : tr.step5.sectionsOk },
-    { ok: draft.terms?.length > 0, text: draft.terms?.length ? tr.step5.termsOk(draft.terms.length) : tr.step5.termsNone, info: true },
-    ...(variants.length ? [{ ok: false, text: tr.step5.variantsLeft(variants.length) }] : []),
-  ]
+  const review = draft.content?.review
+  const corrections = [...(review?.corrections ?? [])].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind))
+  const pending = corrections.filter((c) => c.status === 'pending')
+  const applied = corrections.filter((c) => c.status === 'applied')
+  const aiIssues = review?.issues ?? []
+  const factLabel = (k) => template.facts.find((f) => f.key === k)?.label[lang]
+
+  const found = corrections.length + aiIssues.length + chrono.length + (dates ? 1 : 0) + variants.length
+  const needsReview = pending.length + aiIssues.length + chrono.length + (dates ? 1 : 0) + inferred.length + variants.length
+  const notFilled = missing.length + (placeholders ? 1 : 0)
   const final = draft.status === 'final'
   const formatDate = (value) => new Date(value).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 
   return (
     <div className="report-step report-check">
       <p className="report-step-hint">{tr.step5.hint}</p>
+      <StatusBar
+        items={[
+          { key: 'found', value: found, label: tr.status.found },
+          { key: 'fixed', value: applied.length, label: tr.status.fixed },
+          { key: 'review', value: needsReview, label: tr.status.review },
+          { key: 'missing', value: notFilled, label: tr.status.missing },
+        ]}
+      />
+
       <div className="report-check-grid">
-        <div>
-          <h3 className="report-subtitle">{tr.step5.checksTitle}</h3>
-          <ul className="report-checks">
-            {checks.map((c, i) => (
-              <li key={i} className={`report-check-item report-check-item--${c.ok ? 'ok' : c.info ? 'info' : 'warn'}`}>
-                {c.ok ? <CircleCheck size={20} aria-hidden="true" /> : <CircleAlert size={20} aria-hidden="true" />}
-                <span>{c.text}</span>
-              </li>
+        <div className="report-check-side">
+          <div className="report-check-toolbar">
+            <h3 className="report-subtitle">{tr.step5.checksTitle}</h3>
+            {!readOnly && (
+              <button type="button" className="report-btn report-btn--small" onClick={onReview} disabled={reviewing}>
+                <SearchCheck size={16} aria-hidden="true" />
+                {reviewing ? tr.step5.reviewing : tr.step5.check}
+              </button>
+            )}
+          </div>
+          {reviewing && <Busy label={tr.step5.reviewing} />}
+          {reviewError && <p className="report-error">{reviewError}</p>}
+          {reviewOutdated && !reviewing && <p className="report-note">{tr.step5.outdated}</p>}
+
+          {/* Logic problems first: they need the user's attention, not a click. */}
+          <ul className="report-issues">
+            {dates && (
+              <IssueCard title={tr.step5.dateTitle}>
+                {tr.step5.dateDetails(dates.incidentDate, dates.reportDate)}
+              </IssueCard>
+            )}
+            {chrono.map((issue) => (
+              <IssueCard key={`${issue.from}-${issue.to}`} title={tr.step5.chronoTitle}>
+                {timelineText(issue, template, lang, tr)}
+              </IssueCard>
+            ))}
+            {aiIssues.map((issue, i) => (
+              <IssueCard key={i} title={issue.title}>
+                {issue.details}
+              </IssueCard>
+            ))}
+            {inferred.length > 0 && (
+              <IssueCard title={tr.step5.inferredTitle}>{tr.step5.inferredDetails(inferred.map(factLabel).join(', '))}</IssueCard>
+            )}
+            {missing.length > 0 && <IssueCard title={tr.status.missing}>{missing.map(factLabel).join(', ')}</IssueCard>}
+            {placeholders && <IssueCard title={tr.status.missing}>{tr.step5.placeholdersLeft}</IssueCard>}
+            {variants.map((v) => (
+              <IssueCard key={v.text} title={tr.step3.variantsTitle}>
+                «{v.text}» → {tr.step3.variantOfficial} «{v.official}»
+              </IssueCard>
             ))}
           </ul>
-          {draft.terms?.length > 0 && <TermChips terms={draft.terms} lang={lang} />}
+          {review && !reviewing && !aiIssues.length && !chrono.length && !dates && !missing.length && !placeholders && (
+            <p className="report-summary-line report-summary-line--ok">
+              <CircleCheck size={18} aria-hidden="true" />
+              {tr.step5.noIssues}
+            </p>
+          )}
+
+          {corrections.length > 0 && (
+            <>
+              <div className="report-check-toolbar">
+                <h3 className="report-subtitle">{tr.step5.correctionsTitle}</h3>
+                {pending.length > 1 && !readOnly && (
+                  <button type="button" className="report-btn report-btn--small report-btn--primary" onClick={onApplyAll}>
+                    <Check size={16} aria-hidden="true" />
+                    {tr.step5.applyAll(pending.length)}
+                  </button>
+                )}
+              </div>
+              <ul className="report-fixes">
+                {corrections.map((c) => (
+                  <CorrectionCard key={c.id} correction={c} template={template} onApply={onApply} onReject={onReject} readOnly={readOnly} tr={tr} lang={lang} />
+                ))}
+              </ul>
+            </>
+          )}
+          {review && !reviewing && corrections.length === 0 && (
+            <p className="report-summary-line report-summary-line--ok">
+              <CircleCheck size={18} aria-hidden="true" />
+              {tr.step5.noCorrections}
+            </p>
+          )}
+
+          <h3 className="report-subtitle">{tr.step3.termsTitle}</h3>
+          <TermList terms={draft.terms} lang={lang} tr={tr} />
           <button type="button" className="report-btn report-btn--small" onClick={onRecheck} disabled={checking}>
             <RotateCcw size={16} aria-hidden="true" />
             {checking ? tr.step5.checking : tr.step5.recheck}
@@ -453,9 +690,13 @@ export function StepCheck({
         </div>
         <div>
           <h3 className="report-subtitle">{tr.step5.previewTitle}</h3>
-          <ReportPaper doc={doc} />
+          <p className="report-muted report-preview-note">
+            <mark className="report-term">{tr.step5.termSample}</mark> — {tr.step5.termLegend}
+          </p>
+          <ReportPaper doc={doc} terms={draft.terms} />
         </div>
       </div>
     </div>
   )
 }
+

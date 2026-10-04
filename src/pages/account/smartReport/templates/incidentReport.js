@@ -62,7 +62,8 @@ export const incidentReport = {
     // Последствия и причина
     { key: 'damage', group: 'consequences', label: L('Залал', 'Ущерб') },
     { key: 'cause', group: 'consequences', label: L('Болжамды себебі', 'Предполагаемая причина') },
-    { key: 'staffInjuries', group: 'consequences', label: L('Жеке құрамның жарақаттары, техника ақаулары', 'Травмы личного состава, неисправности техники') },
+    { key: 'staffInjuries', group: 'consequences', label: L('Жеке құрамның жарақаттары', 'Травмы личного состава') },
+    { key: 'equipmentFaults', group: 'consequences', label: L('Техника ақаулары', 'Неисправности техники') },
     { key: 'other', group: 'consequences', wide: true, label: L('Басқа мәліметтер', 'Другая информация') },
   ],
   // Order of events; `maxGapMin` = a longer gap from the previous point is

@@ -881,3 +881,341 @@
 .report-summary-line--ok {
   color: var(--green);
 }
+
+/* ---- status line: Обнаружено / Исправлено / Требует проверки / Не заполнено ---- */
+.report-statusbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.report-statusbar-item {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.report-statusbar-num {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.report-statusbar-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-soft);
+}
+.report-statusbar-item--found {
+  border-left-color: var(--navy);
+  .report-statusbar-num {
+    color: var(--navy);
+  }
+}
+.report-statusbar-item--fixed {
+  border-left-color: var(--green);
+  .report-statusbar-num {
+    color: var(--green);
+  }
+}
+.report-statusbar-item--review {
+  border-left-color: var(--yellow);
+  .report-statusbar-num {
+    color: var(--yellow);
+  }
+}
+.report-statusbar-item--missing {
+  border-left-color: var(--red);
+  .report-statusbar-num {
+    color: var(--red);
+  }
+}
+
+.report-group-flag--missing {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.report-group-flag--review {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+/* «Предположение — Подтвердить» under a field filled from context */
+.report-fact--inferred .report-input {
+  border-style: dashed;
+  border-color: var(--yellow);
+  background: var(--yellow-bg);
+}
+.report-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 5px;
+  padding: 2px 8px 2px 2px;
+  border: 1px solid var(--yellow);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--yellow-bg);
+  }
+}
+.report-confirm-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+/* ---- base terms marked in the text ---- */
+.report-term {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: rgba(27, 79, 140, 0.12);
+  box-shadow: inset 0 -2px 0 rgba(27, 79, 140, 0.55);
+  color: inherit;
+  cursor: help;
+}
+.report-term-list {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.report-term-list-lead {
+  color: var(--text-soft);
+}
+.report-term-name {
+  color: var(--navy);
+  font-weight: 600;
+  border-bottom: 1px dotted var(--navy);
+  cursor: help;
+}
+.report-plain-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.report-preview-note {
+  margin-bottom: 8px;
+}
+
+/* ---- step 3: corrections appear one by one ---- */
+.report-phrasing-loading {
+  padding: var(--space-4);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+}
+.report-phrasing-item {
+  animation: report-phrase-in 0.45s ease both;
+  animation-delay: calc(var(--i, 0) * 0.35s);
+}
+.report-phrasing-original {
+  text-decoration-line: line-through;
+  text-decoration-color: transparent;
+  animation: report-strike 0.4s ease forwards;
+  animation-delay: calc(var(--i, 0) * 0.35s + 0.35s);
+}
+.report-phrasing-arrow {
+  animation: report-arrow 0.4s ease both;
+  animation-delay: calc(var(--i, 0) * 0.35s + 0.45s);
+}
+.report-phrasing-pro {
+  animation: report-pro-in 0.45s ease both;
+  animation-delay: calc(var(--i, 0) * 0.35s + 0.6s);
+}
+@keyframes report-phrase-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes report-strike {
+  to {
+    text-decoration-color: rgba(200, 31, 46, 0.6);
+  }
+}
+@keyframes report-arrow {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+@keyframes report-pro-in {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-phrasing-item,
+  .report-phrasing-original,
+  .report-phrasing-arrow,
+  .report-phrasing-pro {
+    animation: none;
+  }
+}
+
+/* ---- step 4: requisites on several lines ---- */
+.report-textarea--header {
+  min-height: 0;
+  line-height: 1.45;
+  resize: vertical;
+}
+.report-header-hint {
+  font-size: 12px;
+}
+.report-paper-requisites p,
+.report-paper-signature {
+  white-space: pre-line;
+}
+.report-paper-requisites p + p {
+  margin-top: 8px;
+}
+
+/* ---- step 5: findings ---- */
+.report-check-side {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+.report-check-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  .report-subtitle {
+    margin: var(--space-3) 0 0;
+  }
+  .report-btn--small {
+    margin-top: var(--space-3);
+  }
+}
+.report-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--yellow-bg);
+  font-size: 13px;
+}
+.report-issues,
+.report-fixes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.report-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--yellow);
+  border-radius: 10px;
+  background: var(--yellow-bg);
+  font-size: 14px;
+
+  > svg {
+    flex-shrink: 0;
+    color: var(--yellow);
+  }
+}
+.report-issue-details {
+  margin-top: 2px;
+  color: var(--text);
+  line-height: 1.45;
+}
+.report-fix {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 14px;
+}
+.report-fix--applied {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.report-fix--rejected,
+.report-fix--stale {
+  opacity: 0.6;
+}
+.report-fix-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 6px;
+}
+.report-fix-kind {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--blue-light);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+.report-fix-kind--requisites {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+.report-fix-state {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.report-fix-state--applied {
+  color: var(--green);
+}
+.report-fix-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+
+  dt {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-soft);
+    padding-top: 2px;
+  }
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+.report-fix-was {
+  color: var(--red);
+  text-decoration: line-through;
+  text-decoration-color: rgba(200, 31, 46, 0.45);
+}
+.report-fix-now {
+  color: var(--green);
+  font-weight: 600;
+}
+.report-fix-actions {
+  display: flex;
+  gap: 8px;
+
+  .report-btn--small {
+    margin-top: 8px;
+  }
+}

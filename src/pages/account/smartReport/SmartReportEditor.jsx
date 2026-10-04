@@ -5,8 +5,8 @@ import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { useToast } from '../../../components/ToastContext.jsx'
-import { DEFAULT_TEMPLATE, missingFacts, templateFor } from './templates/index.js'
-import { composeReport, extractFacts, ReportError, termsInReport } from './reportClient.js'
+import { DEFAULT_TEMPLATE, inferredFacts, missingFacts, templateFor } from './templates/index.js'
+import { composeReport, extractFacts, ReportError, reviewReport, termsInReport } from './reportClient.js'
 import { createReport, loadReport, loadVersions, saveVersion, updateReport } from './useWorkReports.js'
 import { reportToDocx } from './exportDocx.js'
 import { StepCheck, StepDraft, StepFacts, StepPhrasing, StepSituation } from './ReportSteps.jsx'
@@ -97,6 +97,8 @@ function SmartReportEditor() {
   const [saveState, setSaveState] = useState('idle')
   const [checking, setChecking] = useState(false)
   const [versions, setVersions] = useState([])
+  const [reviewing, setReviewing] = useState(false)
+  const [reviewError, setReviewError] = useState('')
   const dirty = useRef(false)
 
   const template = templateFor(draft?.report_type)
@@ -162,7 +164,7 @@ function SmartReportEditor() {
     setBusy(true)
     setError('')
     try {
-      const out = await extractFacts(text, draft.lang)
+      const out = await extractFacts(text, draft.lang, today())
       const fields = {
         facts: out.facts,
         title: draft.title || out.title,
@@ -191,6 +193,7 @@ function SmartReportEditor() {
       const out = await composeReport({
         text: draft.source_text,
         facts: Object.fromEntries(template.facts.map((f) => [f.key, draft.facts?.[f.key]?.value ?? ''])),
+        inferred: inferredFacts(template, draft.facts),
         sections: template.sections.map((s) => ({ key: s.key, title: s.title[draft.lang], guidance: s.guidance })),
         lang: draft.lang,
       })
@@ -198,7 +201,7 @@ function SmartReportEditor() {
         phrasing: out.phrasing,
         terms: out.terms,
         missing: missingFacts(template, draft.facts),
-        content: { ...draft.content, sections: Object.fromEntries(out.sections.map((s) => [s.key, s.text])), variants: out.variants },
+        content: { ...draft.content, sections: Object.fromEntries(out.sections.map((s) => [s.key, s.text])), variants: out.variants, review: null },
         step: 3,
       })
     } catch (err) {
@@ -214,17 +217,83 @@ function SmartReportEditor() {
     setChecking(true)
     try {
       const out = await termsInReport(Object.values(draft.content?.sections ?? {}), draft.lang)
-      patch({ terms: out.terms, content: { ...draft.content, variants: out.variants } })
+      patch({ terms: out.terms })
+      patchContent({ variants: out.variants })
     } catch {
       /* the previous result stays */
     } finally {
       setChecking(false)
     }
-  }, [draft, patch])
+  }, [draft, patch, patchContent])
+
+  // ---- step 5: proof-reading + logic check (было / стало / причина) ----
+  const reviewBasis = (d) => JSON.stringify([d.content?.header ?? {}, d.content?.sections ?? {}])
+
+  const runReview = useCallback(async () => {
+    if (!draft) return
+    setReviewing(true)
+    setReviewError('')
+    try {
+      const out = await reviewReport({
+        header: draft.content?.header ?? {},
+        sections: template.sections.map((s) => ({ key: s.key, text: draft.content?.sections?.[s.key] ?? '' })),
+        facts: Object.fromEntries(template.facts.map((f) => [f.key, draft.facts?.[f.key]?.value ?? ''])),
+        lang: draft.lang,
+      })
+      patchContent({
+        review: {
+          corrections: out.corrections.map((c, i) => ({ ...c, id: i, status: 'pending' })),
+          issues: out.issues,
+          basis: reviewBasis(draft),
+          at: new Date().toISOString(),
+        },
+      })
+    } catch (err) {
+      setReviewError(errorText(err))
+    } finally {
+      setReviewing(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, template, patchContent])
+
+  /** Applies corrections (ids) to the header / sections and marks them applied. */
+  const applyCorrections = (ids) => {
+    dirty.current = true
+    setDraft((current) => {
+      const content = current.content ?? {}
+      const header = { ...content.header }
+      const sections = { ...content.sections }
+      const corrections = (content.review?.corrections ?? []).map((c) => {
+        if (!ids.includes(c.id) || c.status !== 'pending') return c
+        const isHeader = c.target.startsWith('header.')
+        const key = isHeader ? c.target.slice(7) : c.target
+        const text = (isHeader ? header[key] : sections[key]) ?? ''
+        const at = text.indexOf(c.was)
+        if (at < 0) return { ...c, status: 'stale' }
+        const next = text.slice(0, at) + c.now + text.slice(at + c.was.length)
+        if (isHeader) header[key] = next
+        else sections[key] = next
+        return { ...c, status: 'applied' }
+      })
+      const review = { ...content.review, corrections }
+      return { ...current, content: { ...content, header, sections, review: { ...review, basis: reviewBasis({ content: { header, sections } }) } } }
+    })
+  }
+
+  const rejectCorrection = (id) => {
+    dirty.current = true
+    setDraft((current) => {
+      const review = current.content?.review
+      if (!review) return current
+      const corrections = review.corrections.map((c) => (c.id === id ? { ...c, status: 'rejected' } : c))
+      return { ...current, content: { ...current.content, review: { ...review, corrections } } }
+    })
+  }
 
   const enterCheck = () => {
     goTo(5)
     recheckTerms()
+    if (!draft.content?.review) runReview()
   }
 
   const doc = useMemo(() => (draft ? assemble(draft, template) : null), [draft, template])
@@ -386,6 +455,13 @@ function SmartReportEditor() {
             onExport={handleExport}
             onCopy={handleCopy}
             versions={versions}
+            reviewing={reviewing}
+            reviewError={reviewError}
+            reviewOutdated={Boolean(draft.content?.review) && draft.content.review.basis !== reviewBasis(draft)}
+            onReview={runReview}
+            onApply={(id) => applyCorrections([id])}
+            onApplyAll={() => applyCorrections((draft.content?.review?.corrections ?? []).map((c) => c.id))}
+            onReject={rejectCorrection}
           />
         )}
       </section>

@@ -27,12 +27,17 @@ function paragraph(text, { align = 'both', indent = false, bold = false, after =
  *           paragraphs: string[], date: string, signature: string }} doc
  */
 export async function reportToDocx(doc) {
+  // Requisites and signature may span several lines (position / rank / name).
+  const lines = (text) => String(text ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const requisites = doc.header.filter((h) => h.value?.trim())
   const body = [
-    ...doc.header.filter((h) => h.value?.trim()).map((h) => paragraph(h.value, { align: 'right' })),
+    ...requisites.flatMap((h, i) =>
+      lines(h.value).map((line, j) => paragraph(line, { align: 'right', before: i > 0 && j === 0 ? 120 : 0 })),
+    ),
     paragraph(doc.title, { align: 'center', bold: true, before: 360, after: 240 }),
     ...doc.paragraphs.filter((p) => p?.trim()).map((p) => paragraph(p, { indent: true, after: 120 })),
     paragraph(doc.date, { align: 'left', before: 480 }),
-    paragraph(doc.signature, { align: 'left', before: 120 }),
+    ...lines(doc.signature).map((line, j) => paragraph(line, { align: 'left', before: j === 0 ? 120 : 0 })),
   ].join('')
 
   const zip = new JSZip()
