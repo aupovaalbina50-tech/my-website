@@ -1219,3 +1219,147 @@
     margin-top: 8px;
   }
 }
+
+/* ---- statuses: 🟢 факт · 🔵 подтверждено базой · 🟡 предположение · 🔴 требует проверки ---- */
+.report-fact-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+}
+.report-fact-status:empty {
+  display: none;
+}
+.report-dot {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.report-dot--fact {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.report-dot--assumption {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+.report-dot--missing,
+.report-dot--review {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.report-dot--base {
+  background: var(--blue-light);
+  color: var(--navy);
+}
+.report-confirm {
+  padding: 1px 8px;
+}
+
+.report-kb-note {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--navy);
+  border-radius: 0 8px 8px 0;
+  background: var(--blue-light);
+  font-size: 13px;
+  color: var(--navy);
+}
+
+/* ---- «Почему?» under a suggestion ---- */
+.report-fix-title {
+  font-size: 14px;
+  color: var(--text);
+}
+.report-fix-body dd.report-why {
+  grid-column: 1 / -1;
+}
+.report-link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--navy);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.report-why-body {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  font-size: 13px;
+  line-height: 1.5;
+
+  p {
+    margin: 0 0 4px;
+  }
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+.report-issue-source {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-soft);
+
+  a {
+    color: var(--navy);
+  }
+}
+.report-fix-body a {
+  color: var(--navy);
+}
+
+/* ---- «База знаний МЧС» (admin) ---- */
+.kb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-3);
+
+  select {
+    width: auto;
+    max-width: 220px;
+  }
+  > .report-muted {
+    flex: 1;
+    min-width: 220px;
+  }
+}
+.kb-search {
+  display: flex;
+  flex: 1;
+  min-width: 200px;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-soft);
+}
+.kb-form {
+  margin-bottom: var(--space-3);
+  padding-bottom: 12px;
+}
+.kb-form-note {
+  padding: 0 14px;
+  font-size: 12.5px;
+}
+.kb-form-actions {
+  padding: 8px 14px 0;
+}
+.kb-inactive {
+  opacity: 0.55;
+}
+.kb-pager {
+  justify-content: center;
+  margin-top: var(--space-3);
+}

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   ArrowRight,
   Check,
@@ -15,7 +16,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react'
-import { dateIssue, hasPlaceholder, inferredFacts, missingFacts, timelineIssues } from './templates/index.js'
+import { dateIssue, hasPlaceholder, inferredFacts, missingFacts, requisiteIssues, timelineIssues } from './templates/index.js'
 
 // The five steps of «Рапортты құрастыру». Each step is a plain view over the
 // draft; the editor owns the state, saving and the server calls.
@@ -72,6 +73,12 @@ function TermList({ terms, lang, tr }) {
       ))}
     </p>
   )
+}
+
+/** «Поиск по базе знаний МЧС: смысловой, найдено записей: 23» */
+function KnowledgeNote({ knowledge, tr }) {
+  if (!knowledge) return null
+  return <p className="report-kb-note">{tr.knowledgeNote(knowledge.mode, knowledge.retrieved)}</p>
 }
 
 // ---- 1. Что произошло? ------------------------------------------------------
@@ -154,8 +161,20 @@ function timelineText(issue, template, lang, tr) {
   return tr.step2.chronoGap(label(issue.from), issue.fromTime, label(issue.to), issue.toTime, h, m)
 }
 
+// A cause written with «возможно / предположительно» stays a hypothesis even when
+// the user typed it — it is never shown as a fact.
+const HYPOTHESIS = /возможн|предполож|предварит|вероятн|устанавлива|мүмкін|болжам|анықтал/i
+
+/** 🟢 факт · 🟡 предположение · 🔴 не указано. */
+function factStatus(field, fact) {
+  if (!fact?.value?.trim()) return field.required ? 'missing' : 'empty'
+  if (fact.inferred || (field.key === 'cause' && HYPOTHESIS.test(fact.value))) return 'assumption'
+  return 'fact'
+}
+
 function FactField({ field, fact, onChange, onConfirm, readOnly, tr, lang }) {
   const empty = !fact.value?.trim()
+  const status = factStatus(field, fact)
   const inferred = fact.inferred && !empty
   return (
     <div
@@ -179,14 +198,20 @@ function FactField({ field, fact, onChange, onConfirm, readOnly, tr, lang }) {
         placeholder={field.time ? '00:00' : ''}
         readOnly={readOnly}
       />
-      {inferred && !readOnly && (
-        <button type="button" className="report-confirm" onClick={() => onConfirm(field.key)} title={fact.quote ? `«${fact.quote}»` : undefined}>
-          <span className="report-confirm-tag">{tr.step2.inferredTag}</span>
-          <Check size={13} aria-hidden="true" />
-          {tr.step2.confirm}
-        </button>
-      )}
-      {!inferred && fact.quote && (
+      <div className="report-fact-status">
+        {status !== 'empty' && (
+          <span className={`report-dot report-dot--${status}`} title={fact.quote ? `«${fact.quote}»` : undefined}>
+            {tr.factStatus[status]}
+          </span>
+        )}
+        {inferred && !readOnly && (
+          <button type="button" className="report-confirm" onClick={() => onConfirm(field.key)}>
+            <Check size={13} aria-hidden="true" />
+            {tr.step2.confirm}
+          </button>
+        )}
+      </div>
+      {fact.quote && (
         <p className="report-quote" title={fact.quote}>
           «{fact.quote}»
         </p>
@@ -292,6 +317,7 @@ export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, 
   return (
     <div className="report-step">
       <p className="report-step-hint">{tr.step3.hint}</p>
+      <KnowledgeNote knowledge={draft.content?.knowledge} tr={tr} />
       {busy ? (
         <div className="report-phrasing-loading">
           <Busy label={tr.step2.composing} />
@@ -454,17 +480,82 @@ export function ReportPaper({ doc, terms }) {
   )
 }
 
-const KIND_ORDER = ['requisites', 'grammar', 'spelling', 'term', 'style']
+const KIND_ORDER = ['assumption', 'requisites', 'term', 'grammar', 'spelling', 'style']
+
+/** «Закон РК „О гражданской защите“, № 188-V от 11.04.2014, ст. 1, пп. 66» */
+function sourceLine(basis, lang) {
+  if (!basis?.source_title) return null
+  const date = basis.source_date ? new Date(basis.source_date).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null
+  return [basis.source_title, [basis.source_number, date].filter(Boolean).join(' · ')].filter(Boolean).join(', ')
+}
+
+/** Основание / Источник / Почему of a suggestion; nothing is shown that the base does not hold. */
+function Basis({ basis, confirmed, reason, tr, lang }) {
+  const [open, setOpen] = useState(false)
+  const source = sourceLine(basis, lang)
+  const definition = basis ? (lang === 'kk' ? basis.definition_kk || basis.definition_ru : basis.definition_ru || basis.definition_kk) : null
+  const official = confirmed === 'base'
+  return (
+    <>
+      <dt>{tr.step5.basisLabel}</dt>
+      <dd>
+        {official ? (basis?.kind === 'term' ? tr.step5.basisBase : tr.step5.basisDoc) : basis ? tr.step5.basisNeedsReview : confirmed === 'needs_review' ? tr.step5.basisNone : tr.step5.basisLanguage}
+      </dd>
+      {source && (
+        <>
+          <dt>{tr.step5.sourceLabel}</dt>
+          <dd>
+            {basis.source_url ? (
+              <a href={basis.source_url} target="_blank" rel="noreferrer">
+                {source}
+              </a>
+            ) : (
+              source
+            )}
+          </dd>
+        </>
+      )}
+      <dd className="report-why">
+        <button type="button" className="report-link-btn" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {tr.step5.why}
+        </button>
+        {open && (
+          <div className="report-why-body">
+            <p>{reason}</p>
+            {basis && (
+              <p>
+                <strong>{tr.step5.entryLabel}</strong> {[basis.ru, basis.kk, basis.en].filter(Boolean).join(' · ') || basis.title}
+              </p>
+            )}
+            {definition && (
+              <p>
+                <strong>{tr.step5.definitionLabel}</strong> {definition}
+              </p>
+            )}
+            {/* Clauses exist only in normative documents, not in the internal glossary (priority 1). */}
+            {basis?.source_title && basis.source_priority !== 1 && (
+              <p>{basis.clause ? `${tr.step5.clauseLabel} ${basis.clause}` : tr.step5.clauseUnknown}</p>
+            )}
+            {!basis && confirmed === 'needs_review' && <p>{tr.step5.insufficient}</p>}
+          </div>
+        )}
+      </dd>
+    </>
+  )
+}
 
 function CorrectionCard({ correction, template, onApply, onReject, readOnly, tr, lang }) {
   const where = correction.target.startsWith('header.')
     ? template.header.find((h) => `header.${h.key}` === correction.target)?.label[lang]
     : template.sections.find((s) => s.key === correction.target)?.title[lang]
   const done = correction.status !== 'pending'
+  const chip = correction.confirmed === 'base' ? 'base' : correction.confirmed === 'needs_review' ? 'review' : null
   return (
     <li className={`report-fix report-fix--${correction.status}`}>
       <div className="report-fix-head">
+        <strong className="report-fix-title">{tr.step5.problem}</strong>
         <span className={`report-fix-kind report-fix-kind--${correction.kind}`}>{tr.step5.kinds[correction.kind] ?? correction.kind}</span>
+        {chip && <span className={`report-dot report-dot--${chip}`}>{tr.factStatus[chip]}</span>}
         <span className="report-muted">{where}</span>
         {correction.status === 'applied' && <span className="report-fix-state report-fix-state--applied">{tr.status.fixed}</span>}
         {correction.status === 'rejected' && <span className="report-fix-state">{tr.step5.rejected}</span>}
@@ -475,8 +566,7 @@ function CorrectionCard({ correction, template, onApply, onReject, readOnly, tr,
         <dd className="report-fix-was">«{correction.was}»</dd>
         <dt>{tr.step5.now}</dt>
         <dd className="report-fix-now">«{correction.now}»</dd>
-        <dt>{tr.step5.reason}</dt>
-        <dd>{correction.reason}</dd>
+        <Basis basis={correction.basis} confirmed={correction.confirmed} reason={correction.reason} tr={tr} lang={lang} />
       </dl>
       {!done && !readOnly && (
         <div className="report-fix-actions">
@@ -494,13 +584,20 @@ function CorrectionCard({ correction, template, onApply, onReject, readOnly, tr,
   )
 }
 
-function IssueCard({ title, children }) {
+function IssueCard({ title, children, basis, tr, lang }) {
+  const source = sourceLine(basis, lang)
   return (
     <li className="report-issue">
       <TriangleAlert size={20} aria-hidden="true" />
       <div>
         <strong>{title}</strong>
         <div className="report-issue-details">{children}</div>
+        {source && (
+          <div className="report-issue-source">
+            {tr.step5.sourceLabel}: {basis.source_url ? <a href={basis.source_url} target="_blank" rel="noreferrer">{source}</a> : source}
+            {basis.clause ? `, ${basis.clause}` : ''}
+          </div>
+        )}
       </div>
     </li>
   )
@@ -542,10 +639,14 @@ export function StepCheck({
   const pending = corrections.filter((c) => c.status === 'pending')
   const applied = corrections.filter((c) => c.status === 'applied')
   const aiIssues = review?.issues ?? []
+  // Case of the requisites, checked without AI unless the review already proposes a fix for it.
+  const requisites = requisiteIssues(draft.content?.header, draft.lang).filter(
+    (r) => !corrections.some((c) => c.target === `header.${r.field}` && c.status !== 'rejected'),
+  )
   const factLabel = (k) => template.facts.find((f) => f.key === k)?.label[lang]
 
-  const found = corrections.length + aiIssues.length + chrono.length + (dates ? 1 : 0) + variants.length
-  const needsReview = pending.length + aiIssues.length + chrono.length + (dates ? 1 : 0) + inferred.length + variants.length
+  const found = corrections.length + aiIssues.length + chrono.length + (dates ? 1 : 0) + variants.length + requisites.length
+  const needsReview = pending.length + aiIssues.length + chrono.length + (dates ? 1 : 0) + inferred.length + variants.length + requisites.length
   const notFilled = missing.length + (placeholders ? 1 : 0)
   const final = draft.status === 'final'
   const formatDate = (value) => new Date(value).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
@@ -553,6 +654,7 @@ export function StepCheck({
   return (
     <div className="report-step report-check">
       <p className="report-step-hint">{tr.step5.hint}</p>
+      <KnowledgeNote knowledge={review?.knowledge} tr={tr} />
       <StatusBar
         items={[
           { key: 'found', value: found, label: tr.status.found },
@@ -589,8 +691,13 @@ export function StepCheck({
                 {timelineText(issue, template, lang, tr)}
               </IssueCard>
             ))}
+            {requisites.map((r) => (
+              <IssueCard key={r.field} title={tr.step5.requisiteTitle} tr={tr} lang={lang}>
+                {tr.step5.requisiteDetails(template.header.find((h) => h.key === r.field)?.label[lang], r.word, r.expected)}
+              </IssueCard>
+            ))}
             {aiIssues.map((issue, i) => (
-              <IssueCard key={i} title={issue.title}>
+              <IssueCard key={i} title={issue.title} basis={issue.basis} tr={tr} lang={lang}>
                 {issue.details}
               </IssueCard>
             ))}

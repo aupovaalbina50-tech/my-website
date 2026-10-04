@@ -201,7 +201,7 @@ function SmartReportEditor() {
         phrasing: out.phrasing,
         terms: out.terms,
         missing: missingFacts(template, draft.facts),
-        content: { ...draft.content, sections: Object.fromEntries(out.sections.map((s) => [s.key, s.text])), variants: out.variants, review: null },
+        content: { ...draft.content, sections: Object.fromEntries(out.sections.map((s) => [s.key, s.text])), variants: out.variants, review: null, knowledge: out.knowledge ?? null },
         step: 3,
       })
     } catch (err) {
@@ -244,6 +244,7 @@ function SmartReportEditor() {
         review: {
           corrections: out.corrections.map((c, i) => ({ ...c, id: i, status: 'pending' })),
           issues: out.issues,
+          knowledge: out.knowledge ?? null,
           basis: reviewBasis(draft),
           at: new Date().toISOString(),
         },

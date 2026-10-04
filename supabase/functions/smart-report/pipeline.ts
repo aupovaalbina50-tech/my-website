@@ -3,12 +3,15 @@
 //   composeReport  facts → professional wording + draft sections
 //   reviewReport   draft → corrections (было / стало / причина) + contradictions
 //   termsIn        base terms that really occur in a text (no AI)
+// Before composing and reviewing, the relevant knowledge-base entries are
+// retrieved (kb.ts) — the model never sees the whole base.
 // Every AI answer is checked here before it reaches the user: facts must be
 // quoted from the description, corrections must quote the text they change.
 
 import { loadGlossary, type GlossaryTerm } from '../doc-inspector/glossary.ts'
 import { InspectionError } from '../doc-inspector/llm.ts'
 import { callReportModel } from './model.ts'
+import { basisOf, contextLines, documentRules, type KbEntry, queriesFrom, retrieve } from './kb.ts'
 import { findTerms, formsFor, primaryText } from '../doc-inspector/matcher.ts'
 import {
   COMPOSE_SCHEMA,
@@ -27,36 +30,12 @@ export const MAX_SOURCE_CHARS = 8000
 const MAX_FACT_CHARS = 1000
 const MAX_SECTIONS = 12
 const MAX_TERMS_CHARS = 30000
-
-// Categories offered to the model as wording vocabulary. Narrow technical
-// terms (industrial_safety) are left out to keep the prompt focused.
-const REPORT_CATEGORIES = new Set([
-  'fire_safety',
-  'rescue_ops',
-  'emergencies',
-  'evacuation',
-  'coordination',
-  'disaster_medicine',
-  'civil_defense',
-  'alerting_comms',
-])
+// Knowledge-base entries given to the model per step (best first).
+const MAX_CONTEXT = 50
 
 export const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
 const bad = (message: string) => new InspectionError(400, 'bad_request', message)
-
-let cachedLines: { source: GlossaryTerm[]; lines: string } | null = null
-
-function glossaryLines(glossary: GlossaryTerm[]): string {
-  if (cachedLines?.source === glossary) return cachedLines.lines
-  const lines = glossary
-    .filter((t) => REPORT_CATEGORIES.has(t.category) && t.ru && t.kk)
-    .map((t) => `${t.ru} — ${t.kk}`)
-    .sort((a, b) => a.localeCompare(b, 'ru'))
-    .join('\n')
-  cachedLines = { source: glossary, lines }
-  return lines
-}
 
 export async function glossaryOrFail(): Promise<GlossaryTerm[]> {
   try {
@@ -172,9 +151,16 @@ export async function composeReport(body: any, lang: Lang) {
   const facts = Object.fromEntries(FACT_KEYS.map((k) => [k, str(body.facts?.[k], MAX_FACT_CHARS)]))
   const inferred = (Array.isArray(body.inferred) ? body.inferred : []).filter((k: unknown) => typeof k === 'string' && FACT_KEYS.includes(k))
 
-  const glossary = await glossaryOrFail()
+  // RAG: only the knowledge relevant to THIS description goes to the model.
+  const [glossary, found, rules] = await Promise.all([
+    glossaryOrFail(),
+    retrieve(queriesFrom([text, ...Object.values(facts).filter(Boolean)])),
+    documentRules(),
+  ])
+  const kb = found.entries.slice(0, MAX_CONTEXT)
+
   const { json: out, model } = await callReportModel({
-    system: composePrompt(lang, glossaryLines(glossary)),
+    system: composePrompt(lang, contextLines(kb, lang), contextLines(rules, lang, 'R')),
     parts: [
       {
         type: 'text',
@@ -204,8 +190,8 @@ export async function composeReport(body: any, lang: Lang) {
     .map((p: any) => ({ original: str(p?.original, 600), professional: str(p?.professional, 1200) }))
     .filter((p: any) => p.original && p.professional)
 
-  const found = termsIn(composed.map((s) => s.text).join('\n'), glossary, lang)
-  return { phrasing, sections: composed, ...found, model }
+  const terms = termsIn(composed.map((s) => s.text).join('\n'), glossary, lang)
+  return { phrasing, sections: composed, ...terms, knowledge: { mode: found.mode, retrieved: kb.length }, model }
 }
 
 // ---- review -------------------------------------------------------------------
@@ -226,8 +212,8 @@ function locate(text: string, quote: string): string {
   return m ? m[0] : ''
 }
 
-const CORRECTION_KINDS = new Set(['grammar', 'spelling', 'term', 'style', 'requisites'])
-const ISSUE_KINDS = new Set(['people', 'staff', 'equipment', 'cause', 'duplicate', 'logic', 'requisites'])
+const CORRECTION_KINDS = new Set(['grammar', 'spelling', 'term', 'style', 'requisites', 'assumption'])
+const ISSUE_KINDS = new Set(['people', 'staff', 'equipment', 'cause', 'assumption', 'duplicate', 'logic', 'requisites', 'term_check'])
 
 export async function reviewReport(body: any, lang: Lang) {
   const targets = new Map<string, string>()
@@ -240,9 +226,10 @@ export async function reviewReport(body: any, lang: Lang) {
   if (![...targets.values()].some(Boolean)) throw bad('nothing to review')
   const facts = Object.fromEntries(FACT_KEYS.map((k) => [k, str(body.facts?.[k], MAX_FACT_CHARS)]).filter(([, v]) => v))
 
-  const glossary = await glossaryOrFail()
+  const [found, rules] = await Promise.all([retrieve(queriesFrom([...targets.values()])), documentRules()])
+  const kb = found.entries.slice(0, MAX_CONTEXT)
   const { json: out, model } = await callReportModel({
-    system: reviewPrompt(lang, glossaryLines(glossary)),
+    system: reviewPrompt(lang, contextLines(kb, lang), contextLines(rules, lang, 'R')),
     parts: [
       {
         type: 'text',
@@ -257,17 +244,34 @@ export async function reviewReport(body: any, lang: Lang) {
     maxTokens: 8000,
   })
 
+  // «K3» / «R1» → the entry it names; anything else (or an invented number) → null.
+  const entryOf = (ref: unknown): KbEntry | null => {
+    const m = /^\s*\[?([KR])(\d+)\]?\s*$/i.exec(str(ref, 12))
+    if (!m) return null
+    const list = m[1].toUpperCase() === 'K' ? kb : rules
+    return list[Number(m[2]) - 1] ?? null
+  }
+
   // A correction survives only if it quotes the text it changes and actually
-  // changes something; duplicates are dropped.
+  // changes something; duplicates are dropped. A terminology change is
+  // «подтверждено базой» only when it rests on an official entry; otherwise
+  // it is shown as «требует проверки» — never as an official term.
   const seen = new Set<string>()
   const corrections = (Array.isArray(out?.corrections) ? out.corrections : [])
-    .map((c: any) => ({
-      target: str(c?.target, 40),
-      was: str(c?.was, 700),
-      now: str(c?.now, 700),
-      reason: str(c?.reason, 300),
-      kind: CORRECTION_KINDS.has(str(c?.kind, 20)) ? str(c?.kind, 20) : 'grammar',
-    }))
+    .map((c: any) => {
+      const kind = CORRECTION_KINDS.has(str(c?.kind, 20)) ? str(c?.kind, 20) : 'grammar'
+      const entry = entryOf(c?.basis)
+      const confirmed = entry && entry.status === 'official' ? 'base' : kind === 'term' ? 'needs_review' : null
+      return {
+        target: str(c?.target, 40),
+        was: str(c?.was, 700),
+        now: str(c?.now, 700),
+        reason: str(c?.reason, 300),
+        kind,
+        confirmed,
+        basis: entry ? basisOf(entry) : null,
+      }
+    })
     .map((c: any) => ({ ...c, was: locate(targets.get(c.target) ?? '', c.was) }))
     .filter((c: any) => {
       const key = `${c.target}|${c.was}`
@@ -277,12 +281,16 @@ export async function reviewReport(body: any, lang: Lang) {
     })
     .slice(0, 40)
   const issues = (Array.isArray(out?.issues) ? out.issues : [])
-    .map((i: any) => ({
-      kind: ISSUE_KINDS.has(str(i?.kind, 20)) ? str(i?.kind, 20) : 'logic',
-      title: str(i?.title, 200),
-      details: str(i?.details, 800),
-    }))
+    .map((i: any) => {
+      const entry = entryOf(i?.basis)
+      return {
+        kind: ISSUE_KINDS.has(str(i?.kind, 20)) ? str(i?.kind, 20) : 'logic',
+        title: str(i?.title, 200),
+        details: str(i?.details, 800),
+        basis: entry ? basisOf(entry) : null,
+      }
+    })
     .filter((i: any) => i.title)
     .slice(0, 20)
-  return { corrections, issues, model }
+  return { corrections, issues, knowledge: { mode: found.mode, retrieved: kb.length }, model }
 }

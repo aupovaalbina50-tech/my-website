@@ -66,6 +66,24 @@ export function dateIssue(incidentDate, reportDate) {
   return { incidentDate, reportDate }
 }
 
+// Position words at the start of a requisite, in the nominative case.
+const POSITIONS = 'начальник|заместитель|командир|руководитель|инспектор|старший|главный|дежурный|диспетчер|директор|председатель'
+
+/**
+ * Case of the requisites, without AI (Russian): «Кому» — dative
+ * («Начальнику …»), «От кого» — genitive («Начальника …»). A requisite that
+ * starts with a position in the nominative is reported.
+ */
+export function requisiteIssues(header, lang) {
+  if (lang !== 'ru') return []
+  const issues = []
+  const first = (text) => String(text ?? '').trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+  const nominative = new RegExp(`^(${POSITIONS})$`, 'i')
+  if (nominative.test(first(header?.to))) issues.push({ field: 'to', word: first(header.to), expected: 'dative' })
+  if (nominative.test(first(header?.from))) issues.push({ field: 'from', word: first(header.from), expected: 'genitive' })
+  return issues
+}
+
 /** Fields the model filled from context (not stated outright) and the user has not confirmed. */
 export function inferredFacts(template, facts) {
   return template.facts.filter((f) => facts?.[f.key]?.inferred && facts[f.key].value?.trim()).map((f) => f.key)

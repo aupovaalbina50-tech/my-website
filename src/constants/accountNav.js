@@ -8,6 +8,7 @@ import {
   Eye,
   FileText,
   FilePenLine,
+  Library,
   Landmark,
   User,
   ClipboardList,
@@ -26,6 +27,8 @@ export const ACCOUNT_NAV_ITEMS = [
   { key: 'missions', to: '/account/missions', Icon: Siren },
   { key: 'docs', to: '/account/docs', Icon: FileText },
   { key: 'smartReport', to: '/account/smart-report', Icon: FilePenLine },
+  // Shown to admins only (the page itself also checks the role).
+  { key: 'knowledge', to: '/account/knowledge', Icon: Library, adminOnly: true },
 ]
 
 // Not shown in the main sidebar (kept reachable by direct link).

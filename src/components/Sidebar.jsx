@@ -65,7 +65,7 @@ function Sidebar() {
         )}
 
         <nav className="sidebar-nav" aria-label={t.account.sidebar.aria}>
-          {ACCOUNT_NAV_ITEMS.map(({ key, to, end, Icon }) => (
+          {ACCOUNT_NAV_ITEMS.filter((item) => !item.adminOnly || profile?.role === 'admin').map(({ key, to, end, Icon }) => (
             <NavLink
               key={key}
               to={to}
