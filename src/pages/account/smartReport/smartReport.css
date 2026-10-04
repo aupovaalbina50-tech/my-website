@@ -271,7 +271,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--navy);
+  /* Always on the blue page background. */
+  color: #dbe9f8;
   font-weight: 600;
   text-decoration: none;
 
@@ -1362,4 +1363,37 @@
 .kb-pager {
   justify-content: center;
   margin-top: var(--space-3);
+}
+
+/* ---- editor header on the blue page ---- */
+/* «Сақталды» sits on the blue background: light text. */
+.report-editor-top .report-save {
+  color: #c6d8ec;
+}
+.report-editor-top .report-save--saved {
+  color: #6ee7a8;
+}
+.report-editor-top .report-save--error {
+  color: #ffb4b9;
+}
+/* Title and subtitle on a deep panel, as the other page headers. */
+.report-editor-head {
+  padding: var(--space-4) var(--space-5);
+  background: linear-gradient(160deg, #0a213f 0%, #0f305a 55%, #123d70 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 3px solid #e2343f;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(4, 14, 30, 0.35);
+
+  .report-hero-title {
+    color: #fff;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+  }
+  .report-muted {
+    color: #d2e1f2;
+  }
+
+  @media (max-width: 640px) {
+    padding: var(--space-3) var(--space-4);
+  }
 }
