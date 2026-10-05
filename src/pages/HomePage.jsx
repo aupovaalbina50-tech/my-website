@@ -1,6 +1,6 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, BookOpen, Bookmark, Flame, GraduationCap, Presentation, Globe } from 'lucide-react'
+import { Search, BookOpen, Bookmark, Building2, GraduationCap, Presentation, Globe } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { SECTION_IDS } from '../constants/navigation.js'
@@ -49,7 +49,7 @@ const StepsSection = memo(function StepsSection({ t }) {
   )
 })
 
-const AUDIENCE_ICONS = [GraduationCap, Flame, Presentation, BookOpen]
+const AUDIENCE_ICONS = [GraduationCap, Building2, Presentation, BookOpen]
 
 const AudienceSection = memo(function AudienceSection({ t }) {
   return (
