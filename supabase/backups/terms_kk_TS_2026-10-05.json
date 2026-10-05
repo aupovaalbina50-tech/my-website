@@ -1,0 +1,35 @@
+[
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "alerting_comms",
+    "created_at": "2026-08-09T07:22:41.699596+00:00",
+    "en": "digital subscriber channel",
+    "id": "67b6c29d-18f0-40cb-a995-56b45a72dadc",
+    "kk": "ЦАА цифрлы абонент арнасы",
+    "ru": "ЦАК цифровой абонентский канал"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "alerting_comms",
+    "created_at": "2026-08-09T07:22:41.699596+00:00",
+    "en": "DAC (digital-to-analog converter)",
+    "id": "f5fc7303-9fdb-4a63-b793-c1c807786e17",
+    "kk": "ЦАТ цифрлы-аналогтық түрлендіргіш",
+    "ru": "ЦАП цифро-аналоговый преобразователь"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "digital designation",
+    "id": "1135ddb7-dc93-42bb-b466-80e0dc2bc8a4",
+    "kk": "цифрлық белгі",
+    "ru": "обозначение цифровое"
+  }
+]
