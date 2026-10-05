@@ -1,0 +1,178 @@
+[
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "method, technique",
+    "id": "0d6c7816-f9fe-478b-a26a-4073441175c0",
+    "kk": "әдіс, тәсіл, амал",
+    "ru": "метод"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "methodology",
+    "id": "4dbbfccc-734e-4f9f-8882-0212d3e3b8b3",
+    "kk": "әдістеме",
+    "ru": "методика"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "civil_defense",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "glazing",
+    "id": "32743224-f988-4795-8732-7eefb92bdd1f",
+    "kk": "әйнектеу",
+    "ru": "остекление"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "administration, authorities",
+    "id": "f0285e8f-7e63-48b1-a909-f37dc1aa4eea",
+    "kk": "әкімшілік",
+    "ru": "администрация"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "mitigation; attenuation",
+    "id": "8f624e12-4cb9-4236-9ead-a4bf7e86ad4c",
+    "kk": "әлсіреу",
+    "ru": "ослабление"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "activity, occupancy",
+    "id": "4045261b-96e9-415d-9937-6ffdb2ce65e0",
+    "kk": "әрекет",
+    "ru": "деятельность"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "act, action",
+    "id": "fd2eadd4-8ce8-48c9-9797-7c0ae3a627d7",
+    "kk": "әрекет",
+    "ru": "действие"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "capacity",
+    "id": "b535d507-82c9-49cf-b761-3ff7e8a7725c",
+    "kk": "әрекет қабілеттілік",
+    "ru": "дееспособность"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "heterogeneous (surface) combustion",
+    "id": "6b15fd83-08fd-4fb9-9dc2-bf9b00d8a6ad",
+    "kk": "әртектілік (беттік) жану",
+    "ru": "горение гетерогенное (поверхностное)"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "disaster_medicine",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "bodily injuries of varying severity",
+    "id": "9b5088a8-f458-4cc8-b083-6a0730e0b34c",
+    "kk": "әртүрлі ауырлық дәрежесіндегі дене жарақаттары",
+    "ru": "телесные повреждения различной степени тяжести"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "impact, effect, influence, affection",
+    "id": "40cd4dd8-3013-4a39-8398-5115cc02c8c8",
+    "kk": "әсер",
+    "ru": "влияние"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "rescue_ops",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "fighter, ranger, man",
+    "id": "144d468e-1b6e-49ee-9221-bd3ee4885f94",
+    "kk": "әскер, жауынгер, сарбаз",
+    "ru": "боец"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "fire sector boss, sector boss",
+    "id": "7fd99516-58ec-4e0c-8a51-ed962cb54d1c",
+    "kk": "әскери бөлімше бастығы",
+    "ru": "начальник боевого участка"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "civil_defense",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "military organization",
+    "id": "eb26872f-ee4a-4cf1-af10-133d43756bad",
+    "kk": "әскери ұйым",
+    "ru": "военная организация"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "alerting_comms",
+    "created_at": "2026-08-09T07:12:37.044914+00:00",
+    "en": "aerial cable",
+    "id": "56b5ddcf-a110-4b5b-9354-4cf3fbd3b233",
+    "kk": "әуе кабелі",
+    "ru": "воздушный кабель"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "airport fire-fighting vehicle",
+    "id": "182b3f15-6237-418c-8562-6a953133ab86",
+    "kk": "әуеайлақ өрт сөндіру автомобилі",
+    "ru": "автомобиль аэродромный пожарный"
+  }
+]
