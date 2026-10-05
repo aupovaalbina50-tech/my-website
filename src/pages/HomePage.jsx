@@ -212,6 +212,7 @@ function HomePage() {
         <div className="hero-search">
           <p className="hero-kicker">{t.hero.kicker}</p>
           <h2 className="hero-headline">{t.hero.headline}</h2>
+          <p className="hero-subline">{t.hero.subline}</p>
           <div className="hero-search-box" ref={searchWrapRef}>
             <input
               ref={searchInputRef}
