@@ -1,0 +1,35 @@
+[
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "vacuum pump",
+    "id": "c3c40fa2-f02f-4163-a13f-205b9f93b2db",
+    "kk": "вакуумдық сорап",
+    "ru": "вакуумный насос"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "evacuation",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "lobby",
+    "id": "48271607-5d9f-47f6-933c-c97403af4a0b",
+    "kk": "вестибюль",
+    "ru": "вестибюль"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "vibration concreting",
+    "id": "420e8b59-a113-4551-a77b-44741ba9747b",
+    "kk": "вибрациялы құйматастау",
+    "ru": "бетонирование вибрационное"
+  }
+]
