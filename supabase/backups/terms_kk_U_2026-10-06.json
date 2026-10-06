@@ -1,0 +1,46 @@
+[
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:22:41.699596+00:00",
+    "en": "authorized",
+    "id": "ea1b472b-0cf2-4bf3-928e-8e4c85cc6a55",
+    "kk": "уәкілетті",
+    "ru": "уполномоченный"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-09T07:22:41.699596+00:00",
+    "en": "authorize",
+    "id": "a24f8304-15de-444d-87a6-50107b2467f6",
+    "kk": "уәкілеттік беру",
+    "ru": "уполномочивать"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "disaster_medicine",
+    "created_at": "2026-08-09T07:22:41.699596+00:00",
+    "en": "intoxication",
+    "id": "c138cdf8-c5b5-4d4d-a36c-f087973b0a42",
+    "kk": "улану",
+    "ru": "интоксикация"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "disaster_medicine",
+    "created_at": "2026-08-23T11:12:51.83933+00:00",
+    "en": "toxic dose",
+    "id": "13a1f9a1-fcb2-414b-81cd-01895b16dc06",
+    "kk": "уытты доза",
+    "ru": "токсическая доза"
+  }
+]
