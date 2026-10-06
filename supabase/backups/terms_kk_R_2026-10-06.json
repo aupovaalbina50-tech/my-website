@@ -1,0 +1,178 @@
+[
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radiation warning",
+    "id": "180a0b13-f922-4608-8fb7-7a7d16aebe2a",
+    "kk": "радиациялық қауіп",
+    "ru": "радиационная опасность"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radiological safety",
+    "id": "06fd303b-685d-4dc5-aa30-fb17384d6ed5",
+    "kk": "радиациялық қауіпсіздік",
+    "ru": "радиационная безопасность"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radiation safety regulations",
+    "id": "60d3c806-19a4-42f8-8fa2-38fc4e58072b",
+    "kk": "радиациялық қауіпсіздік бойынша нормативті құжаттар",
+    "ru": "нормативные документы по радиационной безопасности"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radiological release, release of radiation",
+    "id": "4e1432d7-af5b-49db-936e-a13aabb7af8f",
+    "kk": "радийбелсенділіктің шығарындылары",
+    "ru": "выброс радиоактивности"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radiation detector",
+    "id": "e93211bd-1ec8-4079-bb44-086fc352aec4",
+    "kk": "радийизотопты өрт хабарлағышы",
+    "ru": "радиоизотопный пожарный оповещатель"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "civil_defense",
+    "created_at": "2026-10-05T15:30:23.867325+00:00",
+    "en": "radioactive material activity",
+    "id": "2dbded7c-f488-4529-9d6f-58c061f57668",
+    "kk": "радиоактив заттектің белсенділігі",
+    "ru": "активность радиоактивного вещества"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radio iodine concentration",
+    "id": "e8eadb06-4d1c-4ca4-a1e2-89967721d911",
+    "kk": "радиоактивті йодтың шоғырлануы",
+    "ru": "концентрация радиоактивного йода"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "rescue_ops",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "communication set breathing apparatus",
+    "id": "8f56f244-6ae1-4a8b-b607-a46c28c7e5e1",
+    "kk": "радиобайланыс жүйесімен тыныс алу аппараты",
+    "ru": "дыхательный аппарат с системой радиосвязи"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radio-frequency power",
+    "id": "42af8a02-9915-47da-8558-0260b4edf55a",
+    "kk": "радиосәулелену қуаты (өртті қоздыруға арналған)",
+    "ru": "мощность радиоизлучения (для инициирования пожара)"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "alerting_comms",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "radio transmitter",
+    "id": "87a9118b-4bfe-44e2-95f2-98c0ba72ef0a",
+    "kk": "радиотаратқыш",
+    "ru": "радиопередатчик"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "reserve engine",
+    "id": "7cb1592d-dfc5-4721-8366-fc52e95e389b",
+    "kk": "резервтік автомобиль",
+    "ru": "резервный автомобиль"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "reserve apparatus",
+    "id": "c8d0bd83-87b6-410e-b0be-7d2e02d34da9",
+    "kk": "резервтік аппарат",
+    "ru": "резервный аппарат"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "fire_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "reserve fire team",
+    "id": "8ebf51d9-e26d-4f92-a252-99ffda03d34e",
+    "kk": "резервтік өрт сөндірушілер командасы",
+    "ru": "резервная пожарная команда"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "tank farm",
+    "id": "600ad00d-c515-4cbf-abe8-05d50eebd4a9",
+    "kk": "резервуарлық парк",
+    "ru": "резервуарный парк"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "coordination",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "resource category",
+    "id": "0384e25e-0fb0-4044-9611-097161fbdf4d",
+    "kk": "ресурстар санаты",
+    "ru": "категория ресурсов"
+  },
+  {
+    "audio_en": null,
+    "audio_kk": null,
+    "audio_ru": null,
+    "category": "industrial_safety",
+    "created_at": "2026-08-23T11:09:38.875693+00:00",
+    "en": "allowable concentration",
+    "id": "96087694-0b52-45be-b4e0-4d2449b20bfa",
+    "kk": "рұқсат етілген концентрация",
+    "ru": "допустимая концентрация"
+  }
+]
