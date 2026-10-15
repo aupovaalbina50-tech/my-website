@@ -6,6 +6,7 @@ import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { categoryLucideIcon } from '../../constants/categoryIcons.js'
 import { toSentenceCase } from '../../utils/textCase.js'
+import { HIDDEN_LETTERS } from '../../constants/hiddenLetters.js'
 
 function TermsExplorerContent({ initialView = 'categories', lockView = false, termBasePath = '/terms' }) {
   const navigate = useNavigate()
@@ -87,6 +88,7 @@ function TermsExplorerContent({ initialView = 'categories', lockView = false, te
     list.forEach((term) => {
       const label = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
       const letter = label.charAt(0).toUpperCase()
+      if (HIDDEN_LETTERS.has(letter)) return
       if (!groups[letter]) groups[letter] = []
       groups[letter].push(term)
     })

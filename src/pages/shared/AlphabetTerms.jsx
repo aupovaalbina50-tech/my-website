@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
+import { HIDDEN_LETTERS } from '../../constants/hiddenLetters.js'
 import { useAllTerms } from './useAllTerms.js'
 import AllTermsContent from './AllTermsContent.jsx'
 
@@ -15,7 +16,7 @@ function AlphabetTerms() {
     terms.forEach((term) => {
       const label = toSentenceCase(term[lang] || term.ru || term.kk || term.en)
       const letter = label.charAt(0).toUpperCase()
-      if (!letter) return
+      if (!letter || HIDDEN_LETTERS.has(letter)) return
       counts[letter] = (counts[letter] || 0) + 1
     })
     return counts
