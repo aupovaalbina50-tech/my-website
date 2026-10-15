@@ -11,7 +11,6 @@ import {
   Download,
   FileText,
   History,
-  FileSearch,
   RotateCcw,
   Loader2,
   Printer,
@@ -24,15 +23,16 @@ import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { useToast } from '../../../components/ToastContext.jsx'
 import { CATEGORIES, FREE_TEXT_ID, fieldsOf, templateById } from './catalog/index.js'
-import { checkBlocks, documentText, isEmptyValue, missingRequired, renderDocument, replaceFragment, setValueAt, valueAt } from './render.js'
+import { documentText, isEmptyValue, missingRequired, renderDocument } from './render.js'
 import { documentToDocx, documentToPdf, downloadBlob, fileNameOf } from './exportDocument.js'
-import { checkDocumentText, createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
-import { CHECK_DOCUMENT_PATH, documentSource, expertisePath, loadDocumentExpertises } from '../../workspace/documentModel.js'
-import { docStrings, errorText } from './strings.js'
-import { requisiteIssues } from '../smartReport/templates/index.js'
+import { createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
+import { documentSource, expertisePath, loadDocumentExpertises, saveEditorExpertise } from '../../workspace/documentModel.js'
+import { activeItems, applyItem, counts, expertiseState, forStorage, readExpertise, setItemStatus, undoLast } from '../../workspace/expertise/model.js'
+import { runExpertise } from '../../workspace/expertise/runExpertise.js'
+import { ChangesList, ExpertisePanel } from '../../workspace/expertise/ExpertisePanel.jsx'
+import { docStrings } from './strings.js'
 import FieldInput from './FieldInput.jsx'
 import DocumentPreview from './DocumentPreview.jsx'
-import { ChangesPanel, CheckPanel } from './CheckPanel.jsx'
 import { AssistDialog, PhotoDialog, ProfileFillDialog, VersionsDialog } from './Dialogs.jsx'
 
 // The universal editor of «Конструктор профессиональной документации».
@@ -41,46 +41,11 @@ import { AssistDialog, PhotoDialog, ProfileFillDialog, VersionsDialog } from './
 // editor — the template configuration decides what is shown.
 
 const SAVE_DELAY = 900
-let issueSeq = 0
-const nextIssueId = () => `i${Date.now().toString(36)}${(issueSeq++).toString(36)}`
 
 /** The check as stored: older rows may hold a bare array. */
-const readCheck = (raw) => (Array.isArray(raw) ? (raw.length ? { items: raw } : null) : raw && typeof raw === 'object' && raw.items ? raw : null)
-const openCount = (check) => (check?.items ?? []).filter((i) => i.status === 'open').length
-const savePayload = (values, title, lang, status, check) => ({ values, title, lang, status, issues: check ?? [], issue_count: openCount(check) })
-
-function today() {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
-}
-const parseIso = (v) => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v ?? ''))
-  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null
-}
-
-/** Checks that need no AI: required fields, requisites, dates. Titles in the site language, case rules in the document's. */
-function ruleIssues(template, values, s, lang, docLang) {
-  const c = s.checkPanel
-  const fields = fieldsOf(template)
-  const issues = missingRequired(template, values).map((key) => ({
-    category: 'critical',
-    rule: 'missing',
-    target: key,
-    title: c.missingRequired(fields.find((f) => f.key === key).label[lang]),
-    reason: c.missingRequiredReason,
-  }))
-  // Case of «Кому» / «От кого» (Russian), the same rule as in «Умный рабочий рапорт».
-  for (const r of requisiteIssues({ to: values.to, from: values.from }, docLang)) {
-    issues.push({ category: 'language', rule: 'case', target: r.field, title: c.requisiteCase[r.field], reason: c.requisiteCaseReason(r.word) })
-  }
-  const docDate = parseIso(values.date)
-  if (docDate && docDate > today()) issues.push({ category: 'important', rule: 'date', target: 'date', title: c.futureDate, reason: c.futureDateReason })
-  for (const key of ['incidentDate', 'eventDate']) {
-    const event = parseIso(values[key])
-    if (event && docDate && event > docDate) issues.push({ category: 'logic', rule: 'date', target: key, title: c.eventAfterDoc, reason: c.eventAfterDocReason })
-  }
-  return issues
-}
+// The expertise result is stored with the document (issues); an old-format check of the constructor is not shown.
+const readCheck = (raw) => readExpertise(raw)
+const savePayload = (values, title, lang, status, check) => ({ values, title, lang, status, issues: forStorage(check) ?? [], issue_count: counts(check, values).all })
 
 export default function DocumentEditor() {
   const { id } = useParams()
@@ -89,7 +54,8 @@ export default function DocumentEditor() {
   const s = docStrings(lang)
   const e = s.editor
   const w = t.workspace.editor
-  const navigate = useNavigate()
+  const x = t.workspace.expertise
+  const [checkFailure, setCheckFailure] = useState(null)
   const [params, setParams] = useSearchParams()
   const { user, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
@@ -194,11 +160,6 @@ export default function DocumentEditor() {
     showToast(ok ? w.draftSaved : w.saveFailed, { type: ok ? 'success' : 'error' })
   }
 
-  /** «Терминологическая экспертиза» of this document: saved first, then checked as it is — no upload. */
-  const openExpertise = async () => {
-    if (await saveNow()) navigate(CHECK_DOCUMENT_PATH(doc.id))
-    else showToast(w.saveFailed, { type: 'error' })
-  }
 
   /** «Вернуть исходный текст»: the current text is kept as a version first. */
   const restoreOriginal = async () => {
@@ -223,11 +184,8 @@ export default function DocumentEditor() {
       // A filled required field resolves its «не заполнено» remark.
       const fields = fieldsOf(template)
       const filled = (key) => key in patch && !isEmptyValue(fields.find((f) => f.key === key) ?? {}, patch[key])
-      setCheck((c) =>
-        c?.items.some((i) => i.rule === 'missing' && i.status === 'open' && filled(i.target))
-          ? { ...c, items: c.items.map((i) => (i.rule === 'missing' && i.status === 'open' && filled(i.target) ? { ...i, status: 'edited' } : i)) }
-          : c,
-      )
+      const resolves = (i) => i.basis?.rule === 'missing' && i.status === 'open' && filled(i.target)
+      setCheck((c) => (c?.items.some(resolves) ? { ...c, items: c.items.map((i) => (resolves(i) ? { ...i, status: 'edited' } : i)) } : c))
       setInvalid((current) => {
         if (!current.size) return current
         const next = new Set(current)
@@ -239,27 +197,32 @@ export default function DocumentEditor() {
     [template],
   )
 
-  const goTo = useCallback((path) => {
+  // «Перейти к фрагменту»: the field, and the exact range selected when it still holds.
+  const goTo = useCallback((path, range = null) => {
     const key = String(path).split('.')[0]
     setMobileView('form')
     setFlashKey(key)
     requestAnimationFrame(() => {
       const box = document.querySelector(`[data-field="${key}"]`)
       box?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      const input = document.querySelector(`[data-path="${path}"]`) ?? box?.querySelector('input, textarea, select')
+      const input = document.querySelector(`[data-path="${path}"]`) ?? box?.querySelector('textarea, input, select')
       input?.focus?.({ preventScroll: true })
+      if (range && input && typeof input.setSelectionRange === 'function' && input.value.slice(range.start, range.end) === range.fragment) {
+        input.setSelectionRange(range.start, range.end)
+      }
     })
     setTimeout(() => setFlashKey((k) => (k === key ? null : k)), 1800)
   }, [])
+  const goToItem = (item) => goTo(item.target, item.start != null ? { start: item.start, end: item.end, fragment: item.fragment } : null)
 
-  // ---- check ----
+  // ---- expertise ----
+  // «Проверить документ» / «Повторить экспертизу»: always the CURRENT text.
   const runCheck = async () => {
     if (!template) return
     setChecking(true)
+    setCheckFailure(null)
     setRightTab('check')
     setMobileView('preview')
-    const prevStatus = status
-    setStatus('review')
     try {
       if (!doc.current_version) {
         const version = await saveDocVersion(doc, values, 'original')
@@ -268,33 +231,31 @@ export default function DocumentEditor() {
     } catch {
       // A failed snapshot must not block the check itself.
     }
-    const rules = ruleIssues(template, values, s, lang, docLang)
-    let ai = { issues: [], terms: [], variants: [], knowledge: null }
-    let failed = null
-    const blocks = checkBlocks(template, values, docLang)
-    if (blocks.length) {
-      try {
-        ai = await checkDocumentText({ blocks, documentTitle: template.title[docLang], lang: docLang })
-      } catch (err) {
-        failed = err
-      }
+    let next
+    try {
+      next = await runExpertise({ template, values, docLang, uiLang: lang, documentTitle: template.title[docLang], strings: s.checkPanel })
+    } catch (err) {
+      console.error('Expertise failed:', err)
+      next = null
     }
-    const items = [...rules.map((r) => ({ ...r, source: 'rule' })), ...ai.issues.map((i) => ({ ...i, source: 'ai' }))].map((i) => ({
-      ...i,
-      id: nextIssueId(),
-      status: 'open',
-    }))
-    const next = { items, terms: ai.terms ?? [], variants: ai.variants ?? [], knowledge: ai.knowledge ?? null, at: new Date().toISOString(), savedChecked: false }
-    setCheck(next)
-    setStatus(failed && !items.length ? prevStatus : openCount(next) ? 'issues' : 'review')
     setChecking(false)
-    if (failed) showToast(`${s.checkPanel.checkFailed}: ${errorText(s, failed)}`, { type: 'error' })
-    else showToast(s.checkPanel.rechecked, { type: 'success' })
+    const state = next ? expertiseState(next, values) : 'error'
+    if (state === 'error') {
+      // Nothing finished: the previous result stays as it was, marked by its own date.
+      setCheckFailure(x.failedAll)
+      showToast(x.failedAll, { type: 'error' })
+      return
+    }
+    setCheck(next)
+    if (state === 'needs_review') setCheckFailure(x.failedPart)
+    setStatus(counts(next, values).all ? 'issues' : 'review')
+    showToast(x.state[state], { type: 'success' })
+    if (user) saveEditorExpertise(user.id, doc, title || template.title[docLang], next, values).then((row) => row && setLastExpertise(row)).catch((err) => console.error('Expertise history was not saved:', err))
   }
 
-  // After the last open remark is decided, the result is kept as «Версия после проверки».
+  // After the last open remark is decided, the text is kept as «Версия после проверки».
   useEffect(() => {
-    if (!check || check.savedChecked || !check.items.length || openCount(check) || !doc) return
+    if (!check || check.savedChecked || !check.items.length || activeItems(check, values).length || !(check.changes ?? []).length || !doc) return
     setCheck((c) => ({ ...c, savedChecked: true }))
     setStatus((st) => (st === 'issues' ? 'review' : st))
     saveDocVersion(doc, values, 'checked')
@@ -302,16 +263,24 @@ export default function DocumentEditor() {
       .catch(() => {})
   }, [check, doc, values])
 
-  const decide = (issue, statusOf, extra = {}) =>
-    setCheck((c) => ({ ...c, items: c.items.map((i) => (i.id === issue.id ? { ...i, status: statusOf, ...extra } : i)) }))
-
-  const acceptIssue = (issue) => {
-    const current = valueAt(values, issue.target)
-    const next = replaceFragment(current, issue.was, issue.now)
-    if (next === null) return decide(issue, 'open', { stale: true })
-    setValues((v) => setValueAt(v, issue.target, next))
+  /** Applies one remark to exactly its range; refuses when the text changed since the check. */
+  const applyRemark = (item, replacement, how) => {
+    const out = applyItem(check, values, item.id, replacement, how)
+    if (out.error) {
+      showToast(x.applyStale, { type: 'error' })
+      return
+    }
+    setValues(out.values)
+    setCheck(out.check)
     setStatus((st) => (st === 'ready' ? 'filling' : st))
-    decide(issue, 'accepted')
+    showToast(x.accepted, { type: 'success' })
+  }
+  const undoChange = () => {
+    const out = undoLast(check, values)
+    if (out.error) return showToast(x.undoStale, { type: 'error' })
+    setValues(out.values)
+    setCheck(out.check)
+    showToast(x.undone, { type: 'success' })
   }
 
   // ---- finishing, versions, export ----
@@ -394,7 +363,7 @@ export default function DocumentEditor() {
 
   const category = CATEGORIES.find((c) => c.key === template.categories[0])
   const source = documentSource(values)
-  const opened = openCount(check)
+  const opened = counts(check, values).all
 
   return (
     <div className="doc-page doc-editor">
@@ -437,7 +406,7 @@ export default function DocumentEditor() {
             <span className="doc-source-expertise">
               {w.lastExpertise}: {new Date(lastExpertise.created_at).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')} ·{' '}
               {lastExpertise.issue_count > 0 ? t.workspace.activity.issues(lastExpertise.issue_count) : t.workspace.activity.noIssues}{' '}
-              <Link to={expertisePath(lastExpertise)}>{w.openExpertise}</Link>
+              {lastExpertise.kind !== 'editor' && <Link to={expertisePath(lastExpertise)}>{w.openExpertise}</Link>}
             </span>
           )}
           {original && !readOnly && (
@@ -485,11 +454,7 @@ export default function DocumentEditor() {
         )}
         <button type="button" className="doc-btn doc-btn--accent" onClick={runCheck} disabled={checking || readOnly}>
           {checking ? <Loader2 size={16} className="doc-spin" aria-hidden="true" /> : <ScanSearch size={16} aria-hidden="true" />}
-          {checking ? e.checking : e.check}
-        </button>
-        <button type="button" className="doc-btn doc-btn--accent" onClick={openExpertise} disabled={checking || readOnly}>
-          <FileSearch size={16} aria-hidden="true" />
-          {w.expertise}
+          {checking ? e.checking : check ? x.rerun : x.run}
         </button>
         <span className="doc-toolbar-gap" />
         <button type="button" className="doc-btn" onClick={saveDraft} disabled={readOnly || saveState === 'saving'}>
@@ -569,8 +534,8 @@ export default function DocumentEditor() {
           <div className="doc-side-tabs" role="tablist">
             {[
               ['preview', e.preview],
-              ['check', `${e.checkTab}${opened ? ` (${opened})` : ''}`],
-              ['changes', e.changesTab],
+              ['check', `${x.tab}${opened ? ` (${opened})` : ''}`],
+              ['changes', x.changesTab],
             ].map(([key, label]) => (
               <button key={key} type="button" role="tab" aria-selected={rightTab === key} className={rightTab === key ? 'is-on' : undefined} onClick={() => setRightTab(key)}>
                 {label}
@@ -579,27 +544,25 @@ export default function DocumentEditor() {
           </div>
           <div className="doc-side-body">
             {rightTab === 'preview' && <DocumentPreview doc={rendered} lang={docLang} focusKey={flashKey} onPick={goTo} />}
-            {rightTab === 'check' &&
-              (checking ? (
-                <p className="doc-check-empty">
-                  <Loader2 size={18} className="doc-spin" aria-hidden="true" /> {e.checking}
-                </p>
-              ) : (
-                <CheckPanel
-                  check={check}
-                  s={s}
-                  lang={lang}
-                  readOnly={readOnly}
-                  onAccept={acceptIssue}
-                  onReject={(issue) => decide(issue, 'rejected')}
-                  onEdit={(issue) => {
-                    decide(issue, 'edited')
-                    goTo(issue.target)
-                  }}
-                  onGoTo={goTo}
-                />
-              ))}
-            {rightTab === 'changes' && <ChangesPanel check={check} s={s} onGoTo={goTo} />}
+            {rightTab === 'check' && (
+              <ExpertisePanel
+                check={check}
+                values={values}
+                running={checking}
+                failure={checkFailure}
+                x={x}
+                errorTypes={t.inspector.errorTypes}
+                lang={lang}
+                readOnly={readOnly}
+                onRun={runCheck}
+                onAccept={(item) => applyRemark(item, item.suggestion, 'accepted')}
+                onManual={(item, text) => applyRemark(item, text, 'edited')}
+                onReject={(item) => setCheck((c) => setItemStatus(c, item.id, 'rejected'))}
+                onReopen={(item) => setCheck((c) => setItemStatus(c, item.id, 'open'))}
+                onGoTo={goToItem}
+              />
+            )}
+            {rightTab === 'changes' && <ChangesList check={check} values={values} x={x} readOnly={readOnly} onUndo={undoChange} onGoTo={goToItem} />}
           </div>
         </div>
       </div>

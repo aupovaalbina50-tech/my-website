@@ -6,6 +6,8 @@ import { documentText, renderDocument } from '../account/documents/render.js'
 import { createDocument, saveDocVersion, updateDocument } from '../account/documents/useDocuments.js'
 import { useMyDocuments } from '../account/documents/useDocuments.js'
 import { summarize } from '../shared/docInspector/expertise.js'
+import { CHECK_VERSION, counts, expertiseState } from './expertise/model.js'
+import { termItemFromResult } from './expertise/runExpertise.js'
 
 // One document model for «Работа с документами», built on the existing
 // tables — no new ones (RLS on both: a user reads and changes own rows only):
@@ -47,6 +49,64 @@ export function documentPlainText(doc) {
   return documentText(renderDocument(template, doc.values ?? {}, doc.lang ?? 'ru'), doc.lang ?? 'ru')
 }
 
+/**
+ * The inspector's result in the editor's format: the pages become one text
+ * (body) and every finding keeps its exact range in it — or none, when the
+ * text there is not exactly the finding.
+ */
+export function inspectionAsCheck(inspection) {
+  const pageStart = new Map()
+  const parts = []
+  let length = 0
+  for (const p of inspection.doc.pages) {
+    const trimmed = p.text.trim()
+    if (!trimmed) continue
+    if (parts.length) length += 2
+    const leading = p.text.length - p.text.trimStart().length
+    pageStart.set(p.number, { at: length - leading, from: leading, to: leading + trimmed.length })
+    parts.push(trimmed)
+    length += trimmed.length
+  }
+  const text = parts.join('\n\n')
+  const block = { key: 'body', label: '', factual: false }
+  let termsFound = 0
+  const items = []
+  for (const r of inspection.results) {
+    if (r.status === 'ok') {
+      termsFound++
+      continue
+    }
+    const page = pageStart.get(r.page)
+    const inside = page && r.start >= page.from && r.end <= page.to
+    const start = inside ? page.at + r.start : null
+    const exact = start != null && text.slice(start, start + r.text.length) === r.text
+    items.push(termItemFromResult({ ...r, external: r.external ? { ...r.external, retrievedAt: inspection.checkedAt } : null }, block, exact ? start : null))
+  }
+  const ai = inspection.ai ?? {}
+  const lookup = inspection.lookup ?? {}
+  return {
+    text,
+    check: {
+      v: CHECK_VERSION,
+      at: inspection.checkedAt,
+      docLang: null,
+      parts: {
+        structure: 'skipped',
+        terminology: ai.failedChunks ? 'partial' : 'ok',
+        language: 'skipped',
+        lookup: !lookup.searched ? 'skipped' : lookup.failed ? (lookup.failed >= lookup.searched ? 'failed' : 'partial') : 'ok',
+      },
+      errors: { terminology: ai.failedChunks ? ai.error ?? 'ai_unavailable' : null, language: null, lookup: lookup.failed ? 'lookup_failed' : null },
+      snapshots: { body: text },
+      items,
+      changes: [],
+      termsFound,
+      glossarySize: inspection.glossarySize ?? null,
+      source: 'inspector',
+    },
+  }
+}
+
 const statusAfterExpertise = (inspection) => (summarize(inspection.results).issues > 0 ? 'issues' : 'review')
 
 /**
@@ -55,10 +115,7 @@ const statusAfterExpertise = (inspection) => (summarize(inspection.results).issu
  */
 export async function createUploadedDocument(userId, inspection, lang) {
   const { doc } = inspection
-  const text = doc.pages
-    .map((p) => p.text.trim())
-    .filter(Boolean)
-    .join('\n\n')
+  const { text, check } = inspectionAsCheck(inspection)
   const values = {
     body: text,
     [SOURCE_KEY]: {
@@ -74,6 +131,9 @@ export async function createUploadedDocument(userId, inspection, lang) {
     title: inspection.fileName.replace(/\.[^.]+$/, '') || inspection.fileName,
     status: statusAfterExpertise(inspection),
     values,
+    // The remarks open in the editor with the document; offsets point into `body`.
+    issues: check,
+    issue_count: check.items.length,
   })
   try {
     const version = await saveDocVersion(row, values, 'original')
@@ -90,7 +150,9 @@ export function markDocumentChecked(documentId, inspection) {
   return updateDocument(documentId, { status: statusAfterExpertise(inspection) })
 }
 
-const HISTORY_COLUMNS = 'id, created_at, file_name, issue_count, term_count, status, document_id:snapshot->>documentId'
+// kind: 'editor' for an expertise run inside the document editor (its remarks live
+// with the document), otherwise a check of the inspector with a full snapshot.
+const HISTORY_COLUMNS = 'id, created_at, file_name, issue_count, term_count, status, document_id:snapshot->>documentId, kind:snapshot->>kind'
 
 /** Expertises of one document, newest first. */
 export async function loadDocumentExpertises(documentId, limit = 5) {
@@ -144,7 +206,30 @@ export function useWorkspaceActivity() {
 /** Where a document row of «Мои документы» opens. */
 export const documentPath = (item) => (item.kind === 'report' ? `/account/smart-report/${item.id}` : `/account/documents/${item.id}`)
 
-/** Where an expertise of the history opens: its document, or the saved result. */
-export const expertisePath = (row) => `/account/workspace/check?history=${row.id}`
+/** Where an expertise of the history opens: its document (editor runs), or the saved result. */
+export const expertisePath = (row) =>
+  row.kind === 'editor' && row.document_id ? `/account/documents/${row.document_id}` : `/account/workspace/check?history=${row.id}`
+
+/**
+ * An expertise run in the editor goes to the history as a summary: the
+ * remarks themselves are stored with the document (work_documents.issues).
+ */
+export async function saveEditorExpertise(userId, doc, title, check, values) {
+  const c = counts(check, values)
+  const { data, error } = await supabase
+    .from('inspection_history')
+    .insert({
+      user_id: userId,
+      file_name: title,
+      term_count: check.termsFound ?? 0,
+      issue_count: c.all,
+      compliance: null,
+      snapshot: { kind: 'editor', documentId: doc.id, at: check.at, state: expertiseState(check, values), counts: c, parts: check.parts },
+    })
+    .select(HISTORY_COLUMNS)
+    .single()
+  if (error) throw error
+  return data
+}
 
 export const CHECK_DOCUMENT_PATH = (documentId) => `/account/workspace/check?document=${documentId}`

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Camera, Check, CheckCircle2, CircleDashed, Download, FilePenLine, FileSearch, FileText, ImageUp, Info, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Upload, Wand2 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
@@ -428,6 +428,7 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
   const ti = t.inspector
   const tw = t.workspace.inspector
   const { user } = useAuth()
+  const navigate = useNavigate()
   const history = useInspectionHistory()
   const [notice, setNotice] = useState(null) // 'savedAsDocument' | 'notSavedAsDocument'
 
@@ -536,6 +537,11 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
     if (!snapshot) {
       setError(new InspectorError('history_unavailable'))
       setScreen('error')
+      return
+    }
+    // An expertise run in the editor: its remarks are with the document.
+    if (snapshot.kind === 'editor') {
+      if (snapshot.documentId) navigate(`/account/documents/${snapshot.documentId}`)
       return
     }
     const restored = fromSnapshot(snapshot)
