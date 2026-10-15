@@ -224,7 +224,13 @@ export function occurrences(text, fragment) {
 }
 
 const digits = (s) => (String(s ?? '').match(/\d+/g) ?? []).join(' ')
-const capitals = (s) => (String(s ?? '').match(/(?<![\p{L}])\p{Lu}\p{Ll}+/gu) ?? []).slice(1).join(' ')
+// The polite «Вы / Ваш…» (Kazakh «Сіз / Сіздің…») is capitalised by the official style, not a name.
+const POLITE = /^(Вы|Вас|Вам|Вами|Ваш\p{L}*|Сіз\p{L}*)$/u
+const capitals = (s) =>
+  (String(s ?? '').match(/(?<![\p{L}])\p{Lu}\p{Ll}+/gu) ?? [])
+    .slice(1)
+    .filter((w) => !POLITE.test(w))
+    .join(' ')
 
 /** True when a suggestion would change factual data: numbers, dates, times, names. */
 export function touchesFacts(fragment, suggestion) {

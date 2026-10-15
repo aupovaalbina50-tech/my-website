@@ -23,13 +23,15 @@ import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { useToast } from '../../../components/ToastContext.jsx'
 import { CATEGORIES, FREE_TEXT_ID, fieldsOf, templateById } from './catalog/index.js'
-import { documentText, isEmptyValue, missingRequired, renderDocument } from './render.js'
+import { documentText, formatValue, isEmptyValue, missingRequired, renderDocument } from './render.js'
 import { documentToDocx, documentToPdf, downloadBlob, fileNameOf } from './exportDocument.js'
-import { createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
+import { composeDocumentText, createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
 import { documentSource, expertisePath, loadDocumentExpertises, saveEditorExpertise } from '../../workspace/documentModel.js'
 import { activeItems, applyItem, counts, expertiseState, forStorage, readExpertise, setItemStatus, undoLast } from '../../workspace/expertise/model.js'
 import { runExpertise } from '../../workspace/expertise/runExpertise.js'
 import { ChangesList, ExpertisePanel } from '../../workspace/expertise/ExpertisePanel.jsx'
+import { dataBasis, fieldOrigin, narrativeFields, questions, readFlow, STAGES, unconfirmed, withFlow } from '../../workspace/constructor/flow.js'
+import { CompletePanel, DraftPanel, ExportPanel, InfoPanel, WizardSteps } from '../../workspace/constructor/WizardPanels.jsx'
 import { docStrings } from './strings.js'
 import FieldInput from './FieldInput.jsx'
 import DocumentPreview from './DocumentPreview.jsx'
@@ -57,6 +59,9 @@ export default function DocumentEditor() {
   const x = t.workspace.expertise
   const [checkFailure, setCheckFailure] = useState(null)
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const wz = t.workspace.wizard
+  const [composing, setComposing] = useState(false)
   const { user, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
 
@@ -99,11 +104,13 @@ export default function DocumentEditor() {
         setStatus(row.status ?? 'draft')
         setCheck(readCheck(row.issues))
         lastSaved.current = JSON.stringify(savePayload(row.values ?? {}, row.title ?? '', row.lang ?? 'ru', row.status ?? 'draft', readCheck(row.issues)))
-        // «Написать или вставить текст»: the editor opens with the text helper.
-        if (params.get('mode') === 'text' && row.template_id !== FREE_TEXT_ID) {
-          setDialog('assist')
+        // The step the user was on; «Описать ситуацию» opens the description.
+        const flow = readFlow(row.values)
+        if (params.get('mode') === 'text') {
+          setValues((v) => withFlow(v, { method: 'text', stage: 'info' }))
+          setRightTab('info')
           setParams({}, { replace: true })
-        }
+        } else setRightTab(STAGES.includes(flow.stage) ? flow.stage : 'info')
         // Let the first render pass before changes count as edits.
         setTimeout(() => (loaded.current = true), 0)
       })
@@ -180,7 +187,13 @@ export default function DocumentEditor() {
   // ---- editing ----
   const changeValues = useCallback(
     (patch) => {
-      setValues((current) => ({ ...current, ...patch }))
+      setValues((current) => {
+        const next = { ...current, ...patch }
+        // A value the user typed is theirs: it leaves the «from the description, to check» list.
+        const fromText = readFlow(current).fromText ?? {}
+        if (!Object.keys(patch).some((k) => k in fromText)) return next
+        return withFlow(next, { fromText: Object.fromEntries(Object.entries(fromText).filter(([k]) => !(k in patch))) })
+      })
       // A filled required field resolves its «не заполнено» remark.
       const fields = fieldsOf(template)
       const filled = (key) => key in patch && !isEmptyValue(fields.find((f) => f.key === key) ?? {}, patch[key])
@@ -221,8 +234,8 @@ export default function DocumentEditor() {
     if (!template) return
     setChecking(true)
     setCheckFailure(null)
-    setRightTab('check')
-    setMobileView('preview')
+    // The expertise is step 7: the document reopens there.
+    setStage('check')
     try {
       if (!doc.current_version) {
         const version = await saveDocVersion(doc, values, 'original')
@@ -314,6 +327,11 @@ export default function DocumentEditor() {
 
   const exportAs = async (kind) => {
     setDialog(null)
+    // The export is the current text, saved first.
+    if (!(await saveNow())) {
+      showToast(w.saveFailed, { type: 'error' })
+      return
+    }
     try {
       if (kind === 'docx') downloadBlob(await documentToDocx(rendered, docLang), fileNameOf(title || template.title[docLang], 'docx'))
       if (kind === 'pdf') downloadBlob(await documentToPdf(rendered, docLang), fileNameOf(title || template.title[docLang], 'pdf'))
@@ -332,6 +350,71 @@ export default function DocumentEditor() {
       }
     } catch {
       showToast(e.exportFailed, { type: 'error' })
+    }
+  }
+
+  // ---- constructor steps ----
+  const setStage = (stage) => {
+    setRightTab(stage)
+    setMobileView('preview')
+    setValues((v) => (readFlow(v).stage === stage ? v : withFlow(v, { stage })))
+  }
+
+  /** «Сформировать проект»: the narrative fields from the confirmed data; the user's own text only when they agreed. */
+  const compose = async ({ replace }) => {
+    const flow = readFlow(values)
+    const narrative = narrativeFields(template)
+    const include = new Set(narrative.filter((f) => ['empty', 'generated'].includes(fieldOrigin(f.key, values)) || replace.includes(f.key)).map((f) => f.key))
+    const fields = fieldsOf(template)
+      .map((f) => ({ key: f.key, label: f.label[docLang], hint: f.hint?.[docLang] ?? '', value: isEmptyValue(f, values[f.key]) ? '' : formatValue(f, values[f.key]), compose: include.has(f.key) }))
+      .filter((f) => f.compose || f.value)
+    if (!fields.some((f) => f.compose)) return
+    if (!fields.some((f) => !f.compose && f.value) && !flow.brief.trim() && !fields.some((f) => f.compose && f.value)) {
+      showToast(wz.draftMissing(questions(template, values).length), { type: 'error' })
+      return
+    }
+    setComposing(true)
+    let out
+    try {
+      out = await composeDocumentText({ fields, brief: flow.brief, documentTitle: template.title[docLang], lang: docLang })
+    } catch (err) {
+      setComposing(false)
+      showToast(err?.code === 'bad_request' ? wz.composeUnavailable : `${wz.composeFailed} (${err?.code ?? 'error'})`, { type: 'error' })
+      return
+    }
+    setComposing(false)
+    const at = new Date().toISOString()
+    const patch = {}
+    const gen = {}
+    const outcome = {}
+    for (const f of narrative) {
+      const section = out.sections?.find((sec) => sec.key === f.key)
+      if (!include.has(f.key)) {
+        outcome[f.key] = { status: 'kept' }
+        continue
+      }
+      outcome[f.key] = section ? { status: section.status, missing: section.missing, inventedNumbers: section.inventedNumbers ?? [], unknownNames: section.unknownNames ?? [] } : { status: 'insufficient' }
+      // Only a checked fragment goes in; an empty or rejected one leaves the field as it was.
+      if (section?.status === 'ok' && section.text) {
+        patch[f.key] = section.text
+        gen[f.key] = { text: section.text, at }
+      }
+    }
+    if (Object.keys(patch).length) changeValues(patch)
+    setValues((v) => withFlow(v, { gen: { ...(readFlow(v).gen ?? {}), ...gen }, genBasis: dataBasis(template, { ...v, ...patch }), outcome }))
+    if (Object.keys(patch).length) showToast(wz.composed, { type: 'success' })
+    else showToast(wz.composedNothing, { type: 'error' })
+  }
+
+  const saveCurrentVersion = async () => {
+    try {
+      const version = await saveDocVersion(doc, values, 'user')
+      setDoc((d) => ({ ...d, current_version: version }))
+      showToast(wz.versionSaved, { type: 'success' })
+      return true
+    } catch {
+      showToast(e.saveFailed, { type: 'error' })
+      return false
     }
   }
 
@@ -498,6 +581,16 @@ export default function DocumentEditor() {
         </button>
       </div>
 
+      <WizardSteps
+        stage={rightTab === 'changes' ? 'check' : rightTab}
+        onStage={setStage}
+        w={wz}
+        templateTitle={template.title[lang]}
+        method={readFlow(values).method}
+        onChangeType={() => navigate('/account/workspace/create')}
+        counts={{ complete: questions(template, values).length + unconfirmed(template, values).length, check: opened }}
+      />
+
       <div className="doc-mobile-switch" role="tablist">
         {['form', 'preview'].map((v) => (
           <button key={v} type="button" role="tab" aria-selected={mobileView === v} className={mobileView === v ? 'is-on' : undefined} onClick={() => setMobileView(v)}>
@@ -531,18 +624,63 @@ export default function DocumentEditor() {
         </div>
 
         <div className="doc-side">
-          <div className="doc-side-tabs" role="tablist">
-            {[
-              ['preview', e.preview],
-              ['check', `${x.tab}${opened ? ` (${opened})` : ''}`],
-              ['changes', x.changesTab],
-            ].map(([key, label]) => (
-              <button key={key} type="button" role="tab" aria-selected={rightTab === key} className={rightTab === key ? 'is-on' : undefined} onClick={() => setRightTab(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
+          {(rightTab === 'check' || rightTab === 'changes') && (
+            <div className="doc-side-tabs" role="tablist">
+              {[
+                ['check', `${x.tab}${opened ? ` (${opened})` : ''}`],
+                ['changes', x.changesTab],
+              ].map(([key, label]) => (
+                <button key={key} type="button" role="tab" aria-selected={rightTab === key} className={rightTab === key ? 'is-on' : undefined} onClick={() => setRightTab(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="doc-side-body">
+            {rightTab === 'info' && (
+              <InfoPanel
+                template={template}
+                values={values}
+                w={wz}
+                readOnly={readOnly}
+                onMethod={(method) => setValues((v) => withFlow(v, { method }))}
+                onBrief={(brief) => setValues((v) => withFlow(v, { brief }))}
+                onExtract={() => {
+                  setAssistText(readFlow(values).brief)
+                  setDialog('assist')
+                }}
+              />
+            )}
+            {rightTab === 'complete' && (
+              <CompletePanel
+                template={template}
+                values={values}
+                w={wz}
+                lang={lang}
+                readOnly={readOnly}
+                onAnswer={(field, value) => changeValues({ [field.key]: value })}
+                onGoTo={(key) => goTo(key)}
+                onConfirm={(key) => setValues((v) => withFlow(v, { fromText: Object.fromEntries(Object.entries(readFlow(v).fromText ?? {}).filter(([k]) => k !== key)) }))}
+              />
+            )}
+            {rightTab === 'draft' && (
+              <DraftPanel
+                template={template}
+                values={values}
+                w={wz}
+                lang={lang}
+                readOnly={readOnly}
+                busy={composing}
+                outcome={readFlow(values).outcome}
+                basisChanged={readFlow(values).genBasis !== null && readFlow(values).genBasis !== dataBasis(template, values)}
+                onCompose={compose}
+                onSaveVersion={saveCurrentVersion}
+                onGoTo={(key) => goTo(key)}
+              />
+            )}
+            {rightTab === 'export' && (
+              <ExportPanel template={template} values={values} rendered={rendered} docLang={docLang} w={wz} lang={lang} saving={saveState === 'saving'} onExport={exportAs} onGoTo={(key) => goTo(key)} />
+            )}
             {rightTab === 'preview' && <DocumentPreview doc={rendered} lang={docLang} focusKey={flashKey} onPick={goTo} />}
             {rightTab === 'check' && (
               <ExpertisePanel
@@ -604,10 +742,16 @@ export default function DocumentEditor() {
           s={s}
           initialText={assistText}
           onClose={() => setDialog(null)}
-          onApply={(patch) => {
+          onApply={(patch, meta = {}) => {
             setDialog(null)
             changeValues(patch)
+            // Values from the description stay «to check» until the user marks them; the description itself is kept.
+            setValues((v) => {
+              const flow = readFlow(v)
+              return withFlow(v, { fromText: { ...(flow.fromText ?? {}), ...(meta.quotes ?? {}) }, brief: flow.brief || meta.text || '' })
+            })
             showToast(e.filledFromAssist(Object.keys(patch).length), { type: 'success' })
+            setStage('complete')
           }}
         />
       )}

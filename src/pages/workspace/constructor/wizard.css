@@ -1,0 +1,269 @@
+/* Steps of the document constructor inside the editor. */
+
+.wz-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.wz-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px 6px 6px;
+  font: inherit;
+  text-align: left;
+  color: var(--navy);
+  background: var(--blue-light);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.wz-step:hover,
+.wz-step:focus-visible {
+  border-color: var(--accent-border);
+}
+.wz-step.is-on {
+  color: #fff;
+  background: var(--navy);
+}
+.wz-step.is-done {
+  background: #ecfdf3;
+  color: #05603a;
+}
+.wz-step.is-static {
+  cursor: default;
+}
+
+.wz-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  background: rgba(27, 79, 140, 0.12);
+}
+.wz-step.is-on .wz-step-n {
+  background: rgba(255, 255, 255, 0.22);
+}
+.wz-step.is-done .wz-step-n {
+  background: rgba(18, 183, 106, 0.18);
+}
+
+.wz-step-label {
+  display: grid;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+
+  & small {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.85;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.wz-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.wz-method {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  & button {
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+    background: #fff;
+    border: 1px solid var(--accent-border);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  & button.is-on {
+    color: #fff;
+    background: var(--navy);
+    border-color: var(--navy);
+  }
+}
+
+.wz-field {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wz-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.wz-progress {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.wz-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #05603a;
+  background: #ecfdf3;
+  border-radius: 10px;
+}
+
+.wz-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #93370d;
+  background: #fffaeb;
+  border-radius: 8px;
+}
+.wz-warn--block {
+  display: grid;
+
+  & p {
+    display: flex;
+    gap: 6px;
+    margin: 0;
+  }
+  & ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+}
+
+.wz-block {
+  display: grid;
+  gap: 8px;
+
+  & h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #101828;
+  }
+}
+
+.wz-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wz-question {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.wz-q {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 700;
+  color: #101828;
+}
+
+.wz-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.wz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.wz-answer {
+  display: flex;
+  flex: 1 1 240px;
+  gap: 6px;
+
+  & .doc-input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.wz-origin {
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+}
+.wz-origin--generated {
+  background: #f4f3ff;
+  color: #5925dc;
+}
+.wz-origin--edited,
+.wz-origin--user {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.wz-conflicts {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.wz-conflict-actions {
+  flex-wrap: wrap;
+}
+
+.wz-preview {
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}

@@ -274,7 +274,14 @@ export function AssistDialog({ template, values, lang, uiLang = lang, s, initial
               type="button"
               className="doc-btn doc-btn--primary"
               disabled={!chosen.length}
-              onClick={() => onApply(Object.fromEntries(chosen.map((it) => [it.field.key, it.value])))}
+              // The quotes and the description go along, so the constructor can show where each value came from.
+              onClick={() =>
+                onApply(Object.fromEntries(chosen.map((it) => [it.field.key, it.value])), {
+                  quotes: Object.fromEntries(chosen.map((it) => [it.field.key, it.quote])),
+                  text,
+                  missing: result.missing.map((f) => f.key),
+                })
+              }
             >
               <Check size={16} aria-hidden="true" />
               {a.confirm(chosen.length)}

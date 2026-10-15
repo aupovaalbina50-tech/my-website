@@ -205,5 +205,7 @@ async function call(payload) {
 
 export const suggestDocumentType = (query, catalog, lang) => call({ action: 'doc_suggest', lang, query, catalog })
 export const fillFromText = ({ text, fields, documentTitle, lang, today }) => call({ action: 'doc_fill', lang, text, fields, documentTitle, today })
+/** Draft of the narrative fields from the confirmed values (+ the user's description). */
+export const composeDocumentText = ({ fields, brief, documentTitle, lang }) => call({ action: 'doc_compose', lang, documentTitle, brief, fields })
 export const checkDocumentText = ({ blocks, documentTitle, lang }) => call({ action: 'doc_check', lang, blocks, documentTitle })
 export const readDocumentPhoto = ({ mediaType, data }) => call({ action: 'doc_photo', mediaType, data })
