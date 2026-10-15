@@ -10,7 +10,8 @@ import { fieldsOf } from './catalog/index.js'
 // AI calls go to the smart-report Edge Function (actions doc_*), which the
 // «Умный рабочий рапорт» already uses — one function, one rate limit.
 
-const LIST_COLUMNS = 'id, template_id, title, lang, status, issue_count, current_version, created_at, updated_at, checked_at'
+// source: values.__source of an uploaded document (see src/pages/workspace/documentModel.js).
+const LIST_COLUMNS = 'id, template_id, title, lang, status, issue_count, current_version, created_at, updated_at, checked_at, source:values->__source'
 const REPORT_COLUMNS = 'id, title, report_type, lang, status, step, current_version, created_at, updated_at'
 
 export const DOC_STATUSES = ['draft', 'filling', 'review', 'issues', 'ready', 'archive']

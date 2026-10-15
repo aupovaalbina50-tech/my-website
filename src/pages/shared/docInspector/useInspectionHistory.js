@@ -18,6 +18,8 @@ export function toSnapshot(inspection, decisions, choices, locate) {
   return {
     v: SNAPSHOT_VERSION,
     fileName: inspection.fileName,
+    // The document of «Работа с документами» this check was run on, if any.
+    documentId: inspection.documentId ?? null,
     documentType: inspection.documentType ?? null,
     checkedAt: inspection.checkedAt,
     doc: {
@@ -43,6 +45,7 @@ export function toSnapshot(inspection, decisions, choices, locate) {
 export function fromSnapshot(snapshot) {
   return {
     fileName: snapshot.fileName,
+    documentId: snapshot.documentId ?? null,
     documentType: snapshot.documentType,
     checkedAt: snapshot.checkedAt,
     doc: snapshot.doc,

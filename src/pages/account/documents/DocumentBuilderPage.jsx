@@ -8,6 +8,8 @@ import {
   ChevronUp,
   Copy,
   FileStack,
+  FilePenLine,
+  ListChecks,
   Info,
   Loader2,
   Plus,
@@ -20,7 +22,7 @@ import {
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { useToast } from '../../../components/ToastContext.jsx'
-import { CATEGORIES, fieldsOf, searchTemplates, TEMPLATES, templateById } from './catalog/index.js'
+import { CATEGORIES, FREE_TEXT_ID, fieldsOf, searchTemplates, TEMPLATES, templateById } from './catalog/index.js'
 import { DOC_STATUSES, duplicateDocument, loadDocument, suggestDocumentType, useFavoriteTemplates, useMyDocuments } from './useDocuments.js'
 import { docStrings, errorText } from './strings.js'
 import { Modal } from './Dialogs.jsx'
@@ -28,8 +30,8 @@ import { Modal } from './Dialogs.jsx'
 // «Конструктор профессиональной документации»: the catalog of document types
 // (search, categories, ⭐, «Не знаете, какой документ выбрать?») and «Мои
 // документы». Creating a type opens the universal editor; «Рапорт» opens the
-// existing «Умный рабочий рапорт». Checking an already finished, uploaded
-// document stays the separate «Құжат мазмұнын сараптау» tool.
+// existing «Умный рабочий рапорт». The terminology expertise of a document
+// starts from its editor (see «Работа с документами», src/pages/workspace).
 
 function StatusBadge({ status, s }) {
   return <span className={`doc-tpl-status doc-tpl-status--${status}`}>{s.templateStatus[status]}</span>
@@ -392,6 +394,36 @@ function MyDocuments({ s, lang }) {
   )
 }
 
+/** «Как подготовить документ?»: the structured form, or a text the helper fills the form from. */
+function MethodDialog({ template, lang, onPick, onClose }) {
+  const { t } = useLanguage()
+  const m = t.workspace.method
+  return (
+    <Modal title={m.title} onClose={onClose}>
+      <p className="doc-method-lead">
+        <strong>{template.title[lang]}</strong> — {m.lead}
+      </p>
+      <div className="doc-method-options">
+        <button type="button" className="doc-method-option" onClick={() => onPick('form')}>
+          <ListChecks size={26} aria-hidden="true" />
+          <span className="doc-method-title">{m.form}</span>
+          <span className="doc-method-text">{m.formText}</span>
+        </button>
+        <button type="button" className="doc-method-option" onClick={() => onPick('text')}>
+          <FilePenLine size={26} aria-hidden="true" />
+          <span className="doc-method-title">{m.text}</span>
+          <span className="doc-method-text">{m.textText}</span>
+        </button>
+      </div>
+      <div className="doc-modal-actions">
+        <button type="button" className="doc-btn" onClick={onClose}>
+          {m.cancel}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 export default function DocumentBuilderPage() {
   const { lang: uiLang } = useLanguage()
   const lang = uiLang === 'kk' ? 'kk' : 'ru'
@@ -401,7 +433,18 @@ export default function DocumentBuilderPage() {
   const tab = params.get('tab') === 'mine' ? 'mine' : 'catalog'
 
 
-  const create = (template) => navigate(template.engine === 'smart' ? '/account/smart-report/new' : `/account/documents/new/${template.id}`)
+  const [methodFor, setMethodFor] = useState(null)
+  // The smart report has its own flow and free text is just text; other types ask how to start.
+  const create = (template) => {
+    if (template.engine === 'smart') navigate('/account/smart-report/new')
+    else if (template.id === FREE_TEXT_ID) navigate(`/account/documents/new/${template.id}`)
+    else setMethodFor(template)
+  }
+  const startWith = (method) => {
+    const template = methodFor
+    setMethodFor(null)
+    navigate(`/account/documents/new/${template.id}${method === 'text' ? '?mode=text' : ''}`)
+  }
 
   return (
     <div className="doc-page">
@@ -432,6 +475,7 @@ export default function DocumentBuilderPage() {
         </Link>
       </nav>
       {tab === 'catalog' ? <Catalog s={s} lang={lang} onCreate={create} /> : <MyDocuments s={s} lang={lang} />}
+      {methodFor && <MethodDialog template={methodFor} lang={lang} onPick={startWith} onClose={() => setMethodFor(null)} />}
     </div>
   )
 }

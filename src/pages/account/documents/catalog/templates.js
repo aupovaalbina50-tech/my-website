@@ -32,6 +32,9 @@ import {
 
 export const TEMPLATE_STATUSES = ['official', 'recommended', 'platform']
 
+/** «Документ в свободной форме» — also the home of uploaded documents. */
+export const FREE_TEXT_ID = 'free_text'
+
 const T = (id, categories, title, docTitle, purpose, sections, extra = {}) => ({
   id,
   categories,
@@ -273,6 +276,26 @@ export const TEMPLATES = [
     ),
     [],
     { engine: 'smart' },
+  ),
+  // Free text: written from scratch, pasted, or extracted from an uploaded
+  // file for the terminology expertise (values.__source tells which).
+  T(
+    FREE_TEXT_ID,
+    ['service'],
+    L('Еркін нысандағы құжат', 'Документ в свободной форме'),
+    L('', ''),
+    L(
+      'Мәтінді өзіңіз жазасыз немесе қоясыз; құрылымы бекітілмеген. Жүктелген құжаттардың мәтіні де осында сақталады.',
+      'Текст пишется или вставляется самостоятельно, без заданной структуры. Здесь же хранится текст загруженных на экспертизу документов.',
+    ),
+    [
+      content([
+        f('body', 'textarea', L('Құжат мәтіні', 'Текст документа'), {
+          required: true,
+          hint: L('Құжаттың толық мәтіні: тақырып, мазмұн, қолтаңба.', 'Полный текст документа: заголовок, содержание, подпись.'),
+        }),
+      ]),
+    ],
   ),
   T('briefing', ['service'], L('Баяндама', 'Доклад'), L('БАЯНДАМА', 'ДОКЛАД'), L('Басшылыққа немесе кеңесте ауызша не жазбаша баяндау.', 'Устное или письменное изложение для руководства или совещания.'), [
     serviceHead({ number: false }),

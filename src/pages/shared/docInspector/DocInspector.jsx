@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, Check, CheckCircle2, CircleDashed, Download, FileSearch, FileText, ImageUp, Info, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Upload, Wand2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Camera, Check, CheckCircle2, CircleDashed, Download, FilePenLine, FileSearch, FileText, ImageUp, Info, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Upload, Wand2 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
+import { useAuth } from '../../../auth/AuthContext.jsx'
+import { loadDocument } from '../../account/documents/useDocuments.js'
+import { createUploadedDocument, documentPlainText, markDocumentChecked } from '../../workspace/documentModel.js'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
 import { categoryOf, chosenFix, decisionRecord, runInspection } from './pipeline.js'
@@ -191,6 +195,31 @@ function ProcessingScreen({ fileName, progress, sawOcr, ti }) {
         <Info size={20} aria-hidden="true" />
         <span>{ti.processingNote}</span>
       </p>
+    </div>
+  )
+}
+
+/**
+ * The document of «Работа с документами» a check belongs to: back to its
+ * editor, or check its current text again. Shown only when there is one.
+ */
+function DocumentBar({ inspection, notice, onRecheck, tw }) {
+  if (!inspection.documentId && !notice) return null
+  return (
+    <div className="inspector-document-bar">
+      {notice && <p className={`inspector-document-note${notice === 'notSavedAsDocument' ? ' is-warning' : ''}`}>{tw[notice]}</p>}
+      {inspection.documentId && (
+        <div className="inspector-document-actions">
+          <Link to={`/account/documents/${inspection.documentId}`} className="inspector-btn inspector-btn--primary">
+            <FilePenLine size={16} aria-hidden="true" />
+            {tw.continueEditing}
+          </Link>
+          <button type="button" className="inspector-btn" onClick={() => onRecheck(inspection.documentId)}>
+            <RotateCcw size={15} aria-hidden="true" />
+            {tw.recheck}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -390,10 +419,17 @@ function DoneScreen({ inspection, output, decisions, choices, onReport, onRecord
   )
 }
 
-function DocInspector() {
+// In «Работа с документами» (personal account) the inspector works on the
+// user's documents: `documentId` checks a saved document without a new upload,
+// `historyId` reopens a saved check, and with `linkDocuments` an uploaded file
+// is kept as a document whose extracted text can be edited and checked again.
+function DocInspector({ documentId = null, historyId: openHistoryId = null, linkDocuments = false }) {
   const { t, lang } = useLanguage()
   const ti = t.inspector
+  const tw = t.workspace.inspector
+  const { user } = useAuth()
   const history = useInspectionHistory()
+  const [notice, setNotice] = useState(null) // 'savedAsDocument' | 'notSavedAsDocument'
 
   const [screen, setScreen] = useState('upload') // upload | processing | review | done | error
   const [fileName, setFileName] = useState('')
@@ -419,7 +455,8 @@ function DocInspector() {
     if (screen !== 'upload') panelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [screen])
 
-  const start = async (file) => {
+  const start = async (file, { fromDocument = null } = {}) => {
+    setNotice(null)
     setFileName(file.name)
     setError(null)
     setInspection(null)
@@ -435,6 +472,20 @@ function DocInspector() {
         if (p.stage === 'ocr') setSawOcr(true)
         setProgress(p)
       })
+      if (fromDocument) {
+        result.documentId = fromDocument
+        await markDocumentChecked(fromDocument, result).catch((err) => console.error('Document status was not updated:', err))
+      } else if (linkDocuments && user) {
+        // Only a finished check becomes a document; a failed one leaves nothing behind.
+        try {
+          const row = await createUploadedDocument(user.id, result, lang)
+          result.documentId = row.id
+          setNotice('savedAsDocument')
+        } catch (err) {
+          console.error('Uploaded document was not saved:', err)
+          setNotice('notSavedAsDocument')
+        }
+      }
       setInspection(result)
       setScreen('review')
       // Saved for a signed-in user; the check itself never depends on it.
@@ -445,6 +496,40 @@ function DocInspector() {
       setScreen('error')
     }
   }
+
+  /** Checks the current text of a saved document — no new upload. */
+  const checkDocument = useCallback(
+    async (id) => {
+      setNotice(null)
+      setError(null)
+      setInspection(null)
+      setScreen('processing')
+      setFileName(tw.loadingDocument)
+      setProgress({ stage: 'read' })
+      let row = null
+      try {
+        row = await loadDocument(id)
+      } catch (err) {
+        console.error('Document could not be loaded:', err)
+      }
+      if (!row) {
+        setError(new InspectorError('document_not_found'))
+        setScreen('error')
+        return
+      }
+      const text = documentPlainText(row)
+      if (!text) {
+        setError(new InspectorError('document_empty'))
+        setScreen('error')
+        return
+      }
+      const name = `${(row.title || 'document').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'document'}.docx`
+      startRef.current(await textToDocxFile(text, name), { fromDocument: row.id })
+    },
+    [tw],
+  )
+  const startRef = useRef(start)
+  startRef.current = start
 
   const openFromHistory = async (id) => {
     const snapshot = await history.load(id)
@@ -462,8 +547,24 @@ function DocInspector() {
     setHistoryId(id)
     setScreen('review')
   }
+  const openFromHistoryRef = useRef(openFromHistory)
+  openFromHistoryRef.current = openFromHistory
+
+  // Opened from the editor (?document=) or from the history (?history=).
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (autoStarted.current) return
+    if (documentId) {
+      autoStarted.current = true
+      checkDocument(documentId)
+    } else if (openHistoryId && user) {
+      autoStarted.current = true
+      openFromHistoryRef.current(openHistoryId)
+    }
+  }, [documentId, openHistoryId, user, checkDocument])
 
   const reset = () => {
+    setNotice(null)
     setScreen('upload')
     setInspection(null)
     setOutput(null)
@@ -573,6 +674,9 @@ function DocInspector() {
 
         {screen === 'upload' && <UploadScreen onFile={start} history={history} onOpenHistory={openFromHistory} ti={ti} lang={lang} />}
         {screen === 'processing' && <ProcessingScreen fileName={fileName} progress={progress} sawOcr={sawOcr} ti={ti} />}
+        {(screen === 'review' || screen === 'done') && inspection && (
+          <DocumentBar inspection={inspection} notice={notice} onRecheck={checkDocument} tw={tw} />
+        )}
         {screen === 'review' && inspection && (
           <ReviewScreen
             inspection={inspection}
@@ -605,7 +709,9 @@ function DocInspector() {
         {screen === 'error' && error && (
           <div className="inspector-error" role="alert">
             <ShieldAlert size={22} aria-hidden="true" />
-            <p className="inspector-error-title">{ti.errors[error.code] || ti.errors.internal_error}</p>
+            <p className="inspector-error-title">
+              {error.code === 'document_not_found' ? tw.documentNotFound : error.code === 'document_empty' ? tw.documentEmpty : ti.errors[error.code] || ti.errors.internal_error}
+            </p>
             {error.code === 'rate_limited' && <p className="inspector-error-sub">{ti.rateLimitHint}</p>}
             <button type="button" className="inspector-btn inspector-btn--primary" onClick={inspection ? () => setScreen('review') : reset}>
               <RotateCcw size={15} aria-hidden="true" />

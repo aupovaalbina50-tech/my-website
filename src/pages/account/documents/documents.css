@@ -1980,3 +1980,78 @@ textarea.doc-input {
     margin: 20mm 15mm 20mm 30mm;
   }
 }
+
+/* ---- «Как подготовить документ?» (constructor) ---- */
+
+.doc-method-lead {
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.doc-method-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.doc-method-option {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 18px;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--blue-light);
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  & svg {
+    color: var(--navy);
+  }
+}
+
+.doc-method-option:hover,
+.doc-method-option:focus-visible {
+  border-color: var(--navy);
+  box-shadow: 0 6px 18px rgba(27, 79, 140, 0.18);
+}
+
+.doc-method-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.doc-method-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+/* ---- editor: source of the document, last expertise ---- */
+
+.doc-source-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #eef4ff;
+  color: #1e3a8a;
+  font-size: 14px;
+  font-weight: 600;
+
+  & a {
+    color: #1d4ed8;
+  }
+}

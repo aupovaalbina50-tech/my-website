@@ -1,7 +1,7 @@
 import './documents.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Camera,
@@ -11,6 +11,8 @@ import {
   Download,
   FileText,
   History,
+  FileSearch,
+  RotateCcw,
   Loader2,
   Printer,
   Save,
@@ -21,10 +23,11 @@ import {
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { useToast } from '../../../components/ToastContext.jsx'
-import { CATEGORIES, fieldsOf, templateById } from './catalog/index.js'
+import { CATEGORIES, FREE_TEXT_ID, fieldsOf, templateById } from './catalog/index.js'
 import { checkBlocks, documentText, isEmptyValue, missingRequired, renderDocument, replaceFragment, setValueAt, valueAt } from './render.js'
 import { documentToDocx, documentToPdf, downloadBlob, fileNameOf } from './exportDocument.js'
-import { checkDocumentText, createDocument, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
+import { checkDocumentText, createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
+import { CHECK_DOCUMENT_PATH, documentSource, expertisePath, loadDocumentExpertises } from '../../workspace/documentModel.js'
 import { docStrings, errorText } from './strings.js'
 import { requisiteIssues } from '../smartReport/templates/index.js'
 import FieldInput from './FieldInput.jsx'
@@ -44,6 +47,7 @@ const nextIssueId = () => `i${Date.now().toString(36)}${(issueSeq++).toString(36
 /** The check as stored: older rows may hold a bare array. */
 const readCheck = (raw) => (Array.isArray(raw) ? (raw.length ? { items: raw } : null) : raw && typeof raw === 'object' && raw.items ? raw : null)
 const openCount = (check) => (check?.items ?? []).filter((i) => i.status === 'open').length
+const savePayload = (values, title, lang, status, check) => ({ values, title, lang, status, issues: check ?? [], issue_count: openCount(check) })
 
 function today() {
   const d = new Date()
@@ -80,10 +84,13 @@ function ruleIssues(template, values, s, lang, docLang) {
 
 export default function DocumentEditor() {
   const { id } = useParams()
-  const { lang: uiLang } = useLanguage()
+  const { lang: uiLang, t } = useLanguage()
   const lang = uiLang === 'kk' ? 'kk' : 'ru'
   const s = docStrings(lang)
   const e = s.editor
+  const w = t.workspace.editor
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
   const { user, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
 
@@ -103,6 +110,10 @@ export default function DocumentEditor() {
   const [dialog, setDialog] = useState(null) // 'profile' | 'assist' | 'photo' | 'versions' | 'export'
   const [assistText, setAssistText] = useState('')
   const loaded = useRef(false)
+  // What is stored now: opening a document must not count as a change (it would move updated_at).
+  const lastSaved = useRef(null)
+  const [original, setOriginal] = useState(null) // version «original»: the source text
+  const [lastExpertise, setLastExpertise] = useState(null)
 
   const template = doc ? templateById(doc.template_id) : null
   const readOnly = status === 'archive'
@@ -121,26 +132,87 @@ export default function DocumentEditor() {
         setDocLang(row.lang ?? 'ru')
         setStatus(row.status ?? 'draft')
         setCheck(readCheck(row.issues))
+        lastSaved.current = JSON.stringify(savePayload(row.values ?? {}, row.title ?? '', row.lang ?? 'ru', row.status ?? 'draft', readCheck(row.issues)))
+        // «Написать или вставить текст»: the editor opens with the text helper.
+        if (params.get('mode') === 'text' && row.template_id !== FREE_TEXT_ID) {
+          setDialog('assist')
+          setParams({}, { replace: true })
+        }
         // Let the first render pass before changes count as edits.
         setTimeout(() => (loaded.current = true), 0)
       })
       .catch(() => alive && setLoadError('notFound'))
+    // The source text and the last terminology expertise (not needed to edit).
+    loadDocVersions(id)
+      .then((versions) => alive && setOriginal(versions.filter((v) => v.kind === 'original').at(-1) ?? null))
+      .catch(() => {})
+    loadDocumentExpertises(id, 1)
+      .then((rows) => alive && setLastExpertise(rows[0] ?? null))
+      .catch(() => {})
     return () => {
       alive = false
     }
+    // params are read once, when the document opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   // ---- autosave ----
   useEffect(() => {
     if (!loaded.current || !doc) return
+    const payload = savePayload(values, title, docLang, status, check)
+    const key = JSON.stringify(payload)
+    if (key === lastSaved.current) return
     setSaveState('saving')
     const timer = setTimeout(() => {
-      updateDocument(doc.id, { values, title, lang: docLang, status, issues: check ?? [], issue_count: openCount(check) })
-        .then(() => setSaveState('saved'))
+      updateDocument(doc.id, payload)
+        .then(() => {
+          lastSaved.current = key
+          setSaveState('saved')
+        })
         .catch(() => setSaveState('error'))
     }, SAVE_DELAY)
     return () => clearTimeout(timer)
   }, [values, title, docLang, status, check, doc])
+
+  /** Saves at once (the autosave waits for a pause); true when saved. */
+  const saveNow = async () => {
+    setSaveState('saving')
+    try {
+      const payload = savePayload(values, title, docLang, status, check)
+      await updateDocument(doc.id, payload)
+      lastSaved.current = JSON.stringify(payload)
+      setSaveState('saved')
+      return true
+    } catch {
+      setSaveState('error')
+      return false
+    }
+  }
+
+  const saveDraft = async () => {
+    const ok = await saveNow()
+    showToast(ok ? w.draftSaved : w.saveFailed, { type: ok ? 'success' : 'error' })
+  }
+
+  /** «Терминологическая экспертиза» of this document: saved first, then checked as it is — no upload. */
+  const openExpertise = async () => {
+    if (await saveNow()) navigate(CHECK_DOCUMENT_PATH(doc.id))
+    else showToast(w.saveFailed, { type: 'error' })
+  }
+
+  /** «Вернуть исходный текст»: the current text is kept as a version first. */
+  const restoreOriginal = async () => {
+    if (!original || !window.confirm(w.restoreConfirm)) return
+    try {
+      const version = await saveDocVersion(doc, values, 'user')
+      setDoc((d) => ({ ...d, current_version: version }))
+      setValues(original.values ?? {})
+      setStatus('filling')
+      showToast(w.restored, { type: 'success' })
+    } catch {
+      showToast(w.saveFailed, { type: 'error' })
+    }
+  }
 
   const rendered = useMemo(() => (template ? renderDocument(template, values, docLang) : null), [template, values, docLang])
 
@@ -321,6 +393,7 @@ export default function DocumentEditor() {
   }
 
   const category = CATEGORIES.find((c) => c.key === template.categories[0])
+  const source = documentSource(values)
   const opened = openCount(check)
 
   return (
@@ -357,6 +430,25 @@ export default function DocumentEditor() {
         </div>
       </header>
 
+      {(source.origin === 'upload' || original || lastExpertise) && (
+        <div className="doc-source-bar">
+          {source.origin === 'upload' && <span className="doc-source-file">{w.uploadedFrom(source.fileName)}</span>}
+          {lastExpertise && (
+            <span className="doc-source-expertise">
+              {w.lastExpertise}: {new Date(lastExpertise.created_at).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')} ·{' '}
+              {lastExpertise.issue_count > 0 ? t.workspace.activity.issues(lastExpertise.issue_count) : t.workspace.activity.noIssues}{' '}
+              <Link to={expertisePath(lastExpertise)}>{w.openExpertise}</Link>
+            </span>
+          )}
+          {original && !readOnly && (
+            <button type="button" className="doc-btn doc-btn--small" onClick={restoreOriginal}>
+              <RotateCcw size={14} aria-hidden="true" />
+              {w.restoreOriginal}
+            </button>
+          )}
+        </div>
+      )}
+
       {readOnly && (
         <div className="doc-archive-note">
           {e.readOnlyArchive}
@@ -371,27 +463,39 @@ export default function DocumentEditor() {
           <UserRound size={16} aria-hidden="true" />
           {e.profileFill}
         </button>
-        <button
-          type="button"
-          className="doc-btn"
-          onClick={() => {
-            setAssistText('')
-            setDialog('assist')
-          }}
-          disabled={readOnly}
-        >
-          <Sparkles size={16} aria-hidden="true" />
-          {e.assist}
-        </button>
-        <button type="button" className="doc-btn" onClick={() => setDialog('photo')} disabled={readOnly}>
-          <Camera size={16} aria-hidden="true" />
-          {e.photo}
-        </button>
+        {template.id !== FREE_TEXT_ID && (
+          <>
+            <button
+              type="button"
+              className="doc-btn"
+              onClick={() => {
+                setAssistText('')
+                setDialog('assist')
+              }}
+              disabled={readOnly}
+            >
+              <Sparkles size={16} aria-hidden="true" />
+              {e.assist}
+            </button>
+            <button type="button" className="doc-btn" onClick={() => setDialog('photo')} disabled={readOnly}>
+              <Camera size={16} aria-hidden="true" />
+              {e.photo}
+            </button>
+          </>
+        )}
         <button type="button" className="doc-btn doc-btn--accent" onClick={runCheck} disabled={checking || readOnly}>
           {checking ? <Loader2 size={16} className="doc-spin" aria-hidden="true" /> : <ScanSearch size={16} aria-hidden="true" />}
           {checking ? e.checking : e.check}
         </button>
+        <button type="button" className="doc-btn doc-btn--accent" onClick={openExpertise} disabled={checking || readOnly}>
+          <FileSearch size={16} aria-hidden="true" />
+          {w.expertise}
+        </button>
         <span className="doc-toolbar-gap" />
+        <button type="button" className="doc-btn" onClick={saveDraft} disabled={readOnly || saveState === 'saving'}>
+          <Save size={16} aria-hidden="true" />
+          {w.saveDraft}
+        </button>
         <button type="button" className="doc-btn" onClick={saveUserVersion} disabled={readOnly}>
           <Save size={16} aria-hidden="true" />
           {e.saveVersion}
@@ -577,6 +681,7 @@ export default function DocumentEditor() {
 /** «Создать»: a new document of the given type, then its editor. */
 export function NewDocument() {
   const { templateId } = useParams()
+  const [params] = useSearchParams()
   const { lang: uiLang } = useLanguage()
   const lang = uiLang === 'kk' ? 'kk' : 'ru'
   const { user } = useAuth()
@@ -594,9 +699,9 @@ export function NewDocument() {
       return
     }
     createDocument(user.id, { template_id: template.id, lang, title: template.title[lang], status: 'draft', values: {} })
-      .then((row) => navigate(`/account/documents/${row.id}`, { replace: true }))
+      .then((row) => navigate(`/account/documents/${row.id}${params.get('mode') === 'text' ? '?mode=text' : ''}`, { replace: true }))
       .catch(() => setFailed(true))
-  }, [templateId, user, lang, navigate])
+  }, [templateId, user, lang, navigate, params])
 
   if (!templateById(templateId) || failed) {
     return (

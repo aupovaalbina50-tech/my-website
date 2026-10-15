@@ -1,7 +1,7 @@
 import { L } from './fields.js'
 import { TEMPLATES } from './templates.js'
 
-export { TEMPLATES, TEMPLATE_STATUSES } from './templates.js'
+export { TEMPLATES, TEMPLATE_STATUSES, FREE_TEXT_ID } from './templates.js'
 export { FIELD_TYPES } from './fields.js'
 
 export const CATEGORIES = [
