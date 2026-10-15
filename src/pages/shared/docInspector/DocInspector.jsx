@@ -456,7 +456,7 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
     if (screen !== 'upload') panelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [screen])
 
-  const start = async (file, { fromDocument = null } = {}) => {
+  const start = async (file, { fromDocument = null, fromValues = null } = {}) => {
     setNotice(null)
     setFileName(file.name)
     setError(null)
@@ -475,7 +475,7 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
       })
       if (fromDocument) {
         result.documentId = fromDocument
-        await markDocumentChecked(fromDocument, result).catch((err) => console.error('Document status was not updated:', err))
+        await markDocumentChecked(fromDocument, result, fromValues).catch((err) => console.error('Document status was not updated:', err))
       } else if (linkDocuments && user) {
         // Only a finished check becomes a document; a failed one leaves nothing behind.
         try {
@@ -525,7 +525,7 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
         return
       }
       const name = `${(row.title || 'document').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'document'}.docx`
-      startRef.current(await textToDocxFile(text, name), { fromDocument: row.id })
+      startRef.current(await textToDocxFile(text, name), { fromDocument: row.id, fromValues: row.values })
     },
     [tw],
   )

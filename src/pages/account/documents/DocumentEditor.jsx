@@ -26,7 +26,7 @@ import { CATEGORIES, FREE_TEXT_ID, fieldsOf, templateById } from './catalog/inde
 import { documentText, formatValue, isEmptyValue, missingRequired, renderDocument } from './render.js'
 import { documentToDocx, documentToPdf, downloadBlob, fileNameOf } from './exportDocument.js'
 import { composeDocumentText, createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
-import { documentSource, expertisePath, loadDocumentExpertises, saveEditorExpertise } from '../../workspace/documentModel.js'
+import { contentHash, documentSource, expertisePath, loadDocumentExpertises, saveEditorExpertise } from '../../workspace/documentModel.js'
 import { activeItems, applyItem, counts, expertiseState, forStorage, readExpertise, setItemStatus, undoLast } from '../../workspace/expertise/model.js'
 import { runExpertise } from '../../workspace/expertise/runExpertise.js'
 import { ChangesList, ExpertisePanel } from '../../workspace/expertise/ExpertisePanel.jsx'
@@ -35,7 +35,8 @@ import { CompletePanel, DraftPanel, ExportPanel, InfoPanel, WizardSteps } from '
 import { docStrings } from './strings.js'
 import FieldInput from './FieldInput.jsx'
 import DocumentPreview from './DocumentPreview.jsx'
-import { AssistDialog, PhotoDialog, ProfileFillDialog, VersionsDialog } from './Dialogs.jsx'
+import { AssistDialog, PhotoDialog, ProfileFillDialog } from './Dialogs.jsx'
+import { VersionsPanel } from '../../workspace/versions/VersionsPanel.jsx'
 
 // The universal editor of «Конструктор профессиональной документации».
 // Left: the template's sections as a form; right: the live preview, the check
@@ -47,7 +48,7 @@ const SAVE_DELAY = 900
 /** The check as stored: older rows may hold a bare array. */
 // The expertise result is stored with the document (issues); an old-format check of the constructor is not shown.
 const readCheck = (raw) => readExpertise(raw)
-const savePayload = (values, title, lang, status, check) => ({ values, title, lang, status, issues: forStorage(check) ?? [], issue_count: counts(check, values).all })
+const savePayload = (values, title, lang, status, check) => ({ values, title, lang, status, issues: forStorage(check) ?? [], issue_count: counts(check, values).all, content_hash: contentHash(values) })
 
 export default function DocumentEditor() {
   const { id } = useParams()
@@ -84,6 +85,13 @@ export default function DocumentEditor() {
   // What is stored now: opening a document must not count as a change (it would move updated_at).
   const lastSaved = useRef(null)
   const [original, setOriginal] = useState(null) // version «original»: the source text
+  // Fingerprint of the text of the newest saved version (a version on leaving only when it differs).
+  const lastVersionHash = useRef(null)
+  const autoCheck = useRef(false)
+  // Number of the newest version. Reserved synchronously, so two versions saved one right
+  // after the other (original + checked) never get the same number.
+  const versionNo = useRef(0)
+  const latest = useRef({})
   const [lastExpertise, setLastExpertise] = useState(null)
 
   const template = doc ? templateById(doc.template_id) : null
@@ -98,12 +106,17 @@ export default function DocumentEditor() {
         if (!alive) return
         if (!row) return setLoadError('notFound')
         setDoc(row)
+        versionNo.current = row.current_version ?? 0
         setValues(row.values ?? {})
         setTitle(row.title ?? '')
         setDocLang(row.lang ?? 'ru')
-        setStatus(row.status ?? 'draft')
-        setCheck(readCheck(row.issues))
-        lastSaved.current = JSON.stringify(savePayload(row.values ?? {}, row.title ?? '', row.lang ?? 'ru', row.status ?? 'draft', readCheck(row.issues)))
+        // «На проверке» left by a check that never finished (the page was closed): the stored result decides.
+        const stored = readCheck(row.issues)
+        const rowStatus = row.status === 'review' ? (stored ? (counts(stored, row.values ?? {}).all ? 'issues' : 'checked') : 'filling') : (row.status ?? 'draft')
+        setStatus(rowStatus)
+        setCheck(stored)
+        lastSaved.current = JSON.stringify(savePayload(row.values ?? {}, row.title ?? '', row.lang ?? 'ru', row.status ?? 'draft', stored))
+        autoCheck.current = params.get('check') === '1'
         // The step the user was on; «Описать ситуацию» opens the description.
         const flow = readFlow(row.values)
         if (params.get('mode') === 'text') {
@@ -117,7 +130,11 @@ export default function DocumentEditor() {
       .catch(() => alive && setLoadError('notFound'))
     // The source text and the last terminology expertise (not needed to edit).
     loadDocVersions(id)
-      .then((versions) => alive && setOriginal(versions.filter((v) => v.kind === 'original').at(-1) ?? null))
+      .then((versions) => {
+        if (!alive) return
+        setOriginal(versions.filter((v) => v.kind === 'original').at(-1) ?? null)
+        lastVersionHash.current = versions[0] ? contentHash(versions[0].values) : null
+      })
       .catch(() => {})
     loadDocumentExpertises(id, 1)
       .then((rows) => alive && setLastExpertise(rows[0] ?? null))
@@ -130,36 +147,98 @@ export default function DocumentEditor() {
   }, [id])
 
   // ---- autosave ----
+  // Saves go one after another (never two requests at once, so an older text can
+  // never land after a newer one), and each takes the newest text when it starts.
+  // «Сохранено» is shown only when the database confirmed exactly the text on screen.
+  const wantKey = useRef(null)
+  const queue = useRef(Promise.resolve())
+  const persist = () => {
+    const run = async () => {
+      const { values: v, title: tt, docLang: dl, status: st, check: ck, doc: d } = latest.current
+      const payload = savePayload(v, tt, dl, st, ck)
+      const key = JSON.stringify(payload)
+      if (key === lastSaved.current) return
+      await updateDocument(d.id, payload)
+      lastSaved.current = key
+    }
+    return enqueue(run)
+  }
+  /** Any write of this document waits for the previous one. */
+  const enqueue = (fn) => {
+    const next = queue.current.then(fn, fn)
+    queue.current = next.catch(() => {})
+    return next
+  }
   useEffect(() => {
     if (!loaded.current || !doc) return
-    const payload = savePayload(values, title, docLang, status, check)
-    const key = JSON.stringify(payload)
-    if (key === lastSaved.current) return
+    const key = JSON.stringify(savePayload(values, title, docLang, status, check))
+    wantKey.current = key
+    if (key === lastSaved.current) {
+      setSaveState((st) => (st === 'saving' ? 'saved' : st))
+      return
+    }
     setSaveState('saving')
     const timer = setTimeout(() => {
-      updateDocument(doc.id, payload)
-        .then(() => {
-          lastSaved.current = key
-          setSaveState('saved')
-        })
-        .catch(() => setSaveState('error'))
+      persist()
+        .then(() => wantKey.current === lastSaved.current && setSaveState('saved'))
+        .catch(() => wantKey.current !== lastSaved.current && setSaveState('error'))
     }, SAVE_DELAY)
     return () => clearTimeout(timer)
+    // persist reads the newest state from `latest`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values, title, docLang, status, check, doc])
 
-  /** Saves at once (the autosave waits for a pause); true when saved. */
+  latest.current = { values, doc, saveState, title, docLang, status, check }
+  // Lost connection: retry as soon as it is back; leaving with unsaved changes asks first.
+  useEffect(() => {
+    const online = () => latest.current.saveState === 'error' && saveNowRef.current?.()
+    const unload = (ev) => {
+      if (latest.current.saveState === 'saved') return
+      ev.preventDefault()
+      ev.returnValue = ''
+    }
+    window.addEventListener('online', online)
+    window.addEventListener('beforeunload', unload)
+    return () => {
+      window.removeEventListener('online', online)
+      window.removeEventListener('beforeunload', unload)
+    }
+  }, [])
+  // Leaving the editor: the text is kept as a version when it differs from the newest one
+  // (one version per session of work, not one per keystroke).
+  useEffect(
+    () => () => {
+      const { values: v, doc: d } = latest.current
+      if (!loaded.current || !d || !Object.keys(v ?? {}).some((k) => !k.startsWith('__') && v[k] !== '' && v[k] != null)) return
+      if (contentHash(v) === lastVersionHash.current) return
+      saveDocVersion({ ...d, current_version: versionNo.current++ }, v, 'user', onLeaveNote.current).catch(() => {})
+    },
+    [],
+  )
+
+  /** Saves at once (the autosave waits for a pause); true only when the database confirmed it. */
   const saveNow = async () => {
     setSaveState('saving')
     try {
-      const payload = savePayload(values, title, docLang, status, check)
-      await updateDocument(doc.id, payload)
-      lastSaved.current = JSON.stringify(payload)
-      setSaveState('saved')
+      await persist()
+      setSaveState(wantKey.current === lastSaved.current ? 'saved' : 'saving')
       return true
     } catch {
       setSaveState('error')
       return false
     }
+  }
+  const saveNowRef = useRef(null)
+  saveNowRef.current = saveNow
+  const onLeaveNote = useRef('')
+  onLeaveNote.current = t.workspace.versions.onLeave
+
+  /** A version with a reason; remembers its fingerprint. */
+  const keepVersion = async (v, kind, note = null) => {
+    const version = await saveDocVersion({ ...(latest.current.doc ?? doc), current_version: versionNo.current++ }, v, kind, note)
+    setDoc((d) => ({ ...d, current_version: Math.max(d.current_version ?? 0, version) }))
+    lastVersionHash.current = contentHash(v)
+    return version
   }
 
   const saveDraft = async () => {
@@ -172,8 +251,7 @@ export default function DocumentEditor() {
   const restoreOriginal = async () => {
     if (!original || !window.confirm(w.restoreConfirm)) return
     try {
-      const version = await saveDocVersion(doc, values, 'user')
-      setDoc((d) => ({ ...d, current_version: version }))
+      await keepVersion(values, 'user', t.workspace.versions.beforeRestore(original.version))
       setValues(original.values ?? {})
       setStatus('filling')
       showToast(w.restored, { type: 'success' })
@@ -236,11 +314,12 @@ export default function DocumentEditor() {
     setCheckFailure(null)
     // The expertise is step 7: the document reopens there.
     setStage('check')
+    const prevStatus = status
+    // «На проверке» while it runs — stored at once, so «Мои документы» shows it too.
+    setStatus('review')
+    enqueue(() => updateDocument(doc.id, { status: 'review' })).catch(() => {})
     try {
-      if (!doc.current_version) {
-        const version = await saveDocVersion(doc, values, 'original')
-        setDoc((d) => ({ ...d, current_version: version }))
-      }
+      if (!doc.current_version) await keepVersion(values, 'original')
     } catch {
       // A failed snapshot must not block the check itself.
     }
@@ -255,13 +334,28 @@ export default function DocumentEditor() {
     const state = next ? expertiseState(next, values) : 'error'
     if (state === 'error') {
       // Nothing finished: the previous result stays as it was, marked by its own date.
+      setStatus(prevStatus)
+      enqueue(() => updateDocument(doc.id, { status: prevStatus })).catch(() => {})
       setCheckFailure(x.failedAll)
       showToast(x.failedAll, { type: 'error' })
       return
     }
+    // The checked text is kept as a version: the result belongs to exactly that edition.
+    const open = counts(next, values).all
+    try {
+      next.version = await keepVersion(values, 'checked', t.workspace.versions.afterCheck(open))
+    } catch {
+      next.version = null
+    }
+    const hash = contentHash(values)
+    const nextStatus = open ? 'issues' : 'checked'
     setCheck(next)
     if (state === 'needs_review') setCheckFailure(x.failedPart)
-    setStatus(counts(next, values).all ? 'issues' : 'review')
+    setStatus(nextStatus)
+    setDoc((d) => ({ ...d, checked_at: next.at, checked_hash: hash, content_hash: hash }))
+    enqueue(() => updateDocument(doc.id, { status: nextStatus, checked_at: next.at, checked_hash: hash, content_hash: hash, issues: forStorage(next), issue_count: open }))
+      .then(() => (lastSaved.current = JSON.stringify(savePayload(values, title, docLang, nextStatus, next))))
+      .catch(() => setSaveState('error'))
     showToast(x.state[state], { type: 'success' })
     if (user) saveEditorExpertise(user.id, doc, title || template.title[docLang], next, values).then((row) => row && setLastExpertise(row)).catch((err) => console.error('Expertise history was not saved:', err))
   }
@@ -270,11 +364,22 @@ export default function DocumentEditor() {
   useEffect(() => {
     if (!check || check.savedChecked || !check.items.length || activeItems(check, values).length || !(check.changes ?? []).length || !doc) return
     setCheck((c) => ({ ...c, savedChecked: true }))
-    setStatus((st) => (st === 'issues' ? 'review' : st))
-    saveDocVersion(doc, values, 'checked')
-      .then((version) => setDoc((d) => ({ ...d, current_version: version })))
-      .catch(() => {})
+    // Every remark is decided; the text changed, so it shows as «изменён после проверки» until re-checked.
+    setStatus((st) => (st === 'issues' ? 'checked' : st))
+    keepVersion(values, 'user', t.workspace.versions.afterRemarks).catch(() => {})
+    // keepVersion is recreated each render; the trigger is the check itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [check, doc, values])
+
+  // «Проверить документ» from «Мои документы» (?check=1): the saved text, right after opening.
+  useEffect(() => {
+    if (!autoCheck.current || !doc || !template || checking) return
+    autoCheck.current = false
+    setParams({}, { replace: true })
+    runCheck()
+    // runs once, when the document has loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, template])
 
   /** Applies one remark to exactly its range; refuses when the text changed since the check. */
   const applyRemark = (item, replacement, how) => {
@@ -307,8 +412,7 @@ export default function DocumentEditor() {
     }
     setStatus('ready')
     try {
-      const version = await saveDocVersion(doc, values, 'final')
-      setDoc((d) => ({ ...d, current_version: version }))
+      await keepVersion(values, 'final')
       showToast(e.finished, { type: 'success' })
     } catch {
       showToast(e.saveFailed, { type: 'error' })
@@ -317,8 +421,7 @@ export default function DocumentEditor() {
 
   const saveUserVersion = async () => {
     try {
-      const version = await saveDocVersion(doc, values, 'user')
-      setDoc((d) => ({ ...d, current_version: version }))
+      const version = await keepVersion(values, 'user')
       showToast(e.versionSaved(version), { type: 'success' })
     } catch {
       showToast(e.saveFailed, { type: 'error' })
@@ -408,8 +511,7 @@ export default function DocumentEditor() {
 
   const saveCurrentVersion = async () => {
     try {
-      const version = await saveDocVersion(doc, values, 'user')
-      setDoc((d) => ({ ...d, current_version: version }))
+      await keepVersion(values, 'user', t.workspace.versions.beforeRegenerate)
       showToast(wz.versionSaved, { type: 'success' })
       return true
     } catch {
@@ -464,6 +566,11 @@ export default function DocumentEditor() {
           <span className={`doc-tpl-status doc-tpl-status--${template.status}`}>{s.templateStatus[template.status]}</span>
           <span className={`doc-save doc-save--${saveState}`} role="status">
             {saveState === 'saving' ? e.saving : saveState === 'error' ? e.saveFailed : e.saved}
+            {saveState === 'error' && (
+              <button type="button" className="exp-link doc-save-retry" onClick={saveNow}>
+                {e.retrySave}
+              </button>
+            )}
           </span>
         </div>
         <div className="doc-editor-meta">
@@ -686,6 +793,7 @@ export default function DocumentEditor() {
               <ExpertisePanel
                 check={check}
                 values={values}
+                outdated={Boolean(doc.checked_hash && doc.checked_hash !== contentHash(values))}
                 running={checking}
                 failure={checkFailure}
                 x={x}
@@ -766,18 +874,37 @@ export default function DocumentEditor() {
         />
       )}
       {dialog === 'versions' && (
-        <VersionsDialog
+        <VersionsPanel
           doc={doc}
           template={template}
           values={values}
+          docLang={docLang}
           lang={lang}
-          s={s}
+          v={t.workspace.versions}
           onClose={() => setDialog(null)}
-          onRestore={(version) => {
+          onExport={async (item) => {
+            if (item.id === 'current') return exportAs('docx')
+            try {
+              const r = renderDocument(template, item.values ?? {}, docLang)
+              downloadBlob(await documentToDocx(r, docLang), fileNameOf(`${title || template.title[docLang]} v${item.version}`, 'docx'))
+            } catch {
+              showToast(e.exportFailed, { type: 'error' })
+            }
+          }}
+          onRestore={async (version) => {
+            const vs = t.workspace.versions
+            if (!window.confirm(vs.restoreConfirm(version.version))) return
+            try {
+              // The current text first becomes a version of its own — nothing is lost.
+              await keepVersion(values, 'user', vs.beforeRestore(version.version))
+            } catch {
+              showToast(w.saveFailed, { type: 'error' })
+              return
+            }
             setDialog(null)
             setValues(version.values ?? {})
             setStatus('filling')
-            showToast(s.versions.restored(version.version), { type: 'success' })
+            showToast(vs.restored(version.version), { type: 'success' })
           }}
         />
       )}

@@ -2,11 +2,8 @@ import './documents.css'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Archive,
-  ArchiveRestore,
   ChevronDown,
   ChevronUp,
-  Copy,
   FileStack,
   FilePenLine,
   ListChecks,
@@ -16,16 +13,14 @@ import {
   Search,
   Sparkles,
   Star,
-  Trash2,
   Wand2,
 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
-import { useAuth } from '../../../auth/AuthContext.jsx'
-import { useToast } from '../../../components/ToastContext.jsx'
 import { CATEGORIES, FREE_TEXT_ID, fieldsOf, searchTemplates, TEMPLATES, templateById } from './catalog/index.js'
-import { DOC_STATUSES, duplicateDocument, loadDocument, suggestDocumentType, useFavoriteTemplates, useMyDocuments } from './useDocuments.js'
+import { suggestDocumentType, useFavoriteTemplates } from './useDocuments.js'
 import { docStrings, errorText } from './strings.js'
 import { Modal } from './Dialogs.jsx'
+import MyDocuments from '../../workspace/MyDocuments.jsx'
 
 // «Конструктор профессиональной документации»: the catalog of document types
 // (search, categories, ⭐, «Не знаете, какой документ выбрать?») and «Мои
@@ -283,116 +278,6 @@ function Catalog({ s, lang, onCreate }) {
   )
 }
 
-function MyDocuments({ s, lang }) {
-  const m = s.mine
-  const { user } = useAuth()
-  const { showToast } = useToast()
-  const navigate = useNavigate()
-  const { items, loading, error, remove, setStatus } = useMyDocuments()
-  const [filter, setFilter] = useState('all')
-  const visible = items.filter((i) => (filter === 'all' ? i.status !== 'archive' : i.status === filter))
-  const fmt = (d) => new Date(d).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU', { dateStyle: 'short', timeStyle: 'short' })
-  const open = (item) => navigate(item.kind === 'report' ? `/account/smart-report/${item.id}` : `/account/documents/${item.id}`)
-
-  const copy = async (item) => {
-    try {
-      const source = await loadDocument(item.id)
-      const row = await duplicateDocument(user.id, source, templateById(source.template_id), m.copySuffix)
-      showToast(m.copied, { type: 'success' })
-      navigate(`/account/documents/${row.id}`)
-    } catch {
-      showToast(m.copyFailed, { type: 'error' })
-    }
-  }
-  const del = async (item) => {
-    if (!window.confirm(m.confirmDelete(item.title || m.untitled))) return
-    const ok = await remove(item)
-    showToast(ok ? m.deleted : m.deleteFailed, { type: ok ? 'success' : 'error' })
-  }
-
-  return (
-    <section className="doc-mine">
-      <div className="doc-chips" role="tablist">
-        {['all', ...DOC_STATUSES].map((st) => {
-          const n = st === 'all' ? items.filter((i) => i.status !== 'archive').length : items.filter((i) => i.status === st).length
-          return (
-            <button key={st} type="button" role="tab" aria-selected={filter === st} className={filter === st ? 'is-on' : undefined} onClick={() => setFilter(st)}>
-              {st === 'all' ? s.all : s.docStatus[st]} <small>{n}</small>
-            </button>
-          )
-        })}
-      </div>
-      {loading && (
-        <p className="doc-empty">
-          <Loader2 size={18} className="doc-spin" aria-hidden="true" />
-        </p>
-      )}
-      {error && <p className="doc-error">{m.loadFailed}</p>}
-      {!loading && visible.length === 0 && <p className="doc-empty">{m.empty}</p>}
-      <ul className="doc-mine-list">
-        {visible.map((item) => {
-          const template = templateById(item.template_id)
-          return (
-            <li key={`${item.kind}-${item.id}`} className="doc-mine-item">
-              <button type="button" className="doc-mine-main" onClick={() => open(item)}>
-                <span className="doc-mine-title">{item.title || m.untitled}</span>
-                <span className="doc-mine-type">
-                  {template?.title[lang] ?? item.template_id}
-                  {item.kind === 'report' && <span className="doc-smart-badge">{s.smartBadge}</span>}
-                </span>
-              </button>
-              <span className={`doc-status doc-status--${item.status}`}>{s.docStatus[item.status]}</span>
-              <dl className="doc-mine-facts">
-                <div>
-                  <dt>{m.created}</dt>
-                  <dd>{fmt(item.created_at)}</dd>
-                </div>
-                <div>
-                  <dt>{m.updated}</dt>
-                  <dd>{fmt(item.updated_at)}</dd>
-                </div>
-                {item.issue_count !== null && (
-                  <div>
-                    <dt>{m.remarks}</dt>
-                    <dd>{item.checked_at || item.issue_count ? item.issue_count : '—'}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt>{m.version}</dt>
-                  <dd>{item.current_version || '—'}</dd>
-                </div>
-              </dl>
-              <div className="doc-mine-actions">
-                <button type="button" className="doc-btn doc-btn--small" onClick={() => open(item)}>
-                  {m.open}
-                </button>
-                {item.kind === 'document' && (
-                  <>
-                    <button type="button" className="doc-icon-btn" onClick={() => copy(item)} title={m.copy} aria-label={m.copy}>
-                      <Copy size={16} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="doc-icon-btn"
-                      onClick={() => setStatus(item, item.status === 'archive' ? 'filling' : 'archive')}
-                      title={item.status === 'archive' ? m.unarchive : m.archive}
-                      aria-label={item.status === 'archive' ? m.unarchive : m.archive}
-                    >
-                      {item.status === 'archive' ? <ArchiveRestore size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />}
-                    </button>
-                  </>
-                )}
-                <button type="button" className="doc-icon-btn doc-icon-btn--danger" onClick={() => del(item)} title={m.remove} aria-label={m.remove}>
-                  <Trash2 size={16} aria-hidden="true" />
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  )
-}
 
 /** «Как подготовить документ?»: the structured form, or a text the helper fills the form from. */
 function MethodDialog({ template, lang, onPick, onClose }) {
@@ -474,7 +359,7 @@ export default function DocumentBuilderPage() {
           {lang === 'kk' ? 'Құжат мазмұнын сараптау →' : 'Экспертиза содержания документа →'}
         </Link>
       </nav>
-      {tab === 'catalog' ? <Catalog s={s} lang={lang} onCreate={create} /> : <MyDocuments s={s} lang={lang} />}
+      {tab === 'catalog' ? <Catalog s={s} lang={lang} onCreate={create} /> : <MyDocuments embedded />}
       {methodFor && <MethodDialog template={methodFor} lang={lang} onPick={startWith} onClose={() => setMethodFor(null)} />}
     </div>
   )

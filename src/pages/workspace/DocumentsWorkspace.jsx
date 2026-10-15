@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthContext.jsx'
 import SiteSectionLayout from '../../components/SiteSectionLayout.jsx'
 import DocsContent from '../shared/DocsContent.jsx'
 import DocInspector from '../shared/docInspector/DocInspector.jsx'
+import MyDocuments from './MyDocuments.jsx'
 import DocumentBuilderPage from '../account/documents/DocumentBuilderPage.jsx'
 import { templateById } from '../account/documents/catalog/index.js'
 import { docStrings } from '../account/documents/strings.js'
@@ -195,7 +196,7 @@ function WorkspaceActivity() {
         title={a.recentTitle}
         Icon={Clock3}
         action={
-          <Link to={`${CREATE_PATH}?tab=mine`} className="dws-block-link">
+          <Link to="/account/workspace/documents" className="dws-block-link">
             {a.allDocuments}
           </Link>
         }
@@ -261,6 +262,18 @@ export function AccountWorkspaceCreatePage() {
         <BackToHub to="/account/workspace" />
       </div>
       <DocumentBuilderPage />
+    </>
+  )
+}
+
+// «Мои документы»
+export function AccountMyDocumentsPage() {
+  return (
+    <>
+      <div className="dws-scenario">
+        <BackToHub to="/account/workspace" />
+      </div>
+      <MyDocuments />
     </>
   )
 }

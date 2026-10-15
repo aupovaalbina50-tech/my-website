@@ -11,10 +11,11 @@ import { fieldsOf } from './catalog/index.js'
 // «Умный рабочий рапорт» already uses — one function, one rate limit.
 
 // source: values.__source of an uploaded document (see src/pages/workspace/documentModel.js).
-const LIST_COLUMNS = 'id, template_id, title, lang, status, issue_count, current_version, created_at, updated_at, checked_at, source:values->__source'
+const LIST_COLUMNS = 'id, template_id, title, lang, status, issue_count, current_version, created_at, updated_at, checked_at, content_hash, checked_hash, source:values->__source'
 const REPORT_COLUMNS = 'id, title, report_type, lang, status, step, current_version, created_at, updated_at'
 
-export const DOC_STATUSES = ['draft', 'filling', 'review', 'issues', 'ready', 'archive']
+// 'checked' needs migration 0055; draft and filling are both «Черновик».
+export const DOC_STATUSES = ['draft', 'filling', 'review', 'issues', 'checked', 'ready', 'archive']
 
 /** «Мои документы»: documents of the constructor and «Умный рабочий рапорт» drafts, newest first. */
 export function useMyDocuments() {
@@ -114,20 +115,48 @@ export async function loadDocument(id) {
   return data
 }
 
+// Columns and the status added by migration 0055. Until it is applied the
+// database rejects them; the save is then repeated without them, so a site
+// deployed before the migration keeps saving documents.
+const NEW_COLUMNS = ['content_hash', 'checked_hash']
+let schemaHasNewColumns = true
+
 export async function createDocument(userId, fields) {
-  const { data, error } = await supabase
-    .from('work_documents')
-    .insert({ user_id: userId, ...fields })
-    .select('*')
-    .single()
+  const insert = (row) => supabase.from('work_documents').insert(row).select('*').single()
+  let row = { user_id: userId, ...(schemaHasNewColumns ? fields : withoutNewColumns(fields)) }
+  let { data, error } = await insert(row)
+  // Before migration 0055: without the new columns / with the old status.
+  if (error && /content_hash|checked_hash|PGRST204|42703/.test(`${error.code} ${error.message}`)) {
+    schemaHasNewColumns = false
+    row = withoutNewColumns(row)
+    ;({ data, error } = await insert(row))
+  }
+  if (error && row.status === 'checked' && /23514|status_check/.test(`${error.code} ${error.message}`)) ({ data, error } = await insert({ ...row, status: 'review' }))
   if (error) throw error
   return data
 }
 
+
+/** Saves; resolves only when the database confirmed the row (RLS: own rows only). */
 export async function updateDocument(id, fields) {
-  const { data, error } = await supabase.from('work_documents').update(fields).eq('id', id).select('updated_at').single()
+  let payload = schemaHasNewColumns ? fields : withoutNewColumns(fields)
+  let { data, error } = await supabase.from('work_documents').update(payload).eq('id', id).select('updated_at').single()
+  if (error && schemaHasNewColumns && NEW_COLUMNS.some((c) => c in fields) && /content_hash|checked_hash|PGRST204|42703/.test(`${error.code} ${error.message}`)) {
+    schemaHasNewColumns = false
+    payload = withoutNewColumns(fields)
+    ;({ data, error } = await supabase.from('work_documents').update(payload).eq('id', id).select('updated_at').single())
+  }
+  if (error && payload.status === 'checked' && /23514|status_check/.test(`${error.code} ${error.message}`)) {
+    ;({ data, error } = await supabase.from('work_documents').update({ ...payload, status: 'review' }).eq('id', id).select('updated_at').single())
+  }
   if (error) throw error
   return data
+}
+
+function withoutNewColumns(fields) {
+  const out = { ...fields }
+  for (const c of NEW_COLUMNS) delete out[c]
+  return out
 }
 
 /**

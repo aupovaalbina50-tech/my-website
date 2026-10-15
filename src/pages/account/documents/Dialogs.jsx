@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Camera, Check, Loader2, Sparkles, X } from 'lucide-react'
 import { fieldsOf } from './catalog/index.js'
-import { flatValues, formatValue, isEmptyValue, toIsoDate } from './render.js'
-import { fillFromText, loadDocVersions, readDocumentPhoto } from './useDocuments.js'
+import { formatValue, isEmptyValue, toIsoDate } from './render.js'
+import { fillFromText, readDocumentPhoto } from './useDocuments.js'
 import { errorText } from './strings.js'
 
 // Dialogs of the document editor. None of them changes the document by
@@ -381,90 +381,3 @@ export function PhotoDialog({ s, onUseText, onClose }) {
   )
 }
 
-// ---- «Версии» / «Сравнить версии» ------------------------------------------------------
-
-export function VersionsDialog({ doc, template, values, lang, s, onRestore, onClose }) {
-  const v = s.versions
-  const [versions, setVersions] = useState(null)
-  const [error, setError] = useState(false)
-  const [picked, setPicked] = useState([])
-
-  useEffect(() => {
-    loadDocVersions(doc.id)
-      .then(setVersions)
-      .catch(() => setError(true))
-  }, [doc.id])
-
-  const current = { id: 'current', version: null, kind: null, values, created_at: null }
-  const all = versions ? [current, ...versions] : []
-  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p.slice(-1), id]))
-  const name = (item) => (item.id === 'current' ? v.current : `${item.version}. ${v.kinds[item.kind] ?? ''}`)
-  const pair = picked.length === 2 ? picked.map((id) => all.find((x) => x.id === id)) : null
-  const diff = pair
-    ? (() => {
-        const [a, b] = pair.map((item) => flatValues(template, item.values, lang))
-        return a.map((row, i) => ({ label: row.label, a: row.text, b: b[i].text })).filter((r) => r.a !== r.b)
-      })()
-    : null
-  const fmt = (d) => new Date(d).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
-
-  return (
-    <Modal title={v.title} onClose={onClose} wide>
-      {error && <p className="doc-error">{v.loadFailed}</p>}
-      {versions && versions.length === 0 && <p className="doc-modal-note">{v.empty}</p>}
-      {versions && versions.length > 0 && (
-        <>
-          <p className="doc-modal-lead">{v.pickTwo}</p>
-          <ul className="doc-version-list">
-            {all.map((item) => (
-              <li key={item.id} className={picked.includes(item.id) ? 'is-picked' : undefined}>
-                <label className="doc-choice">
-                  <input type="checkbox" checked={picked.includes(item.id)} onChange={() => toggle(item.id)} />
-                  <strong>{name(item)}</strong>
-                </label>
-                {item.created_at && <span className="doc-version-date">{fmt(item.created_at)}</span>}
-                {item.id !== 'current' && (
-                  <button type="button" className="doc-btn doc-btn--small" onClick={() => onRestore(item)}>
-                    {v.restore}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-          {diff && (
-            <div className="doc-diff">
-              <h3 className="doc-modal-subtitle">{v.compare}</h3>
-              {diff.length === 0 ? (
-                <p className="doc-modal-note">{v.noDiff}</p>
-              ) : (
-                <table className="doc-diff-table">
-                  <thead>
-                    <tr>
-                      <th>{v.field}</th>
-                      <th>{name(pair[0])}</th>
-                      <th>{name(pair[1])}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diff.map((r, i) => (
-                      <tr key={i}>
-                        <th scope="row">{r.label}</th>
-                        <td className="doc-diff-old">{r.a || '—'}</td>
-                        <td className="doc-diff-new">{r.b || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </>
-      )}
-      <footer className="doc-modal-actions">
-        <button type="button" className="doc-btn" onClick={onClose}>
-          {v.close}
-        </button>
-      </footer>
-    </Modal>
-  )
-}

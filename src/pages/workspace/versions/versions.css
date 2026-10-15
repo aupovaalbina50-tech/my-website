@@ -1,0 +1,113 @@
+/* «История версий»: list, word-level comparison, full text. */
+
+.ver-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.ver-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.ver-item.is-picked {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 2px rgba(27, 79, 140, 0.15);
+}
+
+.ver-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.ver-date,
+.ver-reason {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.ver-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ver-select {
+  width: auto;
+  max-width: 220px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.ver-full {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.ver-compare {
+  display: grid;
+  gap: 8px;
+}
+
+.ver-stats {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ver-legend,
+.ver-diff-text {
+  margin: 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ver-compare ins,
+.ver-legend ins {
+  padding: 1px 3px;
+  text-decoration: none;
+  background: #d1fadf;
+  border-radius: 4px;
+}
+.ver-compare del,
+.ver-legend del {
+  padding: 1px 3px;
+  color: #912018;
+  background: #fee4e2;
+  border-radius: 4px;
+}
+
+.ver-change {
+  display: inline;
+}
+
+.ver-field {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  & h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--navy);
+  }
+}

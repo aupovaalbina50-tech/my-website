@@ -182,7 +182,7 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, onAccept
   )
 }
 
-export function ExpertisePanel({ check, values, running, failure, x, errorTypes, lang, readOnly, onRun, onAccept, onReject, onManual, onGoTo, onReopen }) {
+export function ExpertisePanel({ check, values, outdated = false, running, failure, x, errorTypes, lang, readOnly, onRun, onAccept, onReject, onManual, onGoTo, onReopen }) {
   const [filter, setFilter] = useState('all')
   const c = useMemo(() => counts(check, values), [check, values])
   const state = expertiseState(check, values)
@@ -224,8 +224,11 @@ export function ExpertisePanel({ check, values, running, failure, x, errorTypes,
               {x.state[state]}
             </p>
             <p className="exp-summary-meta">
-              {x.checkedAt(new Date(check.at).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU'))} · {x.docLang[check.docLang] ?? check.docLang}
+              {x.checkedAt(new Date(check.at).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU'))}
+              {check.version ? ` · ${x.versionLabel(check.version)}` : ''}
+              {check.docLang ? ` · ${x.docLang[check.docLang] ?? check.docLang}` : ''}
             </p>
+            {outdated && <p className="exp-item-stale">{x.outdated}</p>}
             <ul className="exp-parts">
               {['structure', 'terminology', 'language', 'lookup'].map((p) => (
                 <li key={p} className={`exp-part exp-part--${check.parts[p]}`}>

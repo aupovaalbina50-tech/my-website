@@ -19,6 +19,7 @@ const WorkspaceCheckPage = lazy(() => workspace().then((m) => ({ default: m.Work
 const AccountWorkspacePage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspacePage })))
 const AccountWorkspaceCreatePage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspaceCreatePage })))
 const AccountWorkspaceCheckPage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspaceCheckPage })))
+const AccountMyDocumentsPage = lazy(() => workspace().then((m) => ({ default: m.AccountMyDocumentsPage })))
 const QuotesPage = lazy(() => import('./pages/quotes/QuotesPage.jsx'))
 const QuoteDetailPage = lazy(() => import('./pages/quotes/QuoteDetailPage.jsx'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout.jsx'))
@@ -208,6 +209,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <AccountWorkspaceCheckPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="workspace/documents"
+                  element={
+                    <RequireAuth>
+                      <AccountMyDocumentsPage />
                     </RequireAuth>
                   }
                 />

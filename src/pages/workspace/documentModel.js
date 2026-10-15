@@ -41,6 +41,29 @@ export function documentSource(values) {
   return source?.origin === 'upload' ? source : { origin: 'builder' }
 }
 
+/**
+ * Fingerprint of a document's text: its field values without the
+ * constructor's own bookkeeping (keys starting with «__»). Stored as
+ * content_hash with every save and as checked_hash by an expertise.
+ */
+export function contentHash(values) {
+  const keys = Object.keys(values ?? {})
+    .filter((k) => !k.startsWith('__'))
+    .sort()
+  const text = keys.map((k) => `${k}\u0001${JSON.stringify(values[k])}`).join('\u0002')
+  let h1 = 0x811c9dc5
+  let h2 = 0
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i)
+    h1 = Math.imul(h1 ^ c, 0x01000193)
+    h2 = (Math.imul(31, h2) + c) | 0
+  }
+  return `${(h1 >>> 0).toString(16)}${(h2 >>> 0).toString(16)}:${text.length}`
+}
+
+/** The last expertise checked another text than the current one (needs migration 0055). */
+export const checkOutdated = (item) => Boolean(item.checked_at && item.checked_hash && item.content_hash && item.checked_hash !== item.content_hash)
+
 /** Plain text of a document as it is now — what the expertise reads. */
 export function documentPlainText(doc) {
   if (doc.template_id === FREE_TEXT_ID) return String(doc.values?.body ?? '').trim()
@@ -107,7 +130,8 @@ export function inspectionAsCheck(inspection) {
   }
 }
 
-const statusAfterExpertise = (inspection) => (summarize(inspection.results).issues > 0 ? 'issues' : 'review')
+// «Требует исправлений» / «Проверен» (not an approval); «На проверке» is only the running check.
+const statusAfterExpertise = (inspection) => (summarize(inspection.results).issues > 0 ? 'issues' : 'checked')
 
 /**
  * An uploaded file becomes a document of the user: the extracted text is the
@@ -131,6 +155,10 @@ export async function createUploadedDocument(userId, inspection, lang) {
     title: inspection.fileName.replace(/\.[^.]+$/, '') || inspection.fileName,
     status: statusAfterExpertise(inspection),
     values,
+    // The text just checked is the text stored: the check is current.
+    checked_at: inspection.checkedAt,
+    checked_hash: contentHash(values),
+    content_hash: contentHash(values),
     // The remarks open in the editor with the document; offsets point into `body`.
     issues: check,
     issue_count: check.items.length,
@@ -146,8 +174,9 @@ export async function createUploadedDocument(userId, inspection, lang) {
 }
 
 /** After an expertise of an existing document: its status follows the result. */
-export function markDocumentChecked(documentId, inspection) {
-  return updateDocument(documentId, { status: statusAfterExpertise(inspection) })
+export function markDocumentChecked(documentId, inspection, values) {
+  const hash = contentHash(values)
+  return updateDocument(documentId, { status: statusAfterExpertise(inspection), checked_at: inspection.checkedAt, checked_hash: hash, content_hash: hash })
 }
 
 // kind: 'editor' for an expertise run inside the document editor (its remarks live

@@ -726,6 +726,10 @@
   background: #eef4ff;
   color: #3538cd;
 }
+.doc-status--checked {
+  background: #ecfdf3;
+  color: #067647;
+}
 .doc-status--issues {
   background: #fff4e5;
   color: #b45309;
