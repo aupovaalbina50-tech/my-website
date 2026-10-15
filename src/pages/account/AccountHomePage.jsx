@@ -2,12 +2,11 @@ import { useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
-  FilePenLine,
+  FolderOpen,
   BookOpen,
   LayoutGrid,
   ALargeSmall,
   Share2,
-  FileText,
   Landmark,
   Quote,
   UserCircle,
@@ -62,8 +61,7 @@ const TOOL_LINKS = [
 ]
 
 const MATERIAL_LINKS = [
-  { key: 'docs', to: '/account/docs', Icon: FileText },
-  { key: 'documents', to: '/account/documents', Icon: FilePenLine },
+  { key: 'workspace', to: '/account/workspace', Icon: FolderOpen },
   { key: 'committees', to: '/account/committees', Icon: Landmark },
   { key: 'quotes', to: '/quotes', Icon: Quote },
 ]

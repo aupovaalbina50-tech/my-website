@@ -6,7 +6,7 @@ export const SECTION_IDS = [
   'quotes',
   'ministry',
   'committees',
-  'docs',
+  'workspace',
 ]
 
 export const ROUTE_SECTIONS = {
@@ -16,5 +16,5 @@ export const ROUTE_SECTIONS = {
   quotes: '/quotes',
   ministry: '/ministry',
   committees: '/committees',
-  docs: '/docs',
+  workspace: '/documents',
 }

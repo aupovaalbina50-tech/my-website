@@ -427,7 +427,7 @@ export default function DocumentBuilderPage() {
             {s.tabs[key]}
           </button>
         ))}
-        <Link to="/account/docs" className="doc-tabs-link">
+        <Link to="/account/workspace/check" className="doc-tabs-link">
           {lang === 'kk' ? 'Құжат мазмұнын сараптау →' : 'Экспертиза содержания документа →'}
         </Link>
       </nav>

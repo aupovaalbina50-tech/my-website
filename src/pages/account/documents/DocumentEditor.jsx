@@ -299,7 +299,7 @@ export default function DocumentEditor() {
     return (
       <div className="doc-page">
         <p className="doc-error">{e.notFound}</p>
-        <Link to="/account/documents?tab=mine" className="doc-btn">
+        <Link to="/account/workspace/create?tab=mine" className="doc-btn">
           <ArrowLeft size={16} aria-hidden="true" /> {e.back}
         </Link>
       </div>
@@ -326,7 +326,7 @@ export default function DocumentEditor() {
   return (
     <div className="doc-page doc-editor">
       <header className="doc-editor-head">
-        <Link to="/account/documents?tab=mine" className="doc-back">
+        <Link to="/account/workspace/create?tab=mine" className="doc-back">
           <ArrowLeft size={16} aria-hidden="true" />
           {e.back}
         </Link>
@@ -602,7 +602,7 @@ export function NewDocument() {
     return (
       <div className="doc-page">
         <p className="doc-error">{failed ? s.errors.default : s.editor.unknownTemplate}</p>
-        <Link to="/account/documents" className="doc-btn">
+        <Link to="/account/workspace/create" className="doc-btn">
           <ArrowLeft size={16} aria-hidden="true" /> {s.title}
         </Link>
       </div>

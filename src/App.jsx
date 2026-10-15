@@ -13,7 +13,12 @@ const ConfusableTermsPage = lazy(() => import('./pages/ConfusableTermsPage.jsx')
 const TermMapPage = lazy(() => import('./pages/TermMapPage.jsx'))
 const MinistryPage = lazy(() => import('./pages/MinistryPage.jsx'))
 const CommitteesPage = lazy(() => import('./pages/CommitteesPage.jsx'))
-const DocsPage = lazy(() => import('./pages/DocsPage.jsx'))
+const workspace = () => import('./pages/workspace/DocumentsWorkspace.jsx')
+const WorkspacePage = lazy(() => workspace().then((m) => ({ default: m.WorkspacePage })))
+const WorkspaceCheckPage = lazy(() => workspace().then((m) => ({ default: m.WorkspaceCheckPage })))
+const AccountWorkspacePage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspacePage })))
+const AccountWorkspaceCreatePage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspaceCreatePage })))
+const AccountWorkspaceCheckPage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspaceCheckPage })))
 const QuotesPage = lazy(() => import('./pages/quotes/QuotesPage.jsx'))
 const QuoteDetailPage = lazy(() => import('./pages/quotes/QuoteDetailPage.jsx'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout.jsx'))
@@ -28,8 +33,6 @@ const AccountTermDetailPage = lazy(() => import('./pages/account/AccountTermDeta
 const AccountCategoriesPage = lazy(() => import('./pages/account/AccountCategoriesPage.jsx'))
 const AccountAlphabetPage = lazy(() => import('./pages/account/AccountAlphabetPage.jsx'))
 const AccountNetworkPage = lazy(() => import('./pages/account/AccountNetworkPage.jsx'))
-const AccountDocsPage = lazy(() => import('./pages/account/AccountDocsPage.jsx'))
-const DocumentBuilderPage = lazy(() => import('./pages/account/documents/DocumentBuilderPage.jsx'))
 const DocumentEditor = lazy(() => import('./pages/account/documents/DocumentEditor.jsx'))
 const NewDocument = lazy(() => import('./pages/account/documents/DocumentEditor.jsx').then((m) => ({ default: m.NewDocument })))
 const SmartReportEditor = lazy(() => import('./pages/account/smartReport/SmartReportEditor.jsx'))
@@ -43,6 +46,13 @@ const TestsPage = lazy(() => import('./pages/account/TestsPage.jsx'))
 const StatisticsPage = lazy(() => import('./pages/account/StatisticsPage.jsx'))
 const ForgotPasswordPage = lazy(() => import('./pages/account/auth/ForgotPasswordPage.jsx'))
 const ResetPasswordPage = lazy(() => import('./pages/account/auth/ResetPasswordPage.jsx'))
+
+// Old addresses of the two document tools now open them inside «Работа с
+// документами»; the query (e.g. ?tab=mine of the constructor) is kept.
+function RedirectKeepingQuery({ to }) {
+  const { search } = useLocation()
+  return <Navigate to={`${to}${search}`} replace />
+}
 
 function App() {
   const location = useLocation()
@@ -62,7 +72,9 @@ function App() {
               <Route path="/term-map" element={<TermMapPage />} />
               <Route path="/ministry" element={<MinistryPage />} />
               <Route path="/committees" element={<CommitteesPage />} />
-              <Route path="/docs" element={<DocsPage />} />
+              <Route path="/documents" element={<WorkspacePage />} />
+              <Route path="/documents/check" element={<WorkspaceCheckPage />} />
+              <Route path="/docs" element={<Navigate to="/documents/check" replace />} />
               <Route path="/quotes" element={<QuotesPage />} />
               <Route path="/quotes/:number" element={<QuoteDetailPage />} />
               <Route path="/account/forgot-password" element={<ForgotPasswordPage />} />
@@ -181,24 +193,28 @@ function App() {
                     </RequireAuth>
                   }
                 />
+                {/* «Работа с документами»: the choice screen, then the constructor or the check. */}
+                <Route path="workspace" element={<AccountWorkspacePage />} />
                 <Route
-                  path="docs"
+                  path="workspace/create"
                   element={
                     <RequireAuth>
-                      <AccountDocsPage />
+                      <AccountWorkspaceCreatePage />
                     </RequireAuth>
                   }
                 />
+                <Route
+                  path="workspace/check"
+                  element={
+                    <RequireAuth>
+                      <AccountWorkspaceCheckPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="docs" element={<Navigate to="/account/workspace/check" replace />} />
+                <Route path="documents" element={<RedirectKeepingQuery to="/account/workspace/create" />} />
                 {/* «Мои рапорты» now live in «Мои документы» of the constructor. */}
-                <Route path="smart-report" element={<Navigate to="/account/documents?tab=mine" replace />} />
-                <Route
-                  path="documents"
-                  element={
-                    <RequireAuth>
-                      <DocumentBuilderPage />
-                    </RequireAuth>
-                  }
-                />
+                <Route path="smart-report" element={<Navigate to="/account/workspace/create?tab=mine" replace />} />
                 <Route
                   path="documents/new/:templateId"
                   element={
