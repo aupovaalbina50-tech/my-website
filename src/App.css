@@ -7267,6 +7267,29 @@
   font-size: 14px;
 }
 
+.auth-form-technical {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+/* What to do when the address is already registered or not confirmed yet. */
+.auth-taken-actions {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 4px;
+
+  & p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+  & a {
+    text-decoration: none;
+  }
+}
+
 .auth-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -7,7 +7,7 @@ import { useToast } from '../../../components/ToastContext.jsx'
 
 function LoginForm() {
   const { t } = useLanguage()
-  const { signIn } = useAuth()
+  const { signIn, resendVerificationEmail } = useAuth()
   const { showToast } = useToast()
 
   const [identifier, setIdentifier] = useState('')
@@ -17,10 +17,22 @@ function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // The address of an account that exists but has not confirmed its e-mail yet.
+  const [unverified, setUnverified] = useState(null)
+  const [resending, setResending] = useState(false)
+
+  const resend = async () => {
+    setResending(true)
+    const { error } = await resendVerificationEmail(unverified)
+    setResending(false)
+    if (error) showToast(`${t.auth.errors.resendFailed}: ${error.message}`, { type: 'error' })
+    else showToast(t.auth.verify.resent, { type: 'success' })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
+    setUnverified(null)
 
     const trimmedIdentifier = identifier.trim()
     const errors = {}
@@ -43,7 +55,8 @@ function LoginForm() {
       } else if (error.code === 'wrong_password') {
         setFieldErrors({ password: t.auth.errors.wrongPassword })
       } else if (error.code === 'email_not_verified') {
-        setFormError(t.auth.errors.emailNotVerified)
+        setFormError(t.auth.errors.emailNotVerifiedHelp)
+        setUnverified(error.email ?? null)
       } else if (error.code === 'account_suspended') {
         setFormError(t.auth.errors.accountSuspended)
       } else if (error.code === 'too_many_attempts') {
@@ -66,6 +79,14 @@ function LoginForm() {
       {formError && (
         <div className="auth-form-alert" role="alert">
           {formError}
+        </div>
+      )}
+      {unverified && (
+        <div className="auth-taken-actions">
+          <button type="button" className="btn-auth-secondary" onClick={resend} disabled={resending}>
+            {resending && <Loader2 size={18} className="spin" aria-hidden="true" />}
+            {resending ? t.auth.verify.resending : t.auth.verify.resend}
+          </button>
         </div>
       )}
 

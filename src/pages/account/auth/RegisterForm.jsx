@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Eye, EyeOff, Lock, Loader2, Mail, User } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
@@ -14,7 +15,7 @@ import {
 
 const DEBOUNCE_MS = 450
 
-function RegisterForm() {
+function RegisterForm({ onSignIn }) {
   const { t, lang } = useLanguage()
   const { signUp, checkUsernameAvailable, checkEmailAvailable, resendVerificationEmail } = useAuth()
   const { showToast } = useToast()
@@ -32,6 +33,8 @@ function RegisterForm() {
   const [emailStatus, setEmailStatus] = useState('idle')
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState('')
+  const [technical, setTechnical] = useState('')
+  const [takenEmail, setTakenEmail] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [pendingVerification, setPendingVerification] = useState(null)
   const [resending, setResending] = useState(false)
@@ -82,6 +85,8 @@ function RegisterForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
+    setTechnical('')
+    setTakenEmail(null)
 
     const errors = {}
     if (!firstName.trim()) errors.firstName = t.auth.errors.required
@@ -119,12 +124,25 @@ function RegisterForm() {
     setSubmitting(false)
 
     if (error) {
+      const er = t.auth.errors
       const messages = {
-        rate_limited: t.auth.errors.rateLimitedSignUp,
-        email_taken: t.auth.signUp.emailTaken,
-        weak_password: t.auth.errors.passwordRequirements,
+        rate_limited: er.rateLimitedSignUp,
+        email_rate_limited: er.emailRateLimited,
+        email_taken: t.auth.signUp.emailTakenFull,
+        weak_password: er.passwordRequirements,
+        signup_disabled: er.signupDisabled,
+        email_not_authorized: er.emailNotAuthorized,
+        invalid_email: er.invalidEmail,
+        email_send_failed: er.emailSendFailed,
+        captcha: er.captcha,
+        database: er.databaseSignUp,
+        server: er.serverSignUp,
+        network: er.networkSignUp,
       }
-      setFormError(messages[error.code] || t.auth.errors.genericSignUp)
+      setFormError(messages[error.code] || er.genericSignUp)
+      // The server's own words, so the real cause is visible instead of a generic phrase.
+      if (error.message && error.code !== 'email_taken') setTechnical(error.message)
+      if (error.code === 'email_taken') setTakenEmail(email.trim())
       return
     }
 
@@ -135,13 +153,35 @@ function RegisterForm() {
     }
   }
 
-  const handleResend = async () => {
-    if (!pendingVerification) return
+  // «Отправлено» only when Supabase accepted the request.
+  const resendTo = async (address) => {
+    if (!address) return
     setResending(true)
-    await resendVerificationEmail(pendingVerification)
+    const { error } = await resendVerificationEmail(address)
     setResending(false)
-    showToast(t.auth.verify.resent, { type: 'success' })
+    if (error) showToast(`${t.auth.errors.resendFailed}: ${error.message}`, { type: 'error' })
+    else showToast(t.auth.verify.resent, { type: 'success' })
   }
+  const handleResend = () => resendTo(pendingVerification)
+
+  // The address is already registered: confirm it, sign in, or reset the password — not a dead end.
+  const takenActions = (address) => (
+    <div className="auth-taken-actions">
+      <p>{t.auth.signUp.takenHelp}</p>
+      <button type="button" className="btn-auth-secondary" onClick={() => resendTo(address)} disabled={resending}>
+        {resending && <Loader2 size={18} className="spin" aria-hidden="true" />}
+        {t.auth.signUp.resendConfirmation}
+      </button>
+      {onSignIn && (
+        <button type="button" className="btn-auth-secondary" onClick={onSignIn}>
+          {t.auth.signUp.goSignIn}
+        </button>
+      )}
+      <Link to="/account/forgot-password" className="btn-auth-secondary">
+        {t.auth.signUp.resetPassword}
+      </Link>
+    </div>
+  )
 
   if (pendingVerification) {
     return (
@@ -169,8 +209,10 @@ function RegisterForm() {
       {formError && (
         <div className="auth-form-alert" role="alert">
           {formError}
+          {technical && <p className="auth-form-technical">{t.auth.errors.technical}: {technical}</p>}
         </div>
       )}
+      {takenEmail && takenActions(takenEmail)}
 
       <div className="auth-form-row">
         <div className="field">
@@ -284,7 +326,10 @@ function RegisterForm() {
           <p className="field-success">✅ {t.auth.signUp.emailAvailable}</p>
         )}
         {!fieldErrors.email && emailStatus === 'taken' && (
-          <p className="field-error">❌ {t.auth.signUp.emailTaken}</p>
+          <>
+            <p className="field-error">❌ {t.auth.signUp.emailTaken}</p>
+            {!takenEmail && takenActions(email.trim())}
+          </>
         )}
         {!fieldErrors.email && emailStatus === 'error' && (
           <p className="field-hint">{t.auth.signUp.checkFailed}</p>
