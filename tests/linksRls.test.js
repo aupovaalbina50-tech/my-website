@@ -97,3 +97,18 @@ test('decisions and review marks are stored; deleting a document deletes its lin
   await as(A, `delete from public.work_documents where id = $1`, [a2])
   assert.equal((await as(A, `select * from public.work_document_links`)).rows.length, 0)
 })
+
+test('documents: another user can neither read nor change them; a write on a stale updated_at changes nothing', async () => {
+  const d = await newDoc(A, 'Документ для автосохранения')
+  assert.equal((await as(B, `select id from public.work_documents where id = $1`, [d])).rows.length, 0)
+  assert.equal((await as(B, `update public.work_documents set values = '{"body":"взлом"}' where id = $1 returning id`, [d])).rows.length, 0)
+  const at = (await as(A, `select updated_at from public.work_documents where id = $1`, [d])).rows[0].updated_at
+  // the owner's save moves updated_at (trigger work_documents_touch)
+  const saved = (await as(A, `update public.work_documents set values = '{"body":"v1"}' where id = $1 and updated_at = $2 returning updated_at`, [d, at])).rows
+  assert.equal(saved.length, 1)
+  assert.ok(saved[0].updated_at > at)
+  // a second tab still holding the old updated_at cannot overwrite it
+  const stale = (await as(A, `update public.work_documents set values = '{"body":"старая вкладка"}' where id = $1 and updated_at = $2 returning id`, [d, at])).rows
+  assert.equal(stale.length, 0)
+  assert.deepEqual((await as(A, `select values from public.work_documents where id = $1`, [d])).rows[0].values, { body: 'v1' })
+})
