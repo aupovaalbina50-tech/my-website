@@ -41,7 +41,7 @@ function AuthCard() {
         aria-labelledby={tab === 'signIn' ? 'auth-tab-signin' : 'auth-tab-signup'}
         key={tab}
       >
-        {tab === 'signIn' ? <LoginForm /> : <RegisterForm />}
+        {tab === 'signIn' ? <LoginForm /> : <RegisterForm onSignIn={() => setTab('signIn')} />}
       </div>
     </div>
   )

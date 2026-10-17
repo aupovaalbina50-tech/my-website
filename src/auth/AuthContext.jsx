@@ -19,20 +19,31 @@ async function resolveEmailForSignIn(identifier) {
 function classifySignInError(error) {
   const message = (error.message || '').toLowerCase()
   if (message.includes('invalid login credentials')) return 'wrong_password'
-  if (message.includes('email not confirmed')) return 'email_not_verified'
+  if (error.code === 'email_not_confirmed' || message.includes('email not confirmed')) return 'email_not_verified'
   if (error.status === 429 || message.includes('too many requests')) return 'too_many_attempts'
   return 'generic'
 }
 
+// Supabase Auth error codes (error.code) first, the message as a fallback for older servers.
 function classifySignUpError(error) {
+  const code = error.code || ''
   const message = (error.message || '').toLowerCase()
-  if (error.status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
-    return 'rate_limited'
-  }
-  if (message.includes('already registered') || message.includes('already been registered')) {
-    return 'email_taken'
-  }
-  if (message.includes('password')) return 'weak_password'
+  // supabase-js turns a 5xx answer into AuthRetryableFetchError and drops its text: a failed
+  // profile trigger («Database error saving new user») and a failed confirmation e-mail are
+  // both HTTP 500. Status 0 means the request never reached the server.
+  if (error.name === 'AuthRetryableFetchError' || error.status >= 500) return error.status ? 'server' : 'network'
+  if (code === 'over_email_send_rate_limit' || message.includes('email rate limit')) return 'email_rate_limited'
+  if (code === 'over_request_rate_limit' || error.status === 429 || message.includes('rate limit') || message.includes('too many requests')) return 'rate_limited'
+  if (code === 'email_exists' || code === 'user_already_exists' || message.includes('already registered') || message.includes('already been registered')) return 'email_taken'
+  if (code === 'signup_disabled' || message.includes('signups not allowed')) return 'signup_disabled'
+  // The built-in mail service of Supabase sends only to the project team's addresses.
+  if (code === 'email_address_not_authorized' || message.includes('not authorized')) return 'email_not_authorized'
+  if (code === 'email_address_invalid' || (message.includes('email') && message.includes('invalid'))) return 'invalid_email'
+  if (message.includes('error sending') || message.includes('sending confirmation')) return 'email_send_failed'
+  if (code === 'captcha_failed' || message.includes('captcha')) return 'captcha'
+  // The profile trigger failed and rolled the account back (see migration 0056).
+  if (message.includes('database error')) return 'database'
+  if (code === 'weak_password' || message.includes('password')) return 'weak_password'
   return 'generic'
 }
 
@@ -48,6 +59,13 @@ export function AuthProvider({ children }) {
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
     if (error) console.error('Failed to load profile', error)
+    if (!data && !error) {
+      // An account whose profile was not created at sign-up: the database completes it (migration 0056).
+      const { data: created, error: ensureError } = await supabase.rpc('ensure_profile')
+      if (ensureError) console.error('Profile could not be created', ensureError)
+      setProfile(created?.id ? created : null)
+      return
+    }
     setProfile(data ?? null)
   }, [])
 
@@ -83,7 +101,8 @@ export function AuthProvider({ children }) {
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      return { error: { code: classifySignInError(error), message: error.message } }
+      // The address goes back, so «Отправить письмо повторно» works when the sign-in was by username.
+      return { error: { code: classifySignInError(error), message: error.message, email } }
     }
 
     const { data: profileRow, error: profileError } = await supabase
@@ -122,7 +141,13 @@ export function AuthProvider({ children }) {
         },
       })
       if (error) {
-        return { error: { code: classifySignUpError(error), message: error.message } }
+        const lost = !error.message || error.message === '{}'
+        return { error: { code: classifySignUpError(error), message: lost ? `HTTP ${error.status ?? 0}` : error.message } }
+      }
+      // With e-mail confirmation on, Supabase answers an already registered address with a
+      // user that has no identities and sends nothing — say so instead of «check your mail».
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        return { error: { code: 'email_taken' } }
       }
       return { data }
     },
@@ -134,7 +159,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const resendVerificationEmail = useCallback(async (email) => {
-    return supabase.auth.resend({ type: 'signup', email })
+    return supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${window.location.origin}/account` } })
   }, [])
 
   const sendPasswordReset = useCallback(async (email) => {
