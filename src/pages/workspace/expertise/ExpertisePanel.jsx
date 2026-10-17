@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, BookOpenCheck, Check, CheckCircle2, Crosshair, ExternalLink, Loader2, PencilLine, RotateCcw, Undo2, X } from 'lucide-react'
-import { canApply, canUndo, changeList, counts, expertiseState, FILTERS, GROUPS, groupOf, isStale, kindOf, matchesFilter } from './model.js'
+import { byPriority, canApply, canUndo, changeList, classify, counts, expertiseState, FILTERS, isStale, kindOf, matchesFilter, PRIORITIES, QC_CATEGORIES } from './model.js'
 import { OFFICIAL_SITES } from '../sources/registry.js'
 import './expertise.css'
 
@@ -131,23 +131,37 @@ function ReferencesList({ check, x, lang }) {
   )
 }
 
-function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, onAccept, onReject, onManual, onGoTo, onReopen }) {
+function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, active, onAccept, onReject, onManual, onGoTo, onReopen }) {
   const [showBasis, setShowBasis] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const stale = item.status === 'open' && isStale(item, check, values)
   const applicable = !readOnly && canApply(item, check, values)
   const title = item.title || (item.errorType ? errorTypes[item.errorType] : null) || (item.category === 'terminology' ? x.termFallback : x.category[item.category])
+  const qc = classify(item)
+  const ref = useRef(null)
+  // Chosen from a mark in the text: the card comes into view.
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [active])
 
   return (
-    <li className={`exp-item exp-item--${item.category} exp-item--${item.status}${stale ? ' is-stale' : ''}`}>
+    <li ref={ref} id={`remark-${item.id}`} className={`exp-item exp-item--${item.category} exp-item--${item.status} exp-item--p-${qc.priority}${stale ? ' is-stale' : ''}${active ? ' is-active' : ''}`}>
       <div className="exp-item-head">
-        <span className={`exp-chip exp-chip--${item.category}`}>{x.groups[groupOf(item)]}</span>
-        <span className={`exp-sev exp-sev--${item.severity}`}>{x.severity[item.severity]}</span>
+        <span className={`exp-prio exp-prio--${qc.priority}`}>{x.qc.priorities[qc.priority]}</span>
+        <span className={`exp-chip exp-chip--qc-${qc.category}`}>{x.qc.categories[qc.category]}</span>
         <span className={`exp-kind exp-kind--${kindOf(item)}`}>{x.kinds[kindOf(item)]}</span>
         <span className={`exp-conf exp-conf--${item.confirmation}`}>{x.confirmation[item.confirmation]}</span>
       </div>
-      <p className="exp-item-title">{title}</p>
+      <p className="exp-item-title">
+        {item.target ? (
+          <button type="button" className="exp-item-jump" onClick={() => onGoTo(item)} title={x.goTo}>
+            {title}
+          </button>
+        ) : (
+          title
+        )}
+      </p>
       {item.label && <p className="exp-item-where">{item.label}</p>}
       {item.fragment && (
         <p className="exp-item-fix">
@@ -244,16 +258,18 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, onAccept
   )
 }
 
-export function ExpertisePanel({ check, values, outdated = false, running, failure, x, errorTypes, lang, readOnly, onRun, onAccept, onReject, onManual, onGoTo, onReopen }) {
+export function ExpertisePanel({ check, values, outdated = false, running, failure, x, errorTypes, lang, readOnly, activeId = null, onRun, onAccept, onReject, onManual, onGoTo, onReopen }) {
   const [filter, setFilter] = useState('all')
-  const [group, setGroup] = useState('all')
+  const [category, setCategory] = useState('all')
+  const [priority, setPriority] = useState('all')
   const c = useMemo(() => counts(check, values), [check, values])
   const state = expertiseState(check, values)
   const visible = useMemo(() => {
-    const list = (check?.items ?? []).filter((i) => matchesFilter(i, filter, group))
+    const list = (check?.items ?? []).filter((i) => matchesFilter(i, filter, { category, priority }))
     const rank = (i) => (i.status === 'open' ? (isStale(i, check, values) ? 1 : 0) : 2)
-    return list.sort((a, b) => rank(a) - rank(b))
-  }, [check, values, filter, group])
+    // Open first, then by priority: high → info.
+    return list.sort((a, b) => rank(a) - rank(b) || byPriority(a, b))
+  }, [check, values, filter, category, priority])
 
   if (running) {
     return (
@@ -311,19 +327,39 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
 
           <ReferencesList check={check} x={x} lang={lang} />
 
-          <label className="exp-group-select">
-            <span>{x.groupLabel}</span>
-            <select className="doc-input" value={group} onChange={(e) => setGroup(e.target.value)}>
-              <option value="all">
-                {x.groupAll} ({c.all})
-              </option>
-              {GROUPS.map((g) => (
-                <option key={g} value={g}>
-                  {x.groups[g]} ({c.groups[g]})
+          <div className="exp-qc-filters">
+            <label className="exp-group-select">
+              <span>{x.qc.categoryLabel}</span>
+              <select className="doc-input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="all">
+                  {x.qc.allCategories} ({c.all})
                 </option>
-              ))}
-            </select>
-          </label>
+                {QC_CATEGORIES.map((g) => (
+                  <option key={g} value={g}>
+                    {x.qc.categories[g]} ({c.categories[g]})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="exp-group-select">
+              <span>{x.qc.priorityLabel}</span>
+              <select className="doc-input" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                <option value="all">{x.qc.allPriorities}</option>
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {x.qc.priorities[p]} ({c.priorities[p]})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <ul className="exp-prio-summary" aria-label={x.qc.priorityLabel}>
+            {PRIORITIES.map((p) => (
+              <li key={p} className={`exp-prio exp-prio--${p}`}>
+                {x.qc.priorities[p]}: {c.priorities[p]}
+              </li>
+            ))}
+          </ul>
           <div className="exp-filters" role="tablist">
             {FILTERS.filter((f) => f === 'all' || f === 'unconfirmed').map((f) => (
               <button key={f} type="button" role="tab" aria-selected={filter === f} className={filter === f ? 'is-on' : undefined} onClick={() => setFilter(f)}>
@@ -333,7 +369,7 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
           </div>
 
           {visible.length === 0 ? (
-            <p className="exp-empty">{filter === 'all' && group === 'all' ? x.noRemarks : x.noRemarksFilter}</p>
+            <p className="exp-empty">{filter === 'all' && category === 'all' && priority === 'all' ? x.noRemarks : x.noRemarksFilter}</p>
           ) : (
             <ol className="exp-list">
               {visible.map((item) => (
@@ -346,6 +382,7 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
                   errorTypes={errorTypes}
                   lang={lang}
                   readOnly={readOnly}
+                  active={item.id === activeId}
                   onAccept={onAccept}
                   onReject={onReject}
                   onManual={onManual}

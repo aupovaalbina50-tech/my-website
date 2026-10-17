@@ -460,3 +460,177 @@
 .exp-ref--confirmed .exp-ref-state {
   color: #067647;
 }
+
+/* ---- quality control: priority, category, active remark ---- */
+.exp-prio {
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+.exp-prio--high {
+  color: #fff;
+  background: #b42318;
+}
+.exp-prio--medium {
+  color: #7a2e0e;
+  background: #fedf89;
+}
+.exp-prio--low {
+  color: #344054;
+  background: #eaecf0;
+}
+.exp-prio--info {
+  color: #175cd3;
+  background: #eff8ff;
+}
+
+.exp-chip--qc-critical {
+  background: #fef3f2;
+  color: #b42318;
+}
+.exp-chip--qc-normative {
+  background: #f4f3ff;
+  color: #5925dc;
+}
+.exp-chip--qc-terminology {
+  background: #eef4ff;
+  color: #3538cd;
+}
+.exp-chip--qc-factual {
+  background: #fff6ed;
+  color: #c4320a;
+}
+.exp-chip--qc-structure {
+  background: #f0f9ff;
+  color: #026aa2;
+}
+.exp-chip--qc-language {
+  background: #fdf2fa;
+  color: #c11574;
+}
+.exp-chip--qc-style {
+  background: #f2f4f7;
+  color: #475467;
+}
+.exp-chip--qc-clarify {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.exp-item--p-high {
+  border-left: 4px solid #b42318;
+}
+.exp-item--p-medium {
+  border-left: 4px solid #f79009;
+}
+
+.exp-item.is-active {
+  outline: 3px solid #2e90fa;
+  outline-offset: 2px;
+}
+
+.exp-item-jump {
+  padding: 0;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.exp-item-jump:hover,
+.exp-item-jump:focus-visible {
+  text-decoration: underline;
+}
+
+.exp-qc-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  @media (max-width: 520px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.exp-prio-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- remarks marked in the text of the form ---- */
+.doc-hl {
+  position: relative;
+  display: grid;
+}
+
+.doc-hl > .doc-hl-back,
+.doc-hl > .doc-input {
+  grid-area: 1 / 1;
+}
+
+.doc-hl-back {
+  overflow: hidden;
+  color: transparent;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  pointer-events: none;
+  border-color: transparent !important;
+  background: #fff;
+}
+
+.doc-hl-back--line {
+  white-space: pre;
+}
+
+.doc-hl > .doc-input {
+  position: relative;
+  background: transparent;
+}
+
+.doc-hl mark {
+  color: transparent;
+  border-radius: 3px;
+}
+.doc-hl mark.hl-high {
+  background: rgba(240, 68, 56, 0.28);
+  box-shadow: inset 0 -2px 0 #d92d20;
+}
+.doc-hl mark.hl-medium {
+  background: rgba(247, 144, 9, 0.25);
+  box-shadow: inset 0 -2px 0 #f79009;
+}
+.doc-hl mark.hl-low,
+.doc-hl mark.hl-info {
+  background: rgba(46, 144, 250, 0.16);
+  box-shadow: inset 0 -2px 0 #2e90fa;
+}
+.doc-hl mark.is-active {
+  outline: 2px solid #2e90fa;
+}
+
+/* ---- remarks marked in the A4 preview ---- */
+.doc-paper mark.doc-paper-mark {
+  color: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.doc-paper mark.doc-paper-mark.hl-high {
+  background: rgba(240, 68, 56, 0.25);
+  box-shadow: inset 0 -2px 0 #d92d20;
+}
+.doc-paper mark.doc-paper-mark.hl-medium {
+  background: rgba(247, 144, 9, 0.25);
+  box-shadow: inset 0 -2px 0 #f79009;
+}
+.doc-paper mark.doc-paper-mark.hl-low,
+.doc-paper mark.doc-paper-mark.hl-info {
+  background: rgba(46, 144, 250, 0.15);
+  box-shadow: inset 0 -2px 0 #2e90fa;
+}

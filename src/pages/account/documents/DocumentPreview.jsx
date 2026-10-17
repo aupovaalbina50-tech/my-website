@@ -1,3 +1,4 @@
+import { createContext, useContext, useMemo } from 'react'
 import { approveLines, metaLine } from './render.js'
 
 // The live A4 preview — the same blocks the DOCX and PDF are built from, in
@@ -7,20 +8,54 @@ import { approveLines, metaLine } from './render.js'
 
 const keyOf = (path) => String(path ?? '').split('.')[0]
 
+// Remarks of the expertise marked in the preview: { marks, active, onMark, title } or null.
+const MarksContext = createContext(null)
+
+/** The text of a block with the fragments of its open remarks marked; a click opens the remark. */
+function Marked({ text, path }) {
+  const MARKS = useContext(MarksContext)
+  const list = MARKS?.marks.get(path)
+  if (!list?.length || typeof text !== 'string') return text
+  const parts = []
+  let at = 0
+  for (const m of list) {
+    const i = m.fragment ? text.indexOf(m.fragment, at) : -1
+    if (i < 0) continue
+    if (i > at) parts.push(text.slice(at, i))
+    const open = (e) => {
+      e.stopPropagation()
+      MARKS.onMark?.(m.id)
+    }
+    parts.push(
+      <mark key={m.id} className={`doc-paper-mark hl-${m.priority}${m.id === MARKS.active ? ' is-active' : ''}`} data-remark={m.id} onClick={open} title={MARKS.title}>
+        {m.fragment}
+      </mark>,
+    )
+    at = i + m.fragment.length
+  }
+  if (!parts.length) return text
+  parts.push(text.slice(at))
+  return parts
+}
+
+const marked = (text, path) => <Marked text={text} path={path} />
+
 function Text({ item, focusKey }) {
   return (
     <span className={`${item.missing ? 'doc-paper-missing' : ''}${focusKey && keyOf(item.key) === focusKey ? ' doc-paper-focus' : ''}`}>
-      {item.text}
+      {item.missing ? item.text : marked(item.text, item.key)}
     </span>
   )
 }
 
-export default function DocumentPreview({ doc, lang, focusKey, onPick }) {
+export default function DocumentPreview({ doc, lang, focusKey, onPick, marks = null, activeMark = null, onMark = null, markTitle = '' }) {
+  const markState = useMemo(() => (marks ? { marks, active: activeMark, onMark, title: markTitle } : null), [marks, activeMark, onMark, markTitle])
   const pick = (key) => () => key && onPick?.(keyOf(key))
   const cls = (key, base) => `${base}${focusKey && keyOf(key) === focusKey ? ' doc-paper-focus' : ''}`
   const approve = approveLines(doc, lang)
   const meta = metaLine(doc)
   return (
+    <MarksContext.Provider value={markState}>
     <article className="doc-paper" lang={lang} aria-label={doc.title}>
       {doc.org && <p className="doc-paper-org">{doc.org}</p>}
       {approve.length > 0 && (
@@ -105,7 +140,7 @@ export default function DocumentPreview({ doc, lang, focusKey, onPick }) {
         return (
           <p key={i} className={cls(b.key, 'doc-paper-p')} onClick={pick(b.key)}>
             {b.label && <strong>{b.inline ? `${b.label}: ` : `${b.label}. `}</strong>}
-            <span className={b.missing ? 'doc-paper-missing' : undefined}>{b.text}</span>
+            <span className={b.missing ? 'doc-paper-missing' : undefined}>{b.missing ? b.text : marked(b.text, b.key)}</span>
           </p>
         )
       })}
@@ -133,5 +168,6 @@ export default function DocumentPreview({ doc, lang, focusKey, onPick }) {
         </div>
       )}
     </article>
+    </MarksContext.Provider>
   )
 }

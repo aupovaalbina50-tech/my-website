@@ -227,6 +227,8 @@ async function languageItems(blocks, documentTitle, docLang) {
       id: nextId('l'),
       category: LANGUAGE_CATEGORY[i.category] ?? 'structure',
       group: GROUPS.includes(i.group) ? i.group : GROUP_FALLBACK[i.category] ?? 'style',
+      // What the AI called it (critical / important / …): raises the priority, never confirms.
+      aiCategory: i.category ?? null,
       severity: SEVERITY[i.category] ?? 'recommendation',
       target: block ? block.key : '',
       label: block?.label ?? '',

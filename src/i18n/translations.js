@@ -233,6 +233,24 @@ export const translations = {
           doctype: 'Құжат түріне сәйкестігі',
         },
         kinds: { confirmed: 'Расталған қате', advice: 'Стиль бойынша ұсыныс', review: 'Маманның тексеруі қажет' },
+        qc: {
+          categoryLabel: 'Ескерту санаты',
+          priorityLabel: 'Басымдық',
+          allCategories: 'Барлық санаттар',
+          allPriorities: 'Кез келген басымдық',
+          categories: {
+            critical: 'Сыни ескерту',
+            normative: 'Нормативтік ескерту',
+            terminology: 'Терминологиялық қате',
+            factual: 'Фактілік сәйкессіздік',
+            structure: 'Құрылымдық ескерту',
+            language: 'Тілдік қате',
+            style: 'Іскери стиль',
+            clarify: 'Нақтылауды қажет етеді',
+          },
+          priorities: { high: 'Жоғары', medium: 'Орташа', low: 'Төмен', info: 'Ақпараттық' },
+          openRemark: 'Ескертуді ашу',
+        },
         refs: {
           title: (n) => `Құжаттағы нормативтік сілтемелер: ${n}`,
           actuality: {
@@ -2194,6 +2212,24 @@ export const translations = {
           doctype: 'Соответствие виду документа',
         },
         kinds: { confirmed: 'Подтверждённая ошибка', advice: 'Рекомендация по стилю', review: 'Требует проверки специалистом' },
+        qc: {
+          categoryLabel: 'Категория замечания',
+          priorityLabel: 'Приоритет',
+          allCategories: 'Все категории',
+          allPriorities: 'Любой приоритет',
+          categories: {
+            critical: 'Критическое замечание',
+            normative: 'Нормативное замечание',
+            terminology: 'Терминологическая ошибка',
+            factual: 'Фактическое несоответствие',
+            structure: 'Структурное замечание',
+            language: 'Языковая ошибка',
+            style: 'Деловой стиль',
+            clarify: 'Требует уточнения',
+          },
+          priorities: { high: 'Высокий', medium: 'Средний', low: 'Низкий', info: 'Информационный' },
+          openRemark: 'Открыть замечание',
+        },
         refs: {
           title: (n) => `Нормативные ссылки в документе: ${n}`,
           actuality: {
