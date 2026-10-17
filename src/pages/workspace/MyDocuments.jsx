@@ -8,7 +8,7 @@ import { useToast } from '../../components/ToastContext.jsx'
 import { templateById } from '../account/documents/catalog/index.js'
 import { docStrings } from '../account/documents/strings.js'
 import { duplicateDocument, loadDocument, updateDocument, useMyDocuments } from '../account/documents/useDocuments.js'
-import { checkOutdated, documentPlainText } from './documentModel.js'
+import { checkOutdated, loadContents } from './documentModel.js'
 import './myDocuments.css'
 
 // «Мои документы»: every document of the signed-in user (constructor and
@@ -20,18 +20,6 @@ const DAYS = { all: null, today: 1, week: 7, month: 30 }
 
 const statusGroup = (s) => (s === 'filling' ? 'draft' : s)
 
-
-/** Full text of every document of the user, for the search (RLS: own rows only). */
-export async function loadContents() {
-  const [docs, reports] = await Promise.all([
-    supabase.from('work_documents').select('id, template_id, lang, values'),
-    supabase.from('work_reports').select('id, source_text, content'),
-  ])
-  const map = new Map()
-  for (const d of docs.data ?? []) map.set(`document-${d.id}`, documentPlainText(d).toLowerCase())
-  for (const r of reports.data ?? []) map.set(`report-${r.id}`, `${r.source_text ?? ''} ${Object.values(r.content ?? {}).join(' ')}`.toLowerCase())
-  return { map, failed: Boolean(docs.error || reports.error) }
-}
 
 export default function MyDocuments({ embedded = false }) {
   const { lang: uiLang, t } = useLanguage()

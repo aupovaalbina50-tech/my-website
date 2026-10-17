@@ -2259,3 +2259,16 @@ textarea.doc-input {
   margin: 0;
   padding-left: 18px;
 }
+
+/* number of linked documents on a toolbar button */
+.doc-count {
+  min-width: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  color: #fff;
+  background: var(--navy, #0f305a);
+  border-radius: 999px;
+}

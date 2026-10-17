@@ -269,3 +269,15 @@ export async function saveEditorExpertise(userId, doc, title, check, values) {
 }
 
 export const CHECK_DOCUMENT_PATH = (documentId) => `/account/workspace/check?document=${documentId}`
+
+/** Full text of every document of the user, for the search (RLS: own rows only). */
+export async function loadContents() {
+  const [docs, reports] = await Promise.all([
+    supabase.from('work_documents').select('id, template_id, lang, values'),
+    supabase.from('work_reports').select('id, source_text, content'),
+  ])
+  const map = new Map()
+  for (const d of docs.data ?? []) map.set(`document-${d.id}`, documentPlainText(d).toLowerCase())
+  for (const r of reports.data ?? []) map.set(`report-${r.id}`, `${r.source_text ?? ''} ${Object.values(r.content ?? {}).join(' ')}`.toLowerCase())
+  return { map, failed: Boolean(docs.error || reports.error) }
+}

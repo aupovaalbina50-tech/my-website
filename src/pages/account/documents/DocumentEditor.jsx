@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   History,
+  Link2,
   RotateCcw,
   Loader2,
   Printer,
@@ -37,6 +38,9 @@ import FieldInput from './FieldInput.jsx'
 import DocumentPreview from './DocumentPreview.jsx'
 import { AssistDialog, PhotoDialog, ProfileFillDialog } from './Dialogs.jsx'
 import { VersionsPanel } from '../../workspace/versions/VersionsPanel.jsx'
+import { LinkedDocumentsPanel } from '../../workspace/links/LinkedDocumentsPanel.jsx'
+import { useDocumentLinks } from '../../workspace/links/useDocumentLinks.js'
+import { applyTransfer } from '../../workspace/links/consistency.js'
 
 // The universal editor of «Конструктор профессиональной документации».
 // Left: the template's sections as a form; right: the live preview, the check
@@ -79,7 +83,7 @@ export default function DocumentEditor() {
   const [flashKey, setFlashKey] = useState(null)
   const [rightTab, setRightTab] = useState('preview')
   const [mobileView, setMobileView] = useState('form')
-  const [dialog, setDialog] = useState(null) // 'profile' | 'assist' | 'photo' | 'versions' | 'export'
+  const [dialog, setDialog] = useState(null) // 'profile' | 'assist' | 'photo' | 'versions' | 'links' | 'export'
   const [assistText, setAssistText] = useState('')
   const loaded = useRef(false)
   // What is stored now: opening a document must not count as a change (it would move updated_at).
@@ -96,6 +100,8 @@ export default function DocumentEditor() {
 
   const template = doc ? templateById(doc.template_id) : null
   const readOnly = status === 'archive'
+  // «Связанные документы»: links, cards, comparison; the banner when a linked document changed.
+  const links = useDocumentLinks(id, values)
 
 
   useEffect(() => {
@@ -242,6 +248,20 @@ export default function DocumentEditor() {
     setDoc((d) => ({ ...d, current_version: Math.max(d.current_version ?? 0, version) }))
     lastVersionHash.current = contentHash(v)
     return version
+  }
+
+  /** Transfer of values the user chose in «Связанные документы»: a version first, then exactly these fields. */
+  const transferFrom = async (items, source) => {
+    const lt = t.workspace.links
+    try {
+      await keepVersion(values, 'user', lt.beforeTransfer(source.title))
+    } catch {
+      showToast(w.saveFailed, { type: 'error' })
+      return false
+    }
+    setValues((v) => applyTransfer(v, items, source))
+    showToast(lt.transferred(items.length), { type: 'success' })
+    return true
   }
 
   const saveDraft = async () => {
@@ -592,6 +612,17 @@ export default function DocumentEditor() {
         </div>
       </header>
 
+      {links.attention > 0 && (
+        <div className="lnk-banner" role="status">
+          <p>
+            <Link2 size={16} aria-hidden="true" /> {t.workspace.links.banner(links.attention)}
+          </p>
+          <button type="button" className="doc-btn doc-btn--small" onClick={() => setDialog('links')}>
+            {t.workspace.links.bannerOpen}
+          </button>
+        </div>
+      )}
+
       {(source.origin === 'upload' || original || lastExpertise) && (
         <div className="doc-source-bar">
           {source.origin === 'upload' && <span className="doc-source-file">{w.uploadedFrom(source.fileName)}</span>}
@@ -661,6 +692,11 @@ export default function DocumentEditor() {
         <button type="button" className="doc-btn" onClick={() => setDialog('versions')}>
           <History size={16} aria-hidden="true" />
           {e.versions}
+        </button>
+        <button type="button" className="doc-btn" onClick={() => setDialog('links')}>
+          <Link2 size={16} aria-hidden="true" />
+          {t.workspace.links.button}
+          {links.items.length > 0 && <span className="doc-count">{links.items.length}</span>}
         </button>
         <div className="doc-menu">
           <button type="button" className="doc-btn" aria-expanded={dialog === 'export'} onClick={() => setDialog(dialog === 'export' ? null : 'export')}>
@@ -873,6 +909,18 @@ export default function DocumentEditor() {
           onUseText={(text) => {
             setAssistText(text)
             setDialog('assist')
+          }}
+        />
+      )}
+      {dialog === 'links' && (
+        <LinkedDocumentsPanel
+          self={{ id: doc.id, title: title || template.title[docLang], template, values, lang: docLang }}
+          links={links}
+          readOnly={readOnly}
+          onTransfer={transferFrom}
+          onClose={() => {
+            setDialog(null)
+            links.reload()
           }}
         />
       )}
