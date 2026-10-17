@@ -174,6 +174,7 @@
 
 .exp-chip,
 .exp-sev,
+.exp-kind,
 .exp-conf {
   padding: 2px 9px;
   font-size: 12px;
@@ -203,6 +204,18 @@
 .exp-sev--recommendation {
   background: #f2f4f7;
   color: #475467;
+}
+.exp-kind {
+  border: 1px solid currentColor;
+}
+.exp-kind--confirmed {
+  color: #b42318;
+}
+.exp-kind--advice {
+  color: #475467;
+}
+.exp-kind--review {
+  color: #b54708;
 }
 .exp-conf--base,
 .exp-conf--rule {
@@ -386,4 +399,64 @@
   margin: 0;
   font-size: 12px;
   color: var(--text-soft);
+}
+
+/* Group of checks (8 groups) */
+.exp-group-select {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #344054;
+}
+
+/* Normative references of the document */
+.exp-refs {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+
+  & summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #0f305a;
+  }
+
+  & ul {
+    display: grid;
+    gap: 10px;
+    margin: 10px 0 6px;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.exp-ref {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #fff;
+  border-left: 3px solid #f79009;
+  border-radius: 6px;
+}
+.exp-ref--confirmed {
+  border-left-color: #12b76a;
+}
+.exp-ref--outdated {
+  border-left-color: #d92d20;
+}
+.exp-ref-fragment {
+  margin: 0;
+  font-size: 13px;
+  color: #344054;
+}
+.exp-ref-state {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b54708;
+}
+.exp-ref--confirmed .exp-ref-state {
+  color: #067647;
 }

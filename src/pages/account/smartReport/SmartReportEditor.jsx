@@ -361,7 +361,7 @@ function SmartReportEditor() {
   if (notFound) {
     return (
       <div className="report-page">
-        <Link to="/account/workspace/create?tab=mine" className="report-back">
+        <Link to="/account/workspace/documents" className="report-back">
           <ArrowLeft size={18} aria-hidden="true" />
           {tr.back}
         </Link>
@@ -382,7 +382,7 @@ function SmartReportEditor() {
   return (
     <div className="report-page">
       <div className="report-editor-top">
-        <Link to="/account/workspace/create?tab=mine" className="report-back">
+        <Link to="/account/workspace/documents" className="report-back">
           <ArrowLeft size={18} aria-hidden="true" />
           {tr.back}
         </Link>

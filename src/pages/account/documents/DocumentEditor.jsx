@@ -124,6 +124,9 @@ export default function DocumentEditor() {
           setRightTab('info')
           setParams({}, { replace: true })
         } else setRightTab(STAGES.includes(flow.stage) ? flow.stage : 'info')
+        // Links of «История»: ?panel=versions opens the versions, ?panel=check the expertise.
+        if (params.get('panel') === 'versions') setDialog('versions')
+        else if (params.get('panel') === 'check' && stored) setRightTab('check')
         // Let the first render pass before changes count as edits.
         setTimeout(() => (loaded.current = true), 0)
       })
@@ -525,7 +528,7 @@ export default function DocumentEditor() {
     return (
       <div className="doc-page">
         <p className="doc-error">{e.notFound}</p>
-        <Link to="/account/workspace/create?tab=mine" className="doc-btn">
+        <Link to="/account/workspace/documents" className="doc-btn">
           <ArrowLeft size={16} aria-hidden="true" /> {e.back}
         </Link>
       </div>
@@ -553,7 +556,7 @@ export default function DocumentEditor() {
   return (
     <div className="doc-page doc-editor">
       <header className="doc-editor-head">
-        <Link to="/account/workspace/create?tab=mine" className="doc-back">
+        <Link to="/account/workspace/documents" className="doc-back">
           <ArrowLeft size={16} aria-hidden="true" />
           {e.back}
         </Link>

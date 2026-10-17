@@ -1,45 +1,64 @@
 import './documents.css'
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronUp,
-  FileStack,
   FilePenLine,
-  ListChecks,
+  FileText,
+  HelpCircle,
   Info,
+  Library,
+  ListChecks,
   Loader2,
   Plus,
+  RotateCcw,
   Search,
   Sparkles,
   Star,
   Wand2,
 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
-import { CATEGORIES, FREE_TEXT_ID, fieldsOf, searchTemplates, TEMPLATES, templateById } from './catalog/index.js'
+import {
+  CATEGORIES,
+  FREE_TEXT_ID,
+  KINDS,
+  TEMPLATE_STATUSES,
+  TEMPLATES,
+  filterCatalog,
+  kindOfTemplate,
+  requiredFields,
+  templateById,
+  templateLanguages,
+} from './catalog/index.js'
 import { suggestDocumentType, useFavoriteTemplates } from './useDocuments.js'
 import { docStrings, errorText } from './strings.js'
 import { Modal } from './Dialogs.jsx'
-import MyDocuments from '../../workspace/MyDocuments.jsx'
 
-// «Конструктор профессиональной документации»: the catalog of document types
-// (search, categories, ⭐, «Не знаете, какой документ выбрать?») and «Мои
-// документы». Creating a type opens the universal editor; «Рапорт» opens the
-// existing «Умный рабочий рапорт». The terminology expertise of a document
-// starts from its editor (see «Работа с документами», src/pages/workspace).
+// «Создание документа» and «Каталог документов и форм» of «Работа со
+// служебными документами». The catalog is the client configuration
+// (catalog/templates.js); every type is a working template of the platform
+// unless a confirmed source says otherwise. Creating a type asks how to
+// fill it (form / own words) and opens the universal editor; «Рапорт» opens
+// the existing «Умный рабочий рапорт». Nothing is created before the user
+// has chosen the type and the way to fill it.
 
 function StatusBadge({ status, s }) {
   return <span className={`doc-tpl-status doc-tpl-status--${status}`}>{s.templateStatus[status]}</span>
 }
 
+const kindTitle = (template, s, lang) => KINDS.find((k) => k.key === kindOfTemplate(template))?.title[lang] ?? s.catalog.otherKind
+const langsOf = (template, s) => templateLanguages(template).map((l) => s.catalog.languages[l]).join(', ')
+const fmtDate = (iso, lang) => (iso ? new Date(iso).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null)
+
 function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate, onDetails }) {
   const [open, setOpen] = useState(false)
-  const fields = fieldsOf(template)
+  const required = requiredFields(template)
   return (
     <li className="doc-card">
       <div className="doc-card-top">
         <span className="doc-card-cat">
-          {template.categories.map((c) => CATEGORIES.find((x) => x.key === c)?.letter).join(' · ')}
+          {template.categories.map((c) => CATEGORIES.find((x) => x.key === c)?.letter).join(' · ')} · {kindTitle(template, s, lang)}
         </span>
         <button
           type="button"
@@ -56,6 +75,7 @@ function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate, onDet
       <p className="doc-card-purpose">{template.purpose[lang]}</p>
       <div className="doc-card-badges">
         <StatusBadge status={template.status} s={s} />
+        <span className="doc-card-lang">{langsOf(template, s)}</span>
         {template.engine === 'smart' && (
           <span className="doc-smart-badge">
             <Wand2 size={13} aria-hidden="true" />
@@ -95,36 +115,59 @@ function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate, onDet
         </button>
         <button type="button" className="doc-btn" onClick={() => onDetails(template)}>
           <Info size={16} aria-hidden="true" />
-          {s.details}
+          {s.catalog.openCard}
         </button>
       </div>
-      {template.engine !== 'smart' && <p className="doc-card-foot">{`${s.sectionsCount(template.sections.length)} · ${s.requiredCount(fields.filter((f) => f.required).length)}`}</p>}
+      {template.engine !== 'smart' && <p className="doc-card-foot">{`${s.sectionsCount(template.sections.length)} · ${s.requiredCount(required.length)}`}</p>}
     </li>
   )
 }
 
+/** The card of a form: everything the catalog knows about it, and «не установлено» where it knows nothing. */
 function DetailsDialog({ template, s, lang, onCreate, onClose }) {
-  const fields = fieldsOf(template)
+  const c = s.catalog
+  const required = requiredFields(template)
+  const source = template.source ?? null
   return (
-    <Modal title={template.title[lang]} onClose={onClose}>
+    <Modal title={template.title[lang]} onClose={onClose} wide>
       <dl className="doc-details">
-        <dt>{s.category}</dt>
-        <dd>{template.categories.map((c) => CATEGORIES.find((x) => x.key === c)?.title[lang]).join('; ')}</dd>
         <dt>{s.purpose}</dt>
         <dd>{template.purpose[lang]}</dd>
-        <dt>{s.templateStatus[template.status]}</dt>
-        <dd>{s.templateStatusInfo[template.status]}</dd>
+        <dt>{c.kind}</dt>
+        <dd>{kindTitle(template, s, lang)}</dd>
+        <dt>{c.scope}</dt>
+        <dd>{template.categories.map((cat) => CATEGORIES.find((x) => x.key === cat)?.title[lang]).join('; ')}</dd>
+        <dt>{c.language}</dt>
+        <dd>{langsOf(template, s)}</dd>
+        <dt>{c.requisites}</dt>
+        <dd>
+          {template.engine === 'smart' ? (
+            s.smartInfo
+          ) : required.length ? (
+            <ul className="doc-details-list">
+              {required.map((f) => (
+                <li key={f.key}>{f.label[lang]}</li>
+              ))}
+            </ul>
+          ) : (
+            c.noRequisites
+          )}
+        </dd>
+        <dt>{c.reliability}</dt>
+        <dd>
+          <StatusBadge status={template.status} s={s} /> {s.templateStatusInfo[template.status]}
+        </dd>
         <dt>{s.source}</dt>
         <dd>
-          {template.source ? (
+          {source ? (
             <>
-              {template.source.title}
-              {template.source.edition ? `, ${template.source.edition}` : ''}
-              {template.source.url && (
+              {source.title}
+              {source.edition ? `, ${source.edition}` : ''}
+              {source.url && (
                 <>
                   {' '}
-                  <a href={template.source.url} target="_blank" rel="noreferrer">
-                    {template.source.url}
+                  <a href={source.url} target="_blank" rel="noreferrer">
+                    {source.url}
                   </a>
                 </>
               )}
@@ -133,11 +176,10 @@ function DetailsDialog({ template, s, lang, onCreate, onClose }) {
             s.sourcePlatform
           )}
         </dd>
-        {template.engine === 'smart' ? (
-          <dd className="doc-details-wide">{s.smartInfo}</dd>
-        ) : (
-          <dd className="doc-details-wide">{`${s.sectionsCount(template.sections.length)} · ${s.requiredCount(fields.filter((f) => f.required).length)}`}</dd>
-        )}
+        <dt>{c.basis}</dt>
+        <dd>{source?.basis ?? template.basis ?? c.basisNone}</dd>
+        <dt>{c.checkedAt}</dt>
+        <dd>{fmtDate(source?.checkedAt, lang) ?? c.notChecked}</dd>
       </dl>
       <footer className="doc-modal-actions">
         <button type="button" className="doc-btn" onClick={onClose}>
@@ -152,132 +194,278 @@ function DetailsDialog({ template, s, lang, onCreate, onClose }) {
   )
 }
 
-/** «Не знаете, какой документ выбрать?» — suggestions only; nothing is created without a click. */
-function Finder({ s, lang, onCreate, onDetails }) {
+const catalogForAi = (lang) =>
+  TEMPLATES.map((t) => ({
+    id: t.id,
+    title: t.title[lang],
+    purpose: `${t.purpose[lang]} (${t.categories.map((c) => CATEGORIES.find((x) => x.key === c)?.title[lang]).join('; ')})`,
+  }))
+
+/**
+ * «Создать документ по описанию задачи»: the AI reads the task by its meaning
+ * and suggests types of the catalog only — with what it understood, how sure
+ * it is, how the types differ, and questions when the description is not
+ * enough. Nothing is created here: «Выбрать этот вид» asks how to fill it.
+ */
+function Finder({ s, lang, onCreate, onDetails, autoFocus = false }) {
+  const f = s.finder
   const [query, setQuery] = useState('')
+  const [answers, setAnswers] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
-  const submit = async (ev) => {
-    ev.preventDefault()
-    if (query.trim().length < 5) return
+  const run = async (text) => {
     setBusy(true)
     setError(null)
     try {
-      const out = await suggestDocumentType(
-        query.trim(),
-        TEMPLATES.map((t) => ({ id: t.id, title: t.title[lang], purpose: t.purpose[lang] })),
-        lang,
-      )
-      setResult(out.suggestions.map((sug) => ({ ...sug, template: templateById(sug.id) })).filter((x) => x.template))
+      const out = await suggestDocumentType(text, catalogForAi(lang), lang)
+      setResult({
+        understood: out.understood ?? null,
+        clarify: Array.isArray(out.clarify) ? out.clarify : [],
+        suggestions: (out.suggestions ?? []).map((sug) => ({ ...sug, template: templateById(sug.id) })).filter((x) => x.template),
+      })
     } catch (e) {
       setError(errorText(s, e))
     } finally {
       setBusy(false)
     }
   }
+  const submit = (ev) => {
+    ev.preventDefault()
+    if (query.trim().length < 5) return
+    setAnswers('')
+    run(query.trim())
+  }
+  const refine = () => {
+    const q = result.clarify.map((x, i) => `${i + 1}. ${x}`).join('\n')
+    run(`${query.trim()}\n\n${f.clarifyTitle}:\n${q}\n${f.clarifyPlaceholder}: ${answers.trim()}`)
+  }
+  const u = result?.understood
   return (
-    <section className="doc-finder">
+    <section className="doc-finder" id="finder">
       <div className="doc-finder-head">
         <Sparkles size={20} aria-hidden="true" />
         <div>
-          <h2>{s.finder.title}</h2>
-          <p>{s.finder.lead}</p>
+          <h2>{f.title}</h2>
+          <p>{f.lead}</p>
         </div>
       </div>
       <form className="doc-finder-form" onSubmit={submit}>
-        <input className="doc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={s.finder.placeholder} maxLength={600} />
+        <textarea
+          className="doc-input doc-finder-input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={f.placeholder}
+          maxLength={600}
+          rows={3}
+          autoFocus={autoFocus}
+          aria-label={f.title}
+        />
         <button type="submit" className="doc-btn doc-btn--accent" disabled={busy || query.trim().length < 5}>
           {busy ? <Loader2 size={16} className="doc-spin" aria-hidden="true" /> : <Wand2 size={16} aria-hidden="true" />}
-          {busy ? s.finder.busy : s.finder.submit}
+          {busy ? f.busy : f.submit}
         </button>
       </form>
-      {error && <p className="doc-error">{error}</p>}
-      {result && result.length === 0 && <p className="doc-finder-none">{s.finder.none}</p>}
-      {result && result.length > 0 && (
+      {error && (
+        <div className="doc-error" role="alert">
+          <p>{error}</p>
+          <p>{f.failedHint}</p>
+        </div>
+      )}
+      {result && (
         <div className="doc-finder-result">
-          <p className="doc-finder-label">{s.finder.result}</p>
-          <ul>
-            {result.map(({ template, why }) => (
-              <li key={template.id}>
-                <div>
-                  <strong>{template.title[lang]}</strong>
-                  <p>{why}</p>
-                </div>
-                <div className="doc-finder-actions">
-                  <button type="button" className="doc-btn doc-btn--primary doc-btn--small" onClick={() => onCreate(template)}>
-                    {s.create}
-                  </button>
-                  <button type="button" className="doc-btn doc-btn--small" onClick={() => onDetails(template)}>
-                    {s.details}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {u && (u.goal || u.addressee || u.circumstances || u.result) && (
+            <div className="doc-finder-understood">
+              <p className="doc-finder-label">{f.understood}</p>
+              <dl>
+                {[
+                  ['goal', u.goal],
+                  ['addressee', u.addressee],
+                  ['circumstances', u.circumstances],
+                  ['outcome', u.result],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <dt>{f[k]}</dt>
+                    <dd className={v ? undefined : 'is-empty'}>{v || f.notClear}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+          {result.suggestions.length === 0 ? (
+            <p className="doc-finder-none">{f.none}</p>
+          ) : (
+            <>
+              <p className="doc-finder-label">{f.result}</p>
+              <ul>
+                {result.suggestions.map(({ template, why, confidence, difference }) => (
+                  <li key={template.id}>
+                    <div>
+                      <p className="doc-finder-title">
+                        <strong>{template.title[lang]}</strong>
+                        {confidence && <span className={`doc-conf doc-conf--${confidence}`}>{f.confidence[confidence]}</span>}
+                        <StatusBadge status={template.status} s={s} />
+                      </p>
+                      <p>{why}</p>
+                      {difference && (
+                        <p className="doc-finder-diff">
+                          <strong>{f.difference}:</strong> {difference}
+                        </p>
+                      )}
+                    </div>
+                    <div className="doc-finder-actions">
+                      <button type="button" className="doc-btn doc-btn--primary doc-btn--small" onClick={() => onCreate(template)}>
+                        {f.choose}
+                      </button>
+                      <button type="button" className="doc-btn doc-btn--small" onClick={() => onDetails(template)}>
+                        {s.catalog.openCard}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p className="doc-finder-note">
+                {f.confirmNote} {f.noLegal}
+              </p>
+            </>
+          )}
+          {result.clarify.length > 0 && (
+            <div className="doc-finder-clarify">
+              <p className="doc-finder-label">
+                <HelpCircle size={16} aria-hidden="true" /> {f.clarifyTitle}
+              </p>
+              <ol>
+                {result.clarify.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ol>
+              <textarea className="doc-input" rows={2} value={answers} onChange={(e) => setAnswers(e.target.value)} placeholder={f.clarifyPlaceholder} maxLength={400} />
+              <button type="button" className="doc-btn doc-btn--small" onClick={refine} disabled={busy || !answers.trim()}>
+                <RotateCcw size={14} aria-hidden="true" /> {f.refine}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </section>
   )
 }
 
-function Catalog({ s, lang, onCreate }) {
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('all')
-  const [details, setDetails] = useState(null)
+const DEFAULT_FILTERS = { query: '', category: 'all', kind: 'all', lang: 'all', status: 'all', favoritesOnly: false, sort: 'category' }
+
+function Catalog({ s, lang, onCreate, onDetails }) {
+  const c = s.catalog
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const set = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
   const { favorites, toggle } = useFavoriteTemplates()
-  const found = useMemo(() => searchTemplates({ query, category, favorites }), [query, category, favorites])
-  // In «Все» the list is grouped by category; a type in two categories shows in both.
-  const groups =
-    category === 'all' || category === 'favorites'
-      ? CATEGORIES.map((c) => ({ category: c, items: found.filter((t) => t.categories.includes(c.key)) })).filter((g) => g.items.length)
-      : [{ category: CATEGORIES.find((c) => c.key === category), items: found }]
+  const found = useMemo(() => filterCatalog({ ...filters, favorites, uiLang: lang }), [filters, favorites, lang])
+  const changed = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS)
+  // Grouped by category only when sorted by category and nothing is searched.
+  const grouped = filters.sort === 'category' && !filters.query.trim()
+  const groups = grouped
+    ? CATEGORIES.map((cat) => ({ category: cat, items: found.filter((t) => t.categories.includes(cat.key)) })).filter((g) => g.items.length)
+    : [{ category: null, items: found }]
+  const usedKinds = useMemo(() => new Set(TEMPLATES.map(kindOfTemplate)), [])
   const card = (t) => (
-    <TemplateCard key={t.id} template={t} s={s} lang={lang} favorite={favorites.has(t.id)} onFavorite={toggle} onCreate={onCreate} onDetails={setDetails} />
+    <TemplateCard key={t.id} template={t} s={s} lang={lang} favorite={favorites.has(t.id)} onFavorite={toggle} onCreate={onCreate} onDetails={onDetails} />
   )
   return (
-    <>
-      <Finder s={s} lang={lang} onCreate={onCreate} onDetails={setDetails} />
-      <section className="doc-catalog">
-        <div className="doc-catalog-tools">
-          <label className="doc-search">
-            <Search size={17} aria-hidden="true" />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={s.search} aria-label={s.search} />
+    <section className="doc-catalog">
+      <div className="doc-catalog-tools">
+        <label className="doc-search">
+          <Search size={17} aria-hidden="true" />
+          <input type="search" value={filters.query} onChange={set('query')} placeholder={c.searchPlaceholder} aria-label={c.searchPlaceholder} />
+        </label>
+        <div className="doc-filter-row">
+          <label>
+            <span>{c.category}</span>
+            <select className="doc-input" value={filters.category} onChange={set('category')}>
+              <option value="all">{c.anyCategory}</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat.key} value={cat.key}>
+                  {cat.letter}. {cat.title[lang]}
+                </option>
+              ))}
+            </select>
           </label>
-          <div className="doc-chips" role="tablist">
-            {[
-              { key: 'all', label: s.all },
-              { key: 'favorites', label: `★ ${s.favoritesFilter}` },
-              ...CATEGORIES.map((c) => ({ key: c.key, label: `${c.letter}. ${c.title[lang]}` })),
-            ].map((chip) => (
-              <button key={chip.key} type="button" role="tab" aria-selected={category === chip.key} className={category === chip.key ? 'is-on' : undefined} onClick={() => setCategory(chip.key)}>
-                {chip.label}
-              </button>
-            ))}
-          </div>
-          <div className="doc-legend">
-            {['official', 'recommended', 'platform'].map((st) => (
-              <StatusBadge key={st} status={st} s={s} />
-            ))}
-            <p>{s.statusLegendNote}</p>
-          </div>
+          <label>
+            <span>{c.kind}</span>
+            <select className="doc-input" value={filters.kind} onChange={set('kind')}>
+              <option value="all">{c.anyKind}</option>
+              {KINDS.filter((k) => usedKinds.has(k.key)).map((k) => (
+                <option key={k.key} value={k.key}>
+                  {k.title[lang]}
+                </option>
+              ))}
+              {usedKinds.has('other') && <option value="other">{c.otherKind}</option>}
+            </select>
+          </label>
+          <label>
+            <span>{c.language}</span>
+            <select className="doc-input" value={filters.lang} onChange={set('lang')}>
+              <option value="all">{c.anyLanguage}</option>
+              <option value="kk">{c.languages.kk}</option>
+              <option value="ru">{c.languages.ru}</option>
+            </select>
+          </label>
+          <label>
+            <span>{c.status}</span>
+            <select className="doc-input" value={filters.status} onChange={set('status')}>
+              <option value="all">{c.anyStatus}</option>
+              {TEMPLATE_STATUSES.map((st) => (
+                <option key={st} value={st}>
+                  {s.templateStatus[st]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{c.sort}</span>
+            <select className="doc-input" value={filters.sort} onChange={set('sort')}>
+              {Object.entries(c.sortBy).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        {found.length === 0 && <p className="doc-empty">{category === 'favorites' && !query ? s.noFavorites : s.nothingFound}</p>}
-        {groups.map((g) => (
-          <div key={g.category.key} className="doc-group">
+        <div className="doc-filter-foot">
+          <label className="doc-check">
+            <input type="checkbox" checked={filters.favoritesOnly} onChange={set('favoritesOnly')} />
+            <Star size={15} aria-hidden="true" /> {c.favoritesOnly}
+          </label>
+          <span className="doc-filter-count" aria-live="polite">
+            {c.found(found.length)}
+          </span>
+          {changed && (
+            <button type="button" className="exp-link" onClick={() => setFilters(DEFAULT_FILTERS)}>
+              {c.reset}
+            </button>
+          )}
+        </div>
+        <div className="doc-legend">
+          {TEMPLATE_STATUSES.map((st) => (
+            <StatusBadge key={st} status={st} s={s} />
+          ))}
+          <p>{s.statusLegendNote}</p>
+        </div>
+      </div>
+      {found.length === 0 && <p className="doc-empty">{filters.favoritesOnly && !filters.query ? s.noFavorites : s.nothingFound}</p>}
+      {groups.map((g) => (
+        <div key={g.category?.key ?? 'all'} className="doc-group">
+          {g.category && (
             <h2 className="doc-group-title">
               <span>{g.category.letter}</span>
               {g.category.title[lang]}
             </h2>
-            <ul className="doc-cards">{g.items.map(card)}</ul>
-          </div>
-        ))}
-      </section>
-      {details && <DetailsDialog template={details} s={s} lang={lang} onCreate={onCreate} onClose={() => setDetails(null)} />}
-    </>
+          )}
+          <ul className="doc-cards">{g.items.map(card)}</ul>
+        </div>
+      ))}
+    </section>
   )
 }
-
 
 /** «Как подготовить документ?»: the structured form, or a text the helper fills the form from. */
 function MethodDialog({ template, lang, onPick, onClose }) {
@@ -309,18 +497,14 @@ function MethodDialog({ template, lang, onPick, onClose }) {
   )
 }
 
-export default function DocumentBuilderPage() {
-  const { lang: uiLang } = useLanguage()
-  const lang = uiLang === 'kk' ? 'kk' : 'ru'
-  const s = docStrings(lang)
+/** Choosing a type → how to fill it → the editor. Shared by «Создание» and «Каталог». */
+function useCreateFlow(lang) {
   const navigate = useNavigate()
-  const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'mine' ? 'mine' : 'catalog'
-
-
   const [methodFor, setMethodFor] = useState(null)
-  // The smart report has its own flow and free text is just text; other types ask how to start.
+  const [details, setDetails] = useState(null)
   const create = (template) => {
+    setDetails(null)
+    // The smart report has its own flow and free text is just text; other types ask how to start.
     if (template.engine === 'smart') navigate('/account/smart-report/new')
     else if (template.id === FREE_TEXT_ID) navigate(`/account/documents/new/${template.id}`)
     else setMethodFor(template)
@@ -330,37 +514,92 @@ export default function DocumentBuilderPage() {
     setMethodFor(null)
     navigate(`/account/documents/new/${template.id}${method === 'text' ? '?mode=text' : ''}`)
   }
+  const s = docStrings(lang)
+  const dialogs = (
+    <>
+      {details && <DetailsDialog template={details} s={s} lang={lang} onCreate={create} onClose={() => setDetails(null)} />}
+      {methodFor && <MethodDialog template={methodFor} lang={lang} onPick={startWith} onClose={() => setMethodFor(null)} />}
+    </>
+  )
+  return { create, showDetails: setDetails, dialogs }
+}
 
+function useDocLang() {
+  const { lang: uiLang } = useLanguage()
+  return uiLang === 'kk' ? 'kk' : 'ru'
+}
+
+/** «Каталог документов и официальных форм». */
+export function CatalogView() {
+  const lang = useDocLang()
+  const s = docStrings(lang)
+  const flow = useCreateFlow(lang)
   return (
     <div className="doc-page">
-      <header className="doc-hero">
-        <span className="doc-hero-icon" aria-hidden="true">
-          <FileStack size={30} strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="doc-hero-title">{s.title}</h1>
-          <p className="doc-hero-lead">{s.lead}</p>
+      <Catalog s={s} lang={lang} onCreate={flow.create} onDetails={flow.showDetails} />
+      {flow.dialogs}
+    </div>
+  )
+}
+
+/** «Создание документа»: by the description of the task, or the type chosen by the user. */
+export function CreateView() {
+  const lang = useDocLang()
+  const s = docStrings(lang)
+  const { t } = useLanguage()
+  const w = t.workspace.createPage
+  const flow = useCreateFlow(lang)
+  const { favorites } = useFavoriteTemplates()
+  const favoriteTemplates = TEMPLATES.filter((tpl) => favorites.has(tpl.id))
+  const quick = [
+    { key: 'catalog', to: '/account/workspace/catalog', Icon: Library },
+    { key: 'free', onClick: () => flow.create(templateById(FREE_TEXT_ID)), Icon: FileText },
+    { key: 'smart', onClick: () => flow.create(templateById('report')), Icon: Wand2 },
+  ]
+  return (
+    <div className="doc-page">
+      <Finder s={s} lang={lang} onCreate={flow.create} onDetails={flow.showDetails} autoFocus />
+      <section className="doc-self">
+        <h2 className="doc-self-title">{w.selfTitle}</h2>
+        <p className="doc-self-lead">{w.selfLead}</p>
+        <div className="doc-self-options">
+          {quick.map(({ key, to, onClick, Icon }) => {
+            const body = (
+              <>
+                <Icon size={24} aria-hidden="true" />
+                <span className="doc-method-title">{w.quick[key].title}</span>
+                <span className="doc-method-text">{w.quick[key].text}</span>
+              </>
+            )
+            return to ? (
+              <Link key={key} to={to} className="doc-method-option">
+                {body}
+              </Link>
+            ) : (
+              <button key={key} type="button" className="doc-method-option" onClick={onClick}>
+                {body}
+              </button>
+            )
+          })}
         </div>
-      </header>
-      <nav className="doc-tabs" role="tablist">
-        {['catalog', 'mine'].map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            className={tab === key ? 'is-on' : undefined}
-            onClick={() => setParams(key === 'mine' ? { tab: 'mine' } : {}, { replace: true })}
-          >
-            {s.tabs[key]}
-          </button>
-        ))}
-        <Link to="/account/workspace/check" className="doc-tabs-link">
-          {lang === 'kk' ? 'Құжат мазмұнын сараптау →' : 'Экспертиза содержания документа →'}
-        </Link>
-      </nav>
-      {tab === 'catalog' ? <Catalog s={s} lang={lang} onCreate={create} /> : <MyDocuments embedded />}
-      {methodFor && <MethodDialog template={methodFor} lang={lang} onPick={startWith} onClose={() => setMethodFor(null)} />}
+        {favoriteTemplates.length > 0 && (
+          <>
+            <h3 className="doc-self-sub">
+              <Star size={16} aria-hidden="true" /> {w.favorites}
+            </h3>
+            <ul className="doc-self-favorites">
+              {favoriteTemplates.map((tpl) => (
+                <li key={tpl.id}>
+                  <button type="button" className="doc-btn" onClick={() => flow.create(tpl)}>
+                    <Plus size={15} aria-hidden="true" /> {tpl.title[lang]}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+      {flow.dialogs}
     </div>
   )
 }

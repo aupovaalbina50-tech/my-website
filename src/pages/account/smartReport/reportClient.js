@@ -1,4 +1,5 @@
 import { supabase } from '../../../supabaseClient'
+import { requireAiConsent } from '../../../components/aiConsent.js'
 
 // Calls to the smart-report Edge Function («Рапортты құрастыру»). Separate
 // from the terminology expertise client: different function, different
@@ -22,6 +23,9 @@ async function callReport(payload) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new ReportError('unauthorized')
+  await requireAiConsent().catch(() => {
+    throw new ReportError('ai_declined')
+  })
 
   let res
   try {
