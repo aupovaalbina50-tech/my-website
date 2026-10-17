@@ -9,6 +9,7 @@ import { templateById } from '../account/documents/catalog/index.js'
 import { docStrings } from '../account/documents/strings.js'
 import { duplicateDocument, loadDocument, updateDocument, useMyDocuments } from '../account/documents/useDocuments.js'
 import { checkOutdated, loadContents } from './documentModel.js'
+import { RecentlyOpened } from './drafts/RecentlyOpened.jsx'
 import './myDocuments.css'
 
 // «Мои документы»: every document of the signed-in user (constructor and
@@ -141,6 +142,7 @@ export default function MyDocuments({ embedded = false }) {
         </div>
       ) : (
         <>
+          {user && !loading && <RecentlyOpened userId={user.id} documents={items} lang={lang} />}
           <div className="mydocs-filters">
             <label className="mydocs-search">
               <Search size={16} aria-hidden="true" />

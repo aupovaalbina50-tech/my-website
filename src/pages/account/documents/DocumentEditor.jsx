@@ -11,6 +11,9 @@ import {
   Download,
   FileText,
   History,
+  AlertTriangle,
+  CloudOff,
+  HardDriveDownload,
   Link2,
   RotateCcw,
   Loader2,
@@ -41,6 +44,11 @@ import { VersionsPanel } from '../../workspace/versions/VersionsPanel.jsx'
 import { LinkedDocumentsPanel } from '../../workspace/links/LinkedDocumentsPanel.jsx'
 import { useDocumentLinks } from '../../workspace/links/useDocumentLinks.js'
 import { applyTransfer } from '../../workspace/links/consistency.js'
+import { contentKey, isOffline, isRealConflict, reconcile } from '../../workspace/drafts/reconcile.js'
+import { deleteDraftIf, getDraft, putDraft, saveEmergency } from '../../workspace/drafts/localDrafts.js'
+import { recordOpen } from '../../workspace/drafts/recent.js'
+import { ConflictDialog } from '../../workspace/drafts/ConflictDialog.jsx'
+import '../../workspace/drafts/drafts.css'
 
 // The universal editor of «Конструктор профессиональной документации».
 // Left: the template's sections as a form; right: the live preview, the check
@@ -48,13 +56,25 @@ import { applyTransfer } from '../../workspace/links/consistency.js'
 // editor — the template configuration decides what is shown.
 
 const SAVE_DELAY = 900
+// The copy on this device follows the text faster than the server save.
+const DRAFT_DELAY = 300
+// While the server cannot be reached, the save is retried this often.
+const RETRY_EVERY = 20_000
 
 /** The check as stored: older rows may hold a bare array. */
 // The expertise result is stored with the document (issues); an old-format check of the constructor is not shown.
 const readCheck = (raw) => readExpertise(raw)
 const savePayload = (values, title, lang, status, check) => ({ values, title, lang, status, issues: forStorage(check) ?? [], issue_count: counts(check, values).all, content_hash: contentHash(values) })
 
-export default function DocumentEditor() {
+// One editor per document: opening another document mounts a fresh editor
+// (the previous one saves on the way out), so one document's text can never
+// land in another.
+export default function DocumentEditorRoute() {
+  const { id } = useParams()
+  return <DocumentEditor key={id} />
+}
+
+function DocumentEditor() {
   const { id } = useParams()
   const { lang: uiLang, t } = useLanguage()
   const lang = uiLang === 'kk' ? 'kk' : 'ru'
@@ -97,9 +117,20 @@ export default function DocumentEditor() {
   const versionNo = useRef(0)
   const latest = useRef({})
   const [lastExpertise, setLastExpertise] = useState(null)
+  // Server state the editor builds on: updated_at of the row (optimistic lock)
+  // and the content it confirmed. A conflict blocks automatic writes until
+  // the user chose a version.
+  const serverAt = useRef(null)
+  const confirmed = useRef(null)
+  const blocked = useRef(false)
+  const [conflict, setConflict] = useState(null) // { server, mine, mineAt }
+  const [resolving, setResolving] = useState(false)
+  const [restoredAt, setRestoredAt] = useState(null)
 
   const template = doc ? templateById(doc.template_id) : null
-  const readOnly = status === 'archive'
+  // While two versions wait for the user's choice nothing can be edited (or overwritten).
+  const readOnly = status === 'archive' || saveState === 'conflict'
+  const dr = t.workspace.drafts
   // «Связанные документы»: links, cards, comparison; the banner when a linked document changed.
   const links = useDocumentLinks(id, values)
 
@@ -108,9 +139,23 @@ export default function DocumentEditor() {
     let alive = true
     loaded.current = false
     loadDocument(id)
-      .then((row) => {
+      .then(async (row) => {
         if (!alive) return
         if (!row) return setLoadError('notFound')
+        // A copy of this document on this device (unsaved edits from before a reload / without connection).
+        const copy = user ? await getDraft(user.id, row.id).catch(() => null) : null
+        if (!alive) return
+        if (user) recordOpen(user.id, row.id)
+        serverAt.current = row.updated_at
+        confirmed.current = contentKey(row)
+        const action = reconcile(row, copy)
+        // Every copy of this document on this device is obsolete: the server holds the text.
+        if (action === 'discard') deleteDraftIf(user.id, row.id, null).catch(() => {})
+        if (action === 'conflict') {
+          blocked.current = true
+          setConflict({ server: row, mine: copy.payload, mineAt: copy.savedAt, open: true })
+          setSaveState('conflict')
+        }
         setDoc(row)
         versionNo.current = row.current_version ?? 0
         setValues(row.values ?? {})
@@ -133,6 +178,13 @@ export default function DocumentEditor() {
         // Links of «История»: ?panel=versions opens the versions, ?panel=check the expertise.
         if (params.get('panel') === 'versions') setDialog('versions')
         else if (params.get('panel') === 'check' && stored) setRightTab('check')
+        // Unsaved edits made on top of the text the server still holds: back in the editor, saved by the autosave.
+        if (action === 'restore') {
+          setValues(copy.payload.values ?? {})
+          setTitle(copy.payload.title ?? '')
+          setDocLang(copy.payload.lang ?? 'ru')
+          setRestoredAt(copy.savedAt)
+        }
         // Let the first render pass before changes count as edits.
         setTimeout(() => (loaded.current = true), 0)
       })
@@ -161,16 +213,54 @@ export default function DocumentEditor() {
   // «Сохранено» is shown only when the database confirmed exactly the text on screen.
   const wantKey = useRef(null)
   const queue = useRef(Promise.resolve())
+  /**
+   * One write of this document, only on top of the row the editor knows
+   * (updated_at). A refused write is a conflict only when the content on the
+   * server is not the content this editor confirmed: a version number or a
+   * status changed elsewhere just moves updated_at, and the write is retried.
+   */
+  const writeNow = async (fields) => {
+    const d = latest.current.doc
+    if (blocked.current) throw Object.assign(new Error('conflict'), { code: 'conflict' })
+    try {
+      const r = await updateDocument(d.id, fields, serverAt.current)
+      serverAt.current = r.updated_at
+      return r
+    } catch (err) {
+      if (err.code !== 'conflict') throw err
+      const server = await loadDocument(d.id)
+      if (server && !isRealConflict(server, confirmed.current)) {
+        serverAt.current = server.updated_at
+        const r = await updateDocument(d.id, fields, serverAt.current)
+        serverAt.current = r.updated_at
+        return r
+      }
+      throw Object.assign(err, { server })
+    }
+  }
+  const write = (fields) => enqueue(() => writeNow(fields))
   const persist = () => {
     const run = async () => {
       const { values: v, title: tt, docLang: dl, status: st, check: ck, doc: d } = latest.current
       const payload = savePayload(v, tt, dl, st, ck)
       const key = JSON.stringify(payload)
       if (key === lastSaved.current) return
-      await updateDocument(d.id, payload)
+      await writeNow(payload)
       lastSaved.current = key
+      confirmed.current = contentKey({ values: v, title: tt, lang: dl })
+      // The server holds this text now: the copy on this device is no longer needed (a newer copy stays).
+      if (user) deleteDraftIf(user.id, d.id, confirmed.current).catch(() => {})
     }
     return enqueue(run)
+  }
+  /** What a failed save means for the user: conflict / no connection / error. */
+  const failed = (err) => {
+    if (err?.code === 'conflict') {
+      blocked.current = true
+      const { values: v, title: tt, docLang: dl } = latest.current
+      if (err.server) setConflict({ server: err.server, mine: { values: v, title: tt, lang: dl }, mineAt: null, open: true })
+      setSaveState('conflict')
+    } else setSaveState(isOffline(err) ? 'offline' : 'error')
   }
   /** Any write of this document waits for the previous one. */
   const enqueue = (fn) => {
@@ -186,54 +276,90 @@ export default function DocumentEditor() {
       setSaveState((st) => (st === 'saving' ? 'saved' : st))
       return
     }
-    setSaveState('saving')
+    // The copy on this device first: it survives a reload, a closed tab and a lost connection.
+    const draftTimer = setTimeout(() => {
+      if (user) putDraft(user.id, doc.id, { payload: { values, title, lang: docLang, status }, baseContent: confirmed.current, templateId: doc.template_id }).catch(() => {})
+    }, DRAFT_DELAY)
+    if (blocked.current) {
+      clearTimeout(draftTimer)
+      return
+    }
+    setSaveState((st) => (st === 'offline' ? st : 'saving'))
     const timer = setTimeout(() => {
       persist()
         .then(() => wantKey.current === lastSaved.current && setSaveState('saved'))
-        .catch(() => wantKey.current !== lastSaved.current && setSaveState('error'))
+        .catch((err) => wantKey.current !== lastSaved.current && failed(err))
     }, SAVE_DELAY)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(draftTimer)
+    }
     // persist reads the newest state from `latest`
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values, title, docLang, status, check, doc])
 
   latest.current = { values, doc, saveState, title, docLang, status, check }
+  const userRef = useRef(user)
+  userRef.current = user
   // Lost connection: retry as soon as it is back; leaving with unsaved changes asks first.
   useEffect(() => {
-    const online = () => latest.current.saveState === 'error' && saveNowRef.current?.()
+    const online = () => ['error', 'offline'].includes(latest.current.saveState) && saveNowRef.current?.()
     const unload = (ev) => {
       if (latest.current.saveState === 'saved') return
       ev.preventDefault()
       ev.returnValue = ''
     }
+    // The page is left (reload, closed tab, another address): the unsaved text is copied at once.
+    const leave = () => {
+      const { values: v, title: tt, docLang: dl, status: st, doc: d, saveState: ss } = latest.current
+      if (!loaded.current || !d || !userRef.current || ss === 'saved' || blocked.current) return
+      saveEmergency(userRef.current.id, d.id, { payload: { values: v, title: tt, lang: dl, status: st }, baseContent: confirmed.current, templateId: d.template_id })
+    }
     window.addEventListener('online', online)
     window.addEventListener('beforeunload', unload)
+    window.addEventListener('pagehide', leave)
     return () => {
       window.removeEventListener('online', online)
       window.removeEventListener('beforeunload', unload)
+      window.removeEventListener('pagehide', leave)
     }
   }, [])
-  // Leaving the editor: the text is kept as a version when it differs from the newest one
-  // (one version per session of work, not one per keystroke).
+  // No connection / failed save: retried every RETRY_EVERY while the browser says it is online.
+  useEffect(() => {
+    if (saveState !== 'error' && saveState !== 'offline') return
+    const timer = setInterval(() => navigator.onLine && saveNowRef.current?.(), RETRY_EVERY)
+    return () => clearInterval(timer)
+  }, [saveState])
+  // Leaving the editor (another page, another document): unsaved text is saved on the way
+  // out — the copy on this device stays until the server confirms it — and the text is kept
+  // as a version when it differs from the newest one (one version per session of work).
   useEffect(
     () => () => {
       const { values: v, doc: d } = latest.current
-      if (!loaded.current || !d || !Object.keys(v ?? {}).some((k) => !k.startsWith('__') && v[k] !== '' && v[k] != null)) return
+      if (!loaded.current || !d || blocked.current) return
+      persist().catch(() => {})
+      if (!Object.keys(v ?? {}).some((k) => !k.startsWith('__') && v[k] !== '' && v[k] != null)) return
       if (contentHash(v) === lastVersionHash.current) return
-      saveDocVersion({ ...d, current_version: versionNo.current++ }, v, 'user', onLeaveNote.current).catch(() => {})
+      enqueue(() => saveDocVersion({ ...d, current_version: versionNo.current++ }, v, 'user', onLeaveNote.current, writeNow)).catch(() => {})
     },
+    // persist / enqueue / writeNow read the newest state from refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 
   /** Saves at once (the autosave waits for a pause); true only when the database confirmed it. */
   const saveNow = async () => {
+    if (blocked.current) {
+      setSaveState('conflict')
+      return false
+    }
     setSaveState('saving')
     try {
       await persist()
       setSaveState(wantKey.current === lastSaved.current ? 'saved' : 'saving')
       return true
-    } catch {
-      setSaveState('error')
+    } catch (err) {
+      failed(err)
       return false
     }
   }
@@ -244,7 +370,7 @@ export default function DocumentEditor() {
 
   /** A version with a reason; remembers its fingerprint. */
   const keepVersion = async (v, kind, note = null) => {
-    const version = await saveDocVersion({ ...(latest.current.doc ?? doc), current_version: versionNo.current++ }, v, kind, note)
+    const version = await saveDocVersion({ ...(latest.current.doc ?? doc), current_version: versionNo.current++ }, v, kind, note, write)
     setDoc((d) => ({ ...d, current_version: Math.max(d.current_version ?? 0, version) }))
     lastVersionHash.current = contentHash(v)
     return version
@@ -262,6 +388,57 @@ export default function DocumentEditor() {
     setValues((v) => applyTransfer(v, items, source))
     showToast(lt.transferred(items.length), { type: 'success' })
     return true
+  }
+
+  // ---- two versions: the user chooses, the other one is kept as a version ----
+  const adoptServer = (server) => {
+    blocked.current = false
+    serverAt.current = server.updated_at
+    confirmed.current = contentKey(server)
+    versionNo.current = Math.max(versionNo.current, server.current_version ?? 0)
+  }
+  const keepMine = async () => {
+    const { server, mine } = conflict
+    setResolving(true)
+    try {
+      adoptServer(server)
+      // The text on the server is kept as a version before it is replaced.
+      await keepVersion(server.values ?? {}, 'user', dr.serverKept)
+      setValues(mine.values ?? {})
+      setTitle(mine.title ?? '')
+      setDocLang(mine.lang ?? 'ru')
+      lastSaved.current = null
+      setConflict(null)
+      setSaveState('saving')
+      setTimeout(() => saveNowRef.current?.(), 0)
+    } catch (err) {
+      failed(err)
+    } finally {
+      setResolving(false)
+    }
+  }
+  const takeServer = async () => {
+    const { server, mine } = conflict
+    setResolving(true)
+    try {
+      adoptServer(server)
+      // Your text is kept as a version: nothing is lost.
+      await keepVersion(mine.values ?? {}, 'user', dr.mineKept)
+      const stored = readCheck(server.issues)
+      lastSaved.current = JSON.stringify(savePayload(server.values ?? {}, server.title ?? '', server.lang ?? 'ru', server.status ?? 'draft', stored))
+      setValues(server.values ?? {})
+      setTitle(server.title ?? '')
+      setDocLang(server.lang ?? 'ru')
+      setStatus(server.status ?? 'draft')
+      setCheck(stored)
+      if (user) deleteDraftIf(user.id, server.id, null).catch(() => {})
+      setConflict(null)
+      setSaveState('saved')
+    } catch (err) {
+      failed(err)
+    } finally {
+      setResolving(false)
+    }
   }
 
   const saveDraft = async () => {
@@ -340,7 +517,7 @@ export default function DocumentEditor() {
     const prevStatus = status
     // «На проверке» while it runs — stored at once, so «Мои документы» shows it too.
     setStatus('review')
-    enqueue(() => updateDocument(doc.id, { status: 'review' })).catch(() => {})
+    write({ status: 'review' }).catch(() => {})
     try {
       if (!doc.current_version) await keepVersion(values, 'original')
     } catch {
@@ -358,7 +535,7 @@ export default function DocumentEditor() {
     if (state === 'error') {
       // Nothing finished: the previous result stays as it was, marked by its own date.
       setStatus(prevStatus)
-      enqueue(() => updateDocument(doc.id, { status: prevStatus })).catch(() => {})
+      write({ status: prevStatus }).catch(() => {})
       setCheckFailure(x.failedAll)
       showToast(x.failedAll, { type: 'error' })
       return
@@ -376,9 +553,15 @@ export default function DocumentEditor() {
     if (state === 'needs_review') setCheckFailure(x.failedPart)
     setStatus(nextStatus)
     setDoc((d) => ({ ...d, checked_at: next.at, checked_hash: hash, content_hash: hash }))
-    enqueue(() => updateDocument(doc.id, { status: nextStatus, checked_at: next.at, checked_hash: hash, content_hash: hash, issues: forStorage(next), issue_count: open }))
-      .then(() => (lastSaved.current = JSON.stringify(savePayload(values, title, docLang, nextStatus, next))))
-      .catch(() => setSaveState('error'))
+    // The checked text itself goes with the result, so «saved» is true of exactly this text.
+    const checkedPayload = savePayload(values, title, docLang, nextStatus, next)
+    write({ ...checkedPayload, checked_at: next.at, checked_hash: hash })
+      .then(() => {
+        lastSaved.current = JSON.stringify(checkedPayload)
+        confirmed.current = contentKey({ values, title, lang: docLang })
+        if (user) deleteDraftIf(user.id, doc.id, confirmed.current).catch(() => {})
+      })
+      .catch(failed)
     showToast(x.state[state], { type: 'success' })
     if (user) saveEditorExpertise(user.id, doc, title || template.title[docLang], next, values).then((row) => row && setLastExpertise(row)).catch((err) => console.error('Expertise history was not saved:', err))
   }
@@ -588,8 +771,8 @@ export default function DocumentEditor() {
           <span className={`doc-status doc-status--${status}`}>{s.docStatus[status]}</span>
           <span className={`doc-tpl-status doc-tpl-status--${template.status}`}>{s.templateStatus[template.status]}</span>
           <span className={`doc-save doc-save--${saveState}`} role="status">
-            {saveState === 'saving' ? e.saving : saveState === 'error' ? e.saveFailed : e.saved}
-            {saveState === 'error' && (
+            {{ saving: e.saving, error: e.saveFailed, offline: dr.offlineShort, conflict: dr.conflictShort }[saveState] ?? e.saved}
+            {(saveState === 'error' || saveState === 'offline') && (
               <button type="button" className="exp-link doc-save-retry" onClick={saveNow}>
                 {e.retrySave}
               </button>
@@ -611,6 +794,34 @@ export default function DocumentEditor() {
           </div>
         </div>
       </header>
+
+      {saveState === 'offline' && (
+        <div className="draft-notice draft-notice--offline" role="status">
+          <p>
+            <CloudOff size={16} aria-hidden="true" /> {dr.offline}
+          </p>
+        </div>
+      )}
+      {saveState === 'conflict' && !conflict?.open && conflict && (
+        <div className="draft-notice draft-notice--conflict" role="alert">
+          <p>
+            <AlertTriangle size={16} aria-hidden="true" /> {dr.conflict}
+          </p>
+          <button type="button" className="doc-btn doc-btn--small" onClick={() => setConflict((cf) => ({ ...cf, open: true }))}>
+            {dr.compare}
+          </button>
+        </div>
+      )}
+      {restoredAt && (
+        <div className="draft-notice draft-notice--restored" role="status">
+          <p>
+            <HardDriveDownload size={16} aria-hidden="true" /> {dr.restored(new Date(restoredAt).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU'))}
+          </p>
+          <button type="button" className="doc-btn doc-btn--small" onClick={() => setRestoredAt(null)}>
+            {dr.dismiss}
+          </button>
+        </div>
+      )}
 
       {links.attention > 0 && (
         <div className="lnk-banner" role="status">
@@ -910,6 +1121,20 @@ export default function DocumentEditor() {
             setAssistText(text)
             setDialog('assist')
           }}
+        />
+      )}
+      {conflict?.open && (
+        <ConflictDialog
+          template={template}
+          server={conflict.server}
+          mine={conflict.mine}
+          mineAt={conflict.mineAt}
+          lang={lang}
+          c={dr.conflictDialog}
+          busy={resolving}
+          onKeepMine={keepMine}
+          onTakeServer={takeServer}
+          onLater={() => setConflict((cf) => ({ ...cf, open: false }))}
         />
       )}
       {dialog === 'links' && (

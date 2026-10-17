@@ -10,7 +10,7 @@ import './versions.css'
 // a word-level comparison of any two and the full text of each. Restoring
 // and exporting are done by the editor (it keeps the current text first).
 
-function Diff({ parts }) {
+export function Diff({ parts }) {
   return (
     <p className="ver-diff-text">
       {parts.map((p, i) =>

@@ -139,18 +139,39 @@ export async function createDocument(userId, fields) {
 
 
 /** Saves; resolves only when the database confirmed the row (RLS: own rows only). */
-export async function updateDocument(id, fields) {
+/** The document changed on the server since the version the editor holds (another tab / device). */
+export class ConflictError extends Error {
+  constructor() {
+    super('conflict')
+    this.code = 'conflict'
+  }
+}
+
+/**
+ * Updates a document. With `expectedUpdatedAt` the row is written only if it
+ * was not changed since then (optimistic lock on updated_at, which the
+ * work_documents_touch trigger moves on every update); otherwise
+ * ConflictError and nothing is written. Returns { updated_at }.
+ */
+export async function updateDocument(id, fields, expectedUpdatedAt = null) {
+  const run = (payload) => {
+    let q = supabase.from('work_documents').update(payload).eq('id', id)
+    if (expectedUpdatedAt) q = q.eq('updated_at', expectedUpdatedAt)
+    return q.select('updated_at').maybeSingle()
+  }
   let payload = schemaHasNewColumns ? fields : withoutNewColumns(fields)
-  let { data, error } = await supabase.from('work_documents').update(payload).eq('id', id).select('updated_at').single()
+  let { data, error } = await run(payload)
   if (error && schemaHasNewColumns && NEW_COLUMNS.some((c) => c in fields) && /content_hash|checked_hash|PGRST204|42703/.test(`${error.code} ${error.message}`)) {
     schemaHasNewColumns = false
     payload = withoutNewColumns(fields)
-    ;({ data, error } = await supabase.from('work_documents').update(payload).eq('id', id).select('updated_at').single())
+    ;({ data, error } = await run(payload))
   }
   if (error && payload.status === 'checked' && /23514|status_check/.test(`${error.code} ${error.message}`)) {
-    ;({ data, error } = await supabase.from('work_documents').update({ ...payload, status: 'review' }).eq('id', id).select('updated_at').single())
+    ;({ data, error } = await run({ ...payload, status: 'review' }))
   }
   if (error) throw error
+  // No row: changed since `expectedUpdatedAt` (RLS hides other users' rows the same way, but the editor only opens own documents).
+  if (!data) throw expectedUpdatedAt ? new ConflictError() : Object.assign(new Error('not_found'), { code: 'not_found' })
   return data
 }
 
@@ -181,7 +202,12 @@ export async function duplicateDocument(userId, source, template, copySuffix) {
 }
 
 /** Saves the values as the next version of the given kind; returns the new number. */
-export async function saveDocVersion(doc, values, kind, note = null) {
+/**
+ * Keeps a version. `update` writes the new version number into the
+ * document — the editor passes its own queued writer so the version does
+ * not race with the autosave.
+ */
+export async function saveDocVersion(doc, values, kind, note = null, update = (fields) => updateDocument(doc.id, fields)) {
   const version = (doc.current_version ?? 0) + 1
   const { error } = await supabase.from('work_document_versions').insert({
     document_id: doc.id,
@@ -192,7 +218,7 @@ export async function saveDocVersion(doc, values, kind, note = null) {
     values,
   })
   if (error) throw error
-  await updateDocument(doc.id, { current_version: version })
+  await update({ current_version: version })
   return version
 }
 
