@@ -21,7 +21,8 @@ const DAYS = { all: null, today: 1, week: 7, month: 30 }
 const statusGroup = (s) => (s === 'filling' ? 'draft' : s)
 
 
-async function loadContents() {
+/** Full text of every document of the user, for the search (RLS: own rows only). */
+export async function loadContents() {
   const [docs, reports] = await Promise.all([
     supabase.from('work_documents').select('id, template_id, lang, values'),
     supabase.from('work_reports').select('id, source_text, content'),
@@ -42,7 +43,7 @@ export default function MyDocuments({ embedded = false }) {
   const navigate = useNavigate()
   const { items, loading, error, refresh, remove, setStatus } = useMyDocuments()
 
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
   const [type, setType] = useState('all')
   // ?status=draft from the counters of «Рабочая панель».
   const [params] = useSearchParams()

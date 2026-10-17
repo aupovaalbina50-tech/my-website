@@ -541,6 +541,12 @@
   box-shadow: 0 10px 28px rgba(4, 14, 30, 0.3);
   backdrop-filter: blur(10px);
   scrollbar-width: thin;
+  flex-wrap: wrap;
+
+  /* Phones: one row that scrolls sideways. */
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+  }
 }
 
 .dws-nav-link {
@@ -588,10 +594,10 @@
 
 .dws-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 1100px) {
+  @media (max-width: 900px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   @media (max-width: 520px) {
@@ -823,6 +829,100 @@ a.dws-action:focus-visible {
   & a {
     font-size: 14px;
     font-weight: 600;
+    color: #bae6fd;
+  }
+}
+
+/* ---- dashboard search ---- */
+
+.dws-search {
+  display: grid;
+  gap: 10px;
+}
+
+.dws-search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  color: #7dd3fc;
+  background: rgba(10, 33, 63, 0.8);
+  border: 1px solid rgba(148, 197, 227, 0.35);
+  border-radius: 12px;
+
+  & input {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    font: inherit;
+    font-size: 16px;
+    color: #fff;
+    background: transparent;
+    border: 0;
+    outline: none;
+  }
+  & input::placeholder {
+    color: #9fb6cf;
+  }
+  &:focus-within {
+    border-color: #7dd3fc;
+  }
+}
+
+.dws-search-results {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(10, 33, 63, 0.88);
+  border: 1px solid rgba(148, 197, 227, 0.3);
+  border-radius: 12px;
+}
+
+/* ---- registry of sources ---- */
+
+.dws-sources-group {
+  display: grid;
+  gap: 8px;
+}
+
+.dws-sources-title {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: #bae6fd;
+}
+
+.dws-source {
+  border-left: 4px solid #f59e0b;
+}
+.dws-source--confirmed {
+  border-left-color: #22c55e;
+}
+.dws-source--outdated {
+  border-left-color: #ef4444;
+}
+
+.dws-source-state {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fde68a;
+}
+.dws-source--confirmed .dws-source-state {
+  color: #bbf7d0;
+}
+
+.dws-source-link {
+  font-size: 13.5px;
+  color: #bae6fd;
+  overflow-wrap: anywhere;
+}
+
+.dws-sites {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+
+  & a {
     color: #bae6fd;
   }
 }
