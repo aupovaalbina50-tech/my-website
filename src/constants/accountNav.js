@@ -6,8 +6,7 @@ import {
   Share2,
   Star,
   Eye,
-  FileText,
-  FilePenLine,
+  FolderOpen,
   Library,
   Landmark,
   User,
@@ -25,8 +24,7 @@ export const ACCOUNT_NAV_ITEMS = [
   { key: 'myDictionary', to: '/account/my-dictionary', Icon: Star },
   { key: 'quotes', to: '/quotes', Icon: Quote },
   { key: 'missions', to: '/account/missions', Icon: Siren },
-  { key: 'docs', to: '/account/docs', Icon: FileText },
-  { key: 'documents', to: '/account/documents', Icon: FilePenLine },
+  { key: 'workspace', to: '/account/workspace', Icon: FolderOpen },
   // Shown to admins only (the page itself also checks the role).
   { key: 'knowledge', to: '/account/knowledge', Icon: Library, adminOnly: true },
 ]
