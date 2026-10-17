@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { cloneElement, useRef, useState } from 'react'
 import { Building2, Info, MapPin, Paperclip, Plus, Shield, Trash2, User, Users, BadgeCheck } from 'lucide-react'
 
 // One field of the dynamic form. The template's `type` decides the control;
@@ -69,7 +69,49 @@ function Rows({ field, value, onChange, readOnly, s, lang, table }) {
   )
 }
 
-function Control({ field, value, onChange, readOnly, s, lang, id, invalid }) {
+/**
+ * Remarks of the expertise marked in the text of a field. A layer with the
+ * same text and font lies under the (transparent) input; the user types as
+ * usual. A click inside a marked fragment opens its remark.
+ */
+function Marked({ value, marks, activeMark, onMark, multiline, children }) {
+  const back = useRef(null)
+  const text = String(value ?? '')
+  const parts = []
+  let at = 0
+  for (const m of marks) {
+    if (m.start < at || m.end > text.length) continue
+    if (m.start > at) parts.push(text.slice(at, m.start))
+    parts.push(
+      <mark key={m.id} className={`hl-${m.priority}${m.id === activeMark ? ' is-active' : ''}`} data-remark={m.id}>
+        {text.slice(m.start, m.end)}
+      </mark>,
+    )
+    at = m.end
+  }
+  parts.push(text.slice(at) + (multiline ? '\n ' : ' '))
+  const sync = (e) => {
+    if (!back.current) return
+    back.current.scrollTop = e.currentTarget.scrollTop
+    back.current.scrollLeft = e.currentTarget.scrollLeft
+  }
+  const pick = (e) => {
+    const el = e.currentTarget
+    if (el.selectionStart !== el.selectionEnd) return
+    const hit = marks.find((m) => el.selectionStart >= m.start && el.selectionStart <= m.end)
+    if (hit) onMark?.(hit.id)
+  }
+  return (
+    <div className="doc-hl">
+      <div ref={back} className={`doc-input doc-hl-back${multiline ? '' : ' doc-hl-back--line'}`} aria-hidden="true">
+        {parts}
+      </div>
+      {cloneElement(children, { onScroll: sync, onClick: pick, onKeyUp: sync })}
+    </div>
+  )
+}
+
+function Control({ field, value, onChange, readOnly, s, lang, id, invalid, marks, activeMark, onMark }) {
   const common = {
     id,
     'data-path': field.key,
@@ -80,8 +122,16 @@ function Control({ field, value, onChange, readOnly, s, lang, id, invalid }) {
   }
   const options = field.options?.[lang] ?? []
   switch (field.type) {
-    case 'textarea':
-      return <textarea {...common} rows={4} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+    case 'textarea': {
+      const el = <textarea {...common} rows={4} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return marks?.length ? (
+        <Marked value={value} marks={marks} activeMark={activeMark} onMark={onMark} multiline>
+          {el}
+        </Marked>
+      ) : (
+        el
+      )
+    }
     case 'date':
       return <input {...common} type="date" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
     case 'time':
@@ -189,19 +239,27 @@ function Control({ field, value, onChange, readOnly, s, lang, id, invalid }) {
       )
     default: {
       const Icon = ICONS[field.type]
+      const raw = <input {...common} type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+      const el = marks?.length ? (
+        <Marked value={value} marks={marks} activeMark={activeMark} onMark={onMark}>
+          {raw}
+        </Marked>
+      ) : (
+        raw
+      )
       return Icon ? (
         <div className="doc-input-icon">
           <Icon size={16} aria-hidden="true" />
-          <input {...common} type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+          {el}
         </div>
       ) : (
-        <input {...common} type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+        el
       )
     }
   }
 }
 
-export default function FieldInput({ field, value, onChange, readOnly, s, lang, invalid, flash }) {
+export default function FieldInput({ field, value, onChange, readOnly, s, lang, invalid, flash, marks = null, activeMark = null, onMark = null }) {
   const id = `f-${field.key}`
   const grouped = ['radio', 'multiselect', 'table', 'repeating', 'file'].includes(field.type)
   const wide = ['textarea', 'table', 'repeating', 'file', 'multiselect', 'radio'].includes(field.type)
@@ -218,7 +276,7 @@ export default function FieldInput({ field, value, onChange, readOnly, s, lang, 
         </Label>
         <Hint text={field.hint?.[lang]} s={s} />
       </div>
-      <Control field={field} value={value} onChange={onChange} readOnly={readOnly} s={s} lang={lang} id={id} invalid={invalid} />
+      <Control field={field} value={value} onChange={onChange} readOnly={readOnly} s={s} lang={lang} id={id} invalid={invalid} marks={marks} activeMark={activeMark} onMark={onMark} />
       {field.type === 'signature' && <p className="doc-field-note">{s.editor.signatureNote}</p>}
       {invalid && <p className="doc-field-error">{s.editor.missingField}</p>}
     </div>

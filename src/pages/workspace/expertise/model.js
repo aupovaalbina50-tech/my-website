@@ -94,8 +94,10 @@ export function isStale(item, check, values) {
 
 export const needsConfirmation = (item) => item.confirmation === 'unconfirmed' || item.confirmation === 'source'
 
-export function matchesFilter(item, filter, group = 'all') {
+export function matchesFilter(item, filter, { group = 'all', category = 'all', priority = 'all' } = {}) {
   if (group !== 'all' && groupOf(item) !== group) return false
+  if (category !== 'all' && classify(item).category !== category) return false
+  if (priority !== 'all' && classify(item).priority !== priority) return false
   if (filter === 'all') return true
   if (filter === 'unconfirmed') return needsConfirmation(item)
   return item.category === filter
@@ -116,6 +118,8 @@ export function counts(check, values) {
     stale: (check?.items ?? []).filter((i) => i.status === 'open' && isStale(i, check, values)).length,
     errors: active.filter((i) => i.severity === 'error').length,
     groups: Object.fromEntries(GROUPS.map((g) => [g, active.filter((i) => groupOf(i) === g).length])),
+    categories: Object.fromEntries(QC_CATEGORIES.map((c) => [c, active.filter((i) => classify(i).category === c).length])),
+    priorities: Object.fromEntries(PRIORITIES.map((p) => [p, active.filter((i) => classify(i).priority === p).length])),
   }
 }
 
@@ -259,4 +263,55 @@ const capitals = (s) =>
 export function touchesFacts(fragment, suggestion) {
   if (suggestion == null) return false
   return digits(fragment) !== digits(suggestion) || capitals(fragment) !== capitals(suggestion)
+}
+
+// ---- quality control: category and priority of a remark ---------------------------
+//
+// Derived from what the remark is and how it is confirmed — never stored, so
+// checks saved earlier get them too. The AI alone never makes a remark
+// «critical» (that needs a rule of the platform: a missing required field, a
+// contradiction inside the document); an AI remark it calls critical keeps
+// its own category but gets a high priority, so it is not hidden either.
+
+export const QC_CATEGORIES = ['critical', 'normative', 'terminology', 'factual', 'structure', 'language', 'style', 'clarify']
+export const PRIORITIES = ['high', 'medium', 'low', 'info']
+
+const BY_GROUP = { terminology: 'terminology', style: 'style', structure: 'structure', grammar: 'language', logic: 'structure', consistency: 'factual', references: 'normative', doctype: 'structure' }
+
+export function classify(item) {
+  const group = groupOf(item)
+  const rule = item.confirmation === 'rule'
+  const aiCritical = item.aiCategory === 'critical'
+  const lowest = item.severity === 'recommendation' ? 'low' : 'medium'
+  // A rule of the platform found it: a required field is empty, or the document contradicts itself.
+  if (rule && item.severity === 'error' && (item.basis?.rule === 'missing' || group === 'consistency')) return { category: 'critical', priority: 'high' }
+  // Normative references: an act marked outdated / a wrong number is high; an act not confirmed needs checking.
+  if (group === 'references') return { category: 'normative', priority: item.severity === 'error' ? 'high' : 'medium' }
+  if (group === 'terminology') {
+    // Not in the term base and no official source: a question, not an error.
+    if (item.confirmation === 'unconfirmed') return { category: 'clarify', priority: 'medium' }
+    return { category: 'terminology', priority: item.confirmation === 'base' && item.severity === 'error' ? 'high' : 'medium' }
+  }
+  const category = BY_GROUP[group] ?? 'style'
+  if (aiCritical) return { category, priority: 'high' }
+  if (category === 'style') return { category, priority: item.fragment || item.suggestion ? 'low' : 'info' }
+  if (category === 'language') return { category, priority: lowest }
+  return { category, priority: lowest }
+}
+
+const PRIORITY_RANK = Object.fromEntries(PRIORITIES.map((p, i) => [p, i]))
+export const byPriority = (a, b) => PRIORITY_RANK[classify(a).priority] - PRIORITY_RANK[classify(b).priority]
+
+/** Remarks that can be marked in the text now: open, located, the text still as checked. */
+export function marksOf(check, values) {
+  const out = new Map()
+  for (const item of check?.items ?? []) {
+    if (item.status !== 'open' || item.start == null || !item.target || isStale(item, check, values)) continue
+    if (valueAtPath(values, item.target).slice(item.start, item.end) !== item.fragment) continue
+    const list = out.get(item.target) ?? []
+    list.push({ id: item.id, start: item.start, end: item.end, fragment: item.fragment, priority: classify(item).priority, category: classify(item).category })
+    out.set(item.target, list)
+  }
+  for (const list of out.values()) list.sort((a, b) => a.start - b.start)
+  return out
 }

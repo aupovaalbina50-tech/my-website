@@ -31,7 +31,7 @@ import { documentText, formatValue, isEmptyValue, missingRequired, renderDocumen
 import { documentToDocx, documentToPdf, downloadBlob, fileNameOf } from './exportDocument.js'
 import { composeDocumentText, createDocument, loadDocVersions, loadDocument, saveDocVersion, saveProfileData, updateDocument } from './useDocuments.js'
 import { contentHash, documentSource, expertisePath, loadDocumentExpertises, saveEditorExpertise } from '../../workspace/documentModel.js'
-import { activeItems, applyItem, counts, expertiseState, forStorage, readExpertise, setItemStatus, undoLast } from '../../workspace/expertise/model.js'
+import { activeItems, applyItem, counts, expertiseState, forStorage, marksOf, readExpertise, setItemStatus, undoLast } from '../../workspace/expertise/model.js'
 import { runExpertise } from '../../workspace/expertise/runExpertise.js'
 import { ChangesList, ExpertisePanel } from '../../workspace/expertise/ExpertisePanel.jsx'
 import { dataBasis, fieldOrigin, narrativeFields, questions, readFlow, STAGES, unconfirmed, withFlow } from '../../workspace/constructor/flow.js'
@@ -504,7 +504,20 @@ function DocumentEditor() {
     })
     setTimeout(() => setFlashKey((k) => (k === key ? null : k)), 1800)
   }, [])
-  const goToItem = (item) => goTo(item.target, item.start != null ? { start: item.start, end: item.end, fragment: item.fragment } : null)
+  // The remark chosen in the panel or in the text; its fragment is selected in the field.
+  const [activeRemark, setActiveRemark] = useState(null)
+  const goToItem = (item) => {
+    if (item.id) setActiveRemark(item.id)
+    goTo(item.target, item.start != null ? { start: item.start, end: item.end, fragment: item.fragment } : null)
+  }
+  /** A marked fragment was clicked: its card opens in the expertise panel. */
+  const openRemark = useCallback((remarkId) => {
+    setActiveRemark(remarkId)
+    setRightTab('check')
+    setMobileView('preview')
+  }, [])
+  // Open remarks located in the current text, by field (nothing when the text changed since).
+  const marks = useMemo(() => (check ? marksOf(check, values) : new Map()), [check, values])
 
   // ---- expertise ----
   // «Проверить документ» / «Повторить экспертизу»: always the CURRENT text.
@@ -973,6 +986,9 @@ function DocumentEditor() {
                     lang={lang}
                     invalid={invalid.has(field.key)}
                     flash={flashKey === field.key}
+                    marks={marks.get(field.key)}
+                    activeMark={activeRemark}
+                    onMark={openRemark}
                   />
                 ))}
               </div>
@@ -1038,7 +1054,9 @@ function DocumentEditor() {
             {rightTab === 'export' && (
               <ExportPanel template={template} values={values} rendered={rendered} docLang={docLang} w={wz} lang={lang} saving={saveState === 'saving'} onExport={exportAs} onGoTo={(key) => goTo(key)} />
             )}
-            {rightTab === 'preview' && <DocumentPreview doc={rendered} lang={docLang} focusKey={flashKey} onPick={goTo} />}
+            {rightTab === 'preview' && (
+              <DocumentPreview doc={rendered} lang={docLang} focusKey={flashKey} onPick={goTo} marks={marks} activeMark={activeRemark} onMark={openRemark} markTitle={x.qc.openRemark} />
+            )}
             {rightTab === 'check' && (
               <ExpertisePanel
                 check={check}
@@ -1050,6 +1068,7 @@ function DocumentEditor() {
                 errorTypes={t.inspector.errorTypes}
                 lang={lang}
                 readOnly={readOnly}
+                activeId={activeRemark}
                 onRun={runCheck}
                 onAccept={(item) => applyRemark(item, item.suggestion, 'accepted')}
                 onManual={(item, text) => applyRemark(item, text, 'edited')}
