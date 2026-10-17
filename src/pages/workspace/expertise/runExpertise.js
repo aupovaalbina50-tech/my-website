@@ -10,6 +10,9 @@
 //                    grammar, punctuation, agreement, repetitions, ambiguity,
 //                    official style, structure and logic; its fragments are
 //                    checked to exist verbatim in the text.
+//   +  references  — normative references in the text against the registry
+//                    of sources (public.kb_sources); numbers / dates that
+//                    contradict themselves. No AI.
 //   4. lookup      — official sources, only for terminology findings the base
 //                    has no entry for (allow-listed official domains; a URL is
 //                    kept only if the search really returned it).
@@ -23,7 +26,9 @@ import { checkDocumentText } from '../../account/documents/useDocuments.js'
 import { checkBlocks, missingRequired } from '../../account/documents/render.js'
 import { fieldsOf } from '../../account/documents/catalog/index.js'
 import { requisiteIssues } from '../../account/smartReport/templates/index.js'
-import { CHECK_VERSION, occurrences, touchesFacts } from './model.js'
+import { CHECK_VERSION, GROUPS, occurrences, touchesFacts } from './model.js'
+import { consistencyChecks, referenceChecks } from './localChecks.js'
+import { loadRegistry } from '../sources/registry.js'
 
 const CHUNK_CHARS = 12000
 const LOOKUP_BATCH = 10
@@ -62,6 +67,7 @@ function structureItems(template, values, docLang, c, uiLang) {
   const items = missingRequired(template, values).map((key) => ({
     ...base,
     id: nextId('s'),
+    group: 'structure',
     severity: 'error',
     target: key,
     label: label(key),
@@ -75,6 +81,7 @@ function structureItems(template, values, docLang, c, uiLang) {
       ...base,
       id: nextId('s'),
       category: 'language',
+      group: 'grammar',
       severity: 'remark',
       target: r.field,
       label: label(r.field),
@@ -86,11 +93,11 @@ function structureItems(template, values, docLang, c, uiLang) {
   }
   const docDate = parseIso(values.date)
   if (docDate && docDate > today())
-    items.push({ ...base, id: nextId('s'), severity: 'error', target: 'date', label: label('date'), title: c.futureDate, explanation: c.futureDateReason, basis: { kind: 'rule', rule: 'date' }, confirmation: 'rule' })
+    items.push({ ...base, id: nextId('s'), group: 'consistency', severity: 'error', target: 'date', label: label('date'), title: c.futureDate, explanation: c.futureDateReason, basis: { kind: 'rule', rule: 'date' }, confirmation: 'rule' })
   for (const key of ['incidentDate', 'eventDate']) {
     const event = parseIso(values[key])
     if (event && docDate && event > docDate)
-      items.push({ ...base, id: nextId('s'), severity: 'error', target: key, label: label(key), title: c.eventAfterDoc, explanation: c.eventAfterDocReason, basis: { kind: 'rule', rule: 'date' }, confirmation: 'rule' })
+      items.push({ ...base, id: nextId('s'), group: 'consistency', severity: 'error', target: key, label: label(key), title: c.eventAfterDoc, explanation: c.eventAfterDocReason, basis: { kind: 'rule', rule: 'date' }, confirmation: 'rule' })
   }
   return items
 }
@@ -127,6 +134,7 @@ export function termItemFromResult(r, block, start) {
   const item = {
     id: nextId('t'),
     category: 'terminology',
+    group: 'terminology',
     // 'fix' = one verified base term, high confidence; 'review' = the user decides.
     severity: r.status === 'fix' ? 'error' : 'remark',
     target: block.key,
@@ -196,6 +204,8 @@ async function terminologyItems(blocks, uiLang) {
 }
 
 const LANGUAGE_CATEGORY = { language: 'language', term: 'terminology' }
+// Groups of remarks of a function deployed before `group` existed.
+const GROUP_FALLBACK = { term: 'terminology', language: 'grammar', logic: 'logic', structure: 'structure', critical: 'structure', important: 'style', advice: 'style' }
 const SEVERITY = { critical: 'error', important: 'error', logic: 'error', language: 'remark', term: 'remark', structure: 'recommendation', advice: 'recommendation' }
 
 /** 3. Language, style, structure and logic (AI), fragments located in the text. */
@@ -216,6 +226,7 @@ async function languageItems(blocks, documentTitle, docLang) {
     return {
       id: nextId('l'),
       category: LANGUAGE_CATEGORY[i.category] ?? 'structure',
+      group: GROUPS.includes(i.group) ? i.group : GROUP_FALLBACK[i.category] ?? 'style',
       severity: SEVERITY[i.category] ?? 'recommendation',
       target: block ? block.key : '',
       label: block?.label ?? '',
@@ -301,15 +312,26 @@ export async function runExpertise({ template, values, docLang, uiLang, document
     textBlocks.length ? terminologyItems(textBlocks, uiLang) : { items: [], part: 'skipped', termsFound: 0, glossarySize: null, error: null },
     blocks.length ? languageItems(textBlocks.length ? textBlocks : blocks, documentTitle, docLang) : { items: [], part: 'skipped', error: null },
   ])
-  const items = dedupe([...structure, ...terminology.items, ...language.items])
+  let registry = null
+  let registryError = null
+  try {
+    registry = await loadRegistry()
+  } catch (err) {
+    registryError = codeOf(err)
+  }
+  const refs = referenceChecks(textBlocks, registry, strings, nextId)
+  const numbers = consistencyChecks(textBlocks, strings, nextId)
+  const items = dedupe([...structure, ...numbers, ...refs.items, ...terminology.items, ...language.items])
   const lookup = await lookupSources(items, docLang)
 
   return {
     v: CHECK_VERSION,
     at: new Date().toISOString(),
     docLang,
-    parts: { structure: 'ok', terminology: terminology.part, language: language.part, lookup: lookup.part },
-    errors: { terminology: terminology.error, language: language.error, lookup: lookup.error },
+    parts: { structure: 'ok', terminology: terminology.part, language: language.part, references: registry ? 'ok' : 'failed', lookup: lookup.part },
+    errors: { terminology: terminology.error, language: language.error, references: registryError, lookup: lookup.error },
+    // Every normative reference found, with the registry entry it names (if any).
+    references: refs.references.map((r) => ({ ...r, source: r.source && { id: r.source.id, title_ru: r.source.title_ru, title_kk: r.source.title_kk, doc_number: r.source.doc_number, doc_date: r.source.doc_date, url: r.source.url, status: r.source.status, verified_at: r.source.verified_at ?? null, priority: r.source.priority } })),
     snapshots: Object.fromEntries(textBlocks.map((b) => [b.key, b.text])),
     items,
     changes: [],

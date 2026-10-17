@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, BookOpenCheck, Check, CheckCircle2, Crosshair, ExternalLink, Loader2, PencilLine, RotateCcw, Undo2, X } from 'lucide-react'
-import { canApply, canUndo, changeList, counts, expertiseState, FILTERS, isStale, matchesFilter } from './model.js'
+import { canApply, canUndo, changeList, counts, expertiseState, FILTERS, GROUPS, groupOf, isStale, kindOf, matchesFilter } from './model.js'
+import { OFFICIAL_SITES } from '../sources/registry.js'
 import './expertise.css'
 
 // Right panel of the document editor: the expertise result and the work on
@@ -65,8 +66,68 @@ function Basis({ item, x, lang }) {
           </a>
         </div>
       )}
+      {b.kind === 'registry' && b.source && <SourceCard source={b.source} x={x} lang={lang} />}
+      {(b.kind === 'registry' || b.kind === 'unverified_reference') && <CheckSites x={x} lang={lang} />}
       {item.lookupNote && <p className="exp-basis-note">{x.lookupNote[item.lookupNote]}</p>}
     </div>
+  )
+}
+
+const fmtDate = (iso, lang) => (iso ? new Date(iso).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null)
+
+/** A registry entry with everything the platform knows about it — and nothing more. */
+function SourceCard({ source, x, lang }) {
+  const r = x.refs
+  return (
+    <div className="exp-basis-entry">
+      <p>
+        <strong>{(lang === 'kk' ? source.title_kk : source.title_ru) || source.title_ru}</strong>
+      </p>
+      <p>{[source.doc_number, source.doc_date && r.dated(fmtDate(source.doc_date, lang))].filter(Boolean).join(' · ') || r.noRequisites}</p>
+      <p>
+        {r.statusLabel}: {r.registryStatus[source.status] ?? source.status} · {source.verified_at ? r.verifiedAt(fmtDate(source.verified_at, lang)) : r.notVerified}
+      </p>
+      {source.url && (
+        <a href={source.url} target="_blank" rel="noreferrer">
+          {source.url} <ExternalLink size={12} aria-hidden="true" />
+        </a>
+      )}
+    </div>
+  )
+}
+
+function CheckSites({ x, lang }) {
+  return (
+    <p className="exp-basis-note">
+      {x.refs.checkAt}{' '}
+      {OFFICIAL_SITES.filter((site) => site.priority === 2).map((site) => (
+        <a key={site.key} href={site.url} target="_blank" rel="noreferrer">
+          {site.title[lang] ?? site.title.ru} <ExternalLink size={12} aria-hidden="true" />
+        </a>
+      ))}
+    </p>
+  )
+}
+
+/** Every normative reference of the document and what the registry says about it. */
+function ReferencesList({ check, x, lang }) {
+  const list = check.references ?? []
+  if (!list.length) return null
+  const r = x.refs
+  return (
+    <details className="exp-refs">
+      <summary>{r.title(list.length)}</summary>
+      <ul>
+        {list.map((ref, i) => (
+          <li key={i} className={`exp-ref exp-ref--${ref.actuality}`}>
+            <p className="exp-ref-fragment">«{ref.fragment}»</p>
+            <p className="exp-ref-state">{r.actuality[ref.actuality] ?? ref.actuality}</p>
+            {ref.source ? <SourceCard source={ref.source} x={x} lang={lang} /> : <p className="exp-basis-note">{r.notInRegistry}</p>}
+          </li>
+        ))}
+      </ul>
+      <CheckSites x={x} lang={lang} />
+    </details>
   )
 }
 
@@ -81,8 +142,9 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, onAccept
   return (
     <li className={`exp-item exp-item--${item.category} exp-item--${item.status}${stale ? ' is-stale' : ''}`}>
       <div className="exp-item-head">
-        <span className={`exp-chip exp-chip--${item.category}`}>{x.category[item.category]}</span>
+        <span className={`exp-chip exp-chip--${item.category}`}>{x.groups[groupOf(item)]}</span>
         <span className={`exp-sev exp-sev--${item.severity}`}>{x.severity[item.severity]}</span>
+        <span className={`exp-kind exp-kind--${kindOf(item)}`}>{x.kinds[kindOf(item)]}</span>
         <span className={`exp-conf exp-conf--${item.confirmation}`}>{x.confirmation[item.confirmation]}</span>
       </div>
       <p className="exp-item-title">{title}</p>
@@ -184,13 +246,14 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, onAccept
 
 export function ExpertisePanel({ check, values, outdated = false, running, failure, x, errorTypes, lang, readOnly, onRun, onAccept, onReject, onManual, onGoTo, onReopen }) {
   const [filter, setFilter] = useState('all')
+  const [group, setGroup] = useState('all')
   const c = useMemo(() => counts(check, values), [check, values])
   const state = expertiseState(check, values)
   const visible = useMemo(() => {
-    const list = (check?.items ?? []).filter((i) => matchesFilter(i, filter))
+    const list = (check?.items ?? []).filter((i) => matchesFilter(i, filter, group))
     const rank = (i) => (i.status === 'open' ? (isStale(i, check, values) ? 1 : 0) : 2)
     return list.sort((a, b) => rank(a) - rank(b))
-  }, [check, values, filter])
+  }, [check, values, filter, group])
 
   if (running) {
     return (
@@ -230,7 +293,7 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
             </p>
             {outdated && <p className="exp-item-stale">{x.outdated}</p>}
             <ul className="exp-parts">
-              {['structure', 'terminology', 'language', 'lookup'].map((p) => (
+              {['structure', 'terminology', 'language', 'references', 'lookup'].filter((p) => check.parts[p]).map((p) => (
                 <li key={p} className={`exp-part exp-part--${check.parts[p]}`}>
                   {x.parts[p]}: {x.partState[check.parts[p]]}
                   {check.errors?.[p] && ` (${x.errorCode(check.errors[p])})`}
@@ -246,8 +309,23 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
             )}
           </div>
 
+          <ReferencesList check={check} x={x} lang={lang} />
+
+          <label className="exp-group-select">
+            <span>{x.groupLabel}</span>
+            <select className="doc-input" value={group} onChange={(e) => setGroup(e.target.value)}>
+              <option value="all">
+                {x.groupAll} ({c.all})
+              </option>
+              {GROUPS.map((g) => (
+                <option key={g} value={g}>
+                  {x.groups[g]} ({c.groups[g]})
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="exp-filters" role="tablist">
-            {FILTERS.map((f) => (
+            {FILTERS.filter((f) => f === 'all' || f === 'unconfirmed').map((f) => (
               <button key={f} type="button" role="tab" aria-selected={filter === f} className={filter === f ? 'is-on' : undefined} onClick={() => setFilter(f)}>
                 {x.filters[f]} <span className="exp-count">{c[f]}</span>
               </button>
@@ -255,7 +333,7 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
           </div>
 
           {visible.length === 0 ? (
-            <p className="exp-empty">{filter === 'all' ? x.noRemarks : x.noRemarksFilter}</p>
+            <p className="exp-empty">{filter === 'all' && group === 'all' ? x.noRemarks : x.noRemarksFilter}</p>
           ) : (
             <ol className="exp-list">
               {visible.map((item) => (

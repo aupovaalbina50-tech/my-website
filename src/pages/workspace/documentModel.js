@@ -196,7 +196,7 @@ export async function loadDocumentExpertises(documentId, limit = 5) {
 }
 
 /** Everything the start screen shows: the user's documents and their expertise history. */
-export function useWorkspaceActivity() {
+export function useWorkspaceActivity({ historyLimit = 10 } = {}) {
   const { user } = useAuth()
   const docs = useMyDocuments()
   const [history, setHistory] = useState([])
@@ -211,15 +211,21 @@ export function useWorkspaceActivity() {
       .select(HISTORY_COLUMNS)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(10)
+      .limit(historyLimit)
     setHistoryError(Boolean(error))
     setHistory(data ?? [])
     setHistoryLoading(false)
-  }, [user])
+  }, [user, historyLimit])
 
   useEffect(() => {
     loadHistory()
   }, [loadHistory])
+
+  const { refresh } = docs
+  const retry = useCallback(() => {
+    refresh()
+    loadHistory()
+  }, [refresh, loadHistory])
 
   return {
     signedIn: Boolean(user),
@@ -229,6 +235,7 @@ export function useWorkspaceActivity() {
     history,
     historyLoading,
     historyError,
+    retry,
   }
 }
 

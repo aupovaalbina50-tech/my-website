@@ -279,8 +279,8 @@
   }
 }
 
-/* The history spans the full width under the two document blocks. */
-.dws-block:last-child {
+/* An odd last block spans the full width under the others. */
+.dws-block:last-child:nth-child(odd) {
   grid-column: 1 / -1;
 }
 
@@ -434,9 +434,37 @@
 }
 
 .dws-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
   margin: 0;
   font-size: 15px;
   color: #fecaca;
+
+  & p {
+    margin: 0;
+  }
+}
+
+.dws-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(125, 211, 252, 0.16);
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.dws-retry:hover,
+.dws-retry:focus-visible {
+  background: rgba(125, 211, 252, 0.3);
 }
 
 /* ---- inspector: the document this check belongs to ---- */
@@ -470,5 +498,331 @@
 
   & a {
     text-decoration: none;
+  }
+}
+
+/* ---- the environment: kicker, compact header, navigation ---- */
+
+.dws-hero-kicker {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+
+.dws-hero--compact {
+  padding: 18px 24px;
+
+  & .dws-hero-icon {
+    width: 46px;
+    height: 46px;
+  }
+  & .dws-hero-title {
+    font-size: 24px;
+  }
+  & .dws-hero-lead {
+    font-size: 15.5px;
+  }
+}
+
+.dws-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  overflow-x: auto;
+  background: rgba(10, 33, 63, 0.88);
+  border: 1px solid rgba(148, 197, 227, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(4, 14, 30, 0.3);
+  backdrop-filter: blur(10px);
+  scrollbar-width: thin;
+}
+
+.dws-nav-link {
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #d2e1f2;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 10px;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.dws-nav-link:hover,
+.dws-nav-link:focus-visible {
+  color: #fff;
+  background: rgba(125, 211, 252, 0.14);
+}
+
+.dws-nav-link.is-active {
+  color: #0a213f;
+  background: #e0f2fe;
+  box-shadow: inset 0 -3px 0 #e2343f;
+}
+
+.dws-screen {
+  display: grid;
+  gap: var(--space-4, 24px);
+  min-width: 0;
+}
+
+/* ---- dashboard ---- */
+
+.dws-dashboard {
+  display: grid;
+  gap: var(--space-4, 24px);
+}
+
+.dws-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 520px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.dws-action {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px;
+  color: #fff;
+  text-decoration: none;
+  background: linear-gradient(165deg, rgba(30, 78, 138, 0.55) 0%, rgba(10, 33, 63, 0.8) 100%);
+  border: 1px solid rgba(148, 197, 227, 0.28);
+  border-radius: 14px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+
+  & > svg {
+    color: #7dd3fc;
+  }
+}
+
+a.dws-action:hover,
+a.dws-action:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(125, 211, 252, 0.7);
+}
+
+.dws-action--create,
+.dws-action--describe {
+  border-top: 3px solid #e2343f;
+}
+
+.dws-action.is-disabled {
+  opacity: 0.6;
+}
+
+.dws-action-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dws-action-text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #c7d8ec;
+  overflow-wrap: anywhere;
+}
+
+.dws-counters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+
+  & > .dws-muted,
+  & > .dws-error {
+    grid-column: 1 / -1;
+  }
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dws-counter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 12px;
+  padding: 14px 18px;
+  color: #fff;
+  text-decoration: none;
+  background: rgba(10, 33, 63, 0.72);
+  border: 1px solid rgba(148, 197, 227, 0.22);
+  border-left: 4px solid #7dd3fc;
+  border-radius: 12px;
+
+  & > svg {
+    grid-row: span 2;
+    color: #7dd3fc;
+  }
+}
+
+.dws-counter:hover,
+.dws-counter:focus-visible {
+  border-color: rgba(125, 211, 252, 0.6);
+}
+
+.dws-counter--issues {
+  border-left-color: #f97316;
+}
+.dws-counter--checked {
+  border-left-color: #38bdf8;
+}
+.dws-counter--ready {
+  border-left-color: #22c55e;
+}
+
+.dws-counter-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.dws-counter-label {
+  font-size: 13.5px;
+  color: #c7d8ec;
+}
+
+.dws-empty--inline {
+  padding: 16px;
+}
+
+.dws-public-open {
+  justify-self: start;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ---- history ---- */
+
+.dws-activity--wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dws-select {
+  max-width: 100%;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: #0a213f;
+  background: #e0f2fe;
+  border: 0;
+  border-radius: 8px;
+}
+
+.dws-history {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dws-history-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 197, 227, 0.22);
+  border-radius: 12px;
+}
+
+.dws-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+
+  & a {
+    color: #fff;
+  }
+}
+
+.dws-history-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  & li {
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #d2e1f2;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+  }
+  & .is-open {
+    color: #fed7aa;
+  }
+  & .is-accepted {
+    color: #bbf7d0;
+  }
+  & .is-rejected {
+    color: #fecaca;
+  }
+}
+
+.dws-history-changes {
+  font-size: 14px;
+  color: #d2e1f2;
+
+  & summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  & ol {
+    display: grid;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding-left: 20px;
+  }
+  & li > span {
+    display: block;
+  }
+  & del {
+    color: #fecaca;
+  }
+  & ins {
+    color: #bbf7d0;
+    text-decoration: none;
+  }
+}
+
+.dws-history-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  & a {
+    font-size: 14px;
+    font-weight: 600;
+    color: #bae6fd;
   }
 }

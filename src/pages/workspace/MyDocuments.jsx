@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Archive, ArchiveRestore, Check, Copy, FilePlus2, FileSearch, Library, Loader2, PencilLine, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../../auth/AuthContext.jsx'
@@ -44,7 +44,9 @@ export default function MyDocuments({ embedded = false }) {
 
   const [query, setQuery] = useState('')
   const [type, setType] = useState('all')
-  const [status, setStatusFilter] = useState('active')
+  // ?status=draft from the counters of «Рабочая панель».
+  const [params] = useSearchParams()
+  const [status, setStatusFilter] = useState(STATUS_FILTERS.includes(params.get('status')) ? params.get('status') : 'active')
   const [period, setPeriod] = useState('all')
   const [sort, setSort] = useState('desc')
   const [contents, setContents] = useState(null) // full-text index, loaded on the first search
@@ -129,7 +131,7 @@ export default function MyDocuments({ embedded = false }) {
             <Link to="/account/workspace/create" className="doc-btn doc-btn--primary">
               <FilePlus2 size={16} aria-hidden="true" /> {m.create}
             </Link>
-            <Link to="/account/workspace/create" className="doc-btn">
+            <Link to="/account/workspace/catalog" className="doc-btn">
               <Library size={16} aria-hidden="true" /> {m.library}
             </Link>
           </div>
@@ -143,7 +145,7 @@ export default function MyDocuments({ embedded = false }) {
             <Link to="/account/workspace/create" className="doc-btn doc-btn--primary">
               <FilePlus2 size={16} aria-hidden="true" /> {m.create}
             </Link>
-            <Link to="/account/workspace/create" className="doc-btn">
+            <Link to="/account/workspace/catalog" className="doc-btn">
               <Library size={16} aria-hidden="true" /> {m.library}
             </Link>
           </div>
@@ -190,7 +192,14 @@ export default function MyDocuments({ embedded = false }) {
               <Loader2 size={16} className="doc-spin" aria-hidden="true" /> {m.loading}
             </p>
           )}
-          {error && <p className="doc-error">{m.loadFailed}</p>}
+          {error && (
+            <p className="doc-error" role="alert">
+              {m.loadFailed}{' '}
+              <button type="button" className="exp-link" onClick={refresh}>
+                {t.workspace.dashboard.retry}
+              </button>
+            </p>
+          )}
           {!loading && visible.length === 0 && <p className="mydocs-note">{m.nothingFound}</p>}
 
           <ul className="mydocs-list">

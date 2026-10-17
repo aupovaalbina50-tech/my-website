@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../../supabaseClient'
+import { requireAiConsent } from '../../../components/aiConsent.js'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { ReportError } from '../smartReport/reportClient.js'
 import { fieldsOf } from './catalog/index.js'
@@ -217,6 +218,9 @@ async function call(payload) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new ReportError('unauthorized')
+  await requireAiConsent().catch(() => {
+    throw new ReportError('ai_declined')
+  })
   let res
   try {
     res = await fetch(FUNCTION_URL, {

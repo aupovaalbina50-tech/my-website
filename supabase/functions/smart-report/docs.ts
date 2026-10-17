@@ -35,6 +35,17 @@ const langName = (lang: Lang) => (lang === 'kk' ? 'казахском' : 'рус
 const SUGGEST_SCHEMA = {
   type: 'object',
   properties: {
+    understood: {
+      type: 'object',
+      properties: {
+        goal: { type: 'string' },
+        addressee: { type: 'string' },
+        circumstances: { type: 'string' },
+        result: { type: 'string' },
+      },
+      required: ['goal', 'addressee', 'circumstances', 'result'],
+      additionalProperties: false,
+    },
     suggestions: {
       type: 'array',
       items: {
@@ -42,15 +53,20 @@ const SUGGEST_SCHEMA = {
         properties: {
           id: { type: 'string' },
           why: { type: 'string' },
+          confidence: { type: 'string' },
+          difference: { type: 'string' },
         },
-        required: ['id', 'why'],
+        required: ['id', 'why', 'confidence', 'difference'],
         additionalProperties: false,
       },
     },
+    clarify: { type: 'array', items: { type: 'string' } },
   },
-  required: ['suggestions'],
+  required: ['understood', 'suggestions', 'clarify'],
   additionalProperties: false,
 }
+
+const CONFIDENCE = ['high', 'medium', 'low']
 
 export async function suggestDocument(body: any, lang: Lang) {
   const query = str(body.query, 600)
@@ -63,23 +79,35 @@ export async function suggestDocument(body: any, lang: Lang) {
 
   const { json: out, model } = await callReportModel({
     system: `Ты помогаешь сотруднику службы гражданской защиты Республики Казахстан выбрать вид служебного документа.
-Выбирай ТОЛЬКО из каталога ниже (по id). Предложи от 1 до 3 видов, самый подходящий — первым.
-why — одно-два предложения на ${langName(lang)} языке: почему этот документ подходит к описанной задаче.
-Не утверждай, что документ является официально утверждённой формой. Не придумывай других видов документов.
-Если ни один вид не подходит — пустой список.
+Сначала пойми задачу по смыслу, а не по отдельным словам: understood — цель обращения, адресат (кому документ), обстоятельства, ожидаемый результат; кратко, на ${langName(lang)} языке; если из описания это не ясно — пустая строка.
+Выбирай ТОЛЬКО из каталога ниже (по id), по назначению документа. Предложи от 1 до 3 видов, самый подходящий — первым.
+why — одно-два предложения на ${langName(lang)} языке: для чего предназначен этот документ и почему он подходит к задаче.
+confidence — high (задача однозначно соответствует назначению документа), medium (подходит, но возможен и другой вид), low (подходит частично).
+difference — чем этот вариант отличается от других предложенных (одно предложение; для единственного варианта — пустая строка).
+clarify — от 0 до 3 уточняющих вопросов на ${langName(lang)} языке, если сведений недостаточно для уверенного выбора (например, кому адресован документ, произошло ли событие или его нужно спланировать). Если всё ясно — пустой список.
+Не утверждай, что документ является официально утверждённой формой или что он обязателен по закону. Не придумывай других видов документов.
+Если ни один вид не подходит — пустой список suggestions и уточняющие вопросы.
 
 КАТАЛОГ:
 ${catalog.map((c: any) => `${c.id} — ${c.title}. ${c.purpose}`).join('\n')}`,
     parts: [{ type: 'text', text: `Задача пользователя: «${query}»` }],
     schema: SUGGEST_SCHEMA,
-    maxTokens: 1500,
+    maxTokens: 2500,
   })
   const ids = new Set(catalog.map((c: any) => c.id))
   const suggestions = (Array.isArray(out?.suggestions) ? out.suggestions : [])
-    .map((s: any) => ({ id: str(s?.id, 60), why: str(s?.why, 400) }))
+    .map((s: any) => ({
+      id: str(s?.id, 60),
+      why: str(s?.why, 400),
+      confidence: CONFIDENCE.includes(str(s?.confidence, 10)) ? str(s?.confidence, 10) : null,
+      difference: str(s?.difference, 400),
+    }))
     .filter((s: any, i: number, all: any[]) => ids.has(s.id) && all.findIndex((o: any) => o.id === s.id) === i)
     .slice(0, 3)
-  return { suggestions, model }
+  const u = out?.understood ?? {}
+  const understood = { goal: str(u.goal, 300), addressee: str(u.addressee, 200), circumstances: str(u.circumstances, 400), result: str(u.result, 300) }
+  const clarify = (Array.isArray(out?.clarify) ? out.clarify : []).map((q: unknown) => str(q, 300)).filter(Boolean).slice(0, 3)
+  return { understood, suggestions, clarify, model }
 }
 
 // ---- fill ---------------------------------------------------------------------
@@ -175,6 +203,8 @@ ${fields.map((f) => `${f.key} — ${f.label} [${f.type}]${f.hint ? `: ${f.hint}`
 // ---- check --------------------------------------------------------------------
 
 const CATEGORIES = ['critical', 'important', 'term', 'structure', 'language', 'logic', 'advice'] as const
+// The eight groups of checks the editor shows (src/pages/workspace/expertise/model.js).
+const GROUPS = ['terminology', 'style', 'structure', 'grammar', 'logic', 'consistency', 'references', 'doctype'] as const
 
 const CHECK_SCHEMA = {
   type: 'object',
@@ -185,6 +215,7 @@ const CHECK_SCHEMA = {
         type: 'object',
         properties: {
           category: { type: 'string' },
+          group: { type: 'string' },
           target: { type: 'string' },
           was: { type: 'string' },
           now: { type: 'string' },
@@ -192,7 +223,7 @@ const CHECK_SCHEMA = {
           reason: { type: 'string' },
           basis: { type: 'string' },
         },
-        required: ['category', 'target', 'was', 'now', 'title', 'reason', 'basis'],
+        required: ['category', 'group', 'target', 'was', 'now', 'title', 'reason', 'basis'],
         additionalProperties: false,
       },
     },
@@ -239,6 +270,16 @@ export async function checkDocument(body: any, lang: Lang) {
 - language — языковая ошибка (орфография, грамматика, пунктуация, стиль);
 - logic — логическое противоречие (время, последовательность, числа);
 - advice — рекомендация.
+group — группа проверки, строго одна из:
+- terminology — терминологическая корректность;
+- style — соответствие официально-деловому стилю;
+- structure — структура и реквизиты документа;
+- grammar — грамматика, орфография, пунктуация;
+- logic — логическая последовательность изложения;
+- consistency — согласованность дат, времени, сумм, номеров и других чисел;
+- references — корректность нормативных ссылок (только то, что видно из текста: неполные реквизиты акта, противоречие между ссылками; не утверждай, что акт утратил силу или не существует);
+- doctype — соответствие содержания выбранному виду документа «${str(body.documentTitle, 160)}».
+Стилистическую или грамматическую рекомендацию не называй нарушением законодательства.
 target — key блока. was — ДОСЛОВНЫЙ фрагмент текста этого блока (несколько слов), который нужно исправить; now — тот же фрагмент исправленный.
 Если замечание нельзя исправить заменой слов (противоречие, недостающие сведения) — was и now пустые.
 НЕ добавляй новых фактов: в now нельзя вписывать фамилии, даты, числа, адреса, которых нет в документе. Не придумывай нормативных документов и требований: ссылаться можно только на записи контекста (basis = [K…] или [R…], иначе пусто).
@@ -269,8 +310,10 @@ ${contextLines(kb, lang) || '— ничего не найдено —'}`,
       const now = was ? str(i?.now, 700) : ''
       const entry = entryOf(i?.basis)
       const category = (CATEGORIES as readonly string[]).includes(str(i?.category, 20)) ? str(i?.category, 20) : 'advice'
+      const group = (GROUPS as readonly string[]).includes(str(i?.group, 20)) ? str(i?.group, 20) : null
       return {
         category,
+        group,
         target: block ? target : '',
         was,
         now,

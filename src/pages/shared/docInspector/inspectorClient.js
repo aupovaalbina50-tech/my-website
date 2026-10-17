@@ -1,4 +1,5 @@
 import { supabase } from '../../../supabaseClient'
+import { requireAiConsent } from '../../../components/aiConsent.js'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -36,6 +37,9 @@ const RETRY_DELAYS_MS = [1500, 4000]
  * key. AI keys only ever live on the server.
  */
 async function callInspector(payload) {
+  await requireAiConsent().catch(() => {
+    throw new InspectorError('ai_declined')
+  })
   for (let attempt = 0; ; attempt++) {
     try {
       return await callOnce(payload)

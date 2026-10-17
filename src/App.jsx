@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import RequireAuth from './auth/RequireAuth.jsx'
 import BackgroundDecor from './components/BackgroundDecor.jsx'
+import AiConsentHost from './components/AiConsentHost.jsx'
 import AIAssistant from './components/ai-assistant/AIAssistant.jsx'
 import './App.css'
 
@@ -20,6 +21,8 @@ const AccountWorkspacePage = lazy(() => workspace().then((m) => ({ default: m.Ac
 const AccountWorkspaceCreatePage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspaceCreatePage })))
 const AccountWorkspaceCheckPage = lazy(() => workspace().then((m) => ({ default: m.AccountWorkspaceCheckPage })))
 const AccountMyDocumentsPage = lazy(() => workspace().then((m) => ({ default: m.AccountMyDocumentsPage })))
+const AccountCatalogPage = lazy(() => workspace().then((m) => ({ default: m.AccountCatalogPage })))
+const AccountHistoryPage = lazy(() => workspace().then((m) => ({ default: m.AccountHistoryPage })))
 const QuotesPage = lazy(() => import('./pages/quotes/QuotesPage.jsx'))
 const QuoteDetailPage = lazy(() => import('./pages/quotes/QuoteDetailPage.jsx'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout.jsx'))
@@ -194,7 +197,7 @@ function App() {
                     </RequireAuth>
                   }
                 />
-                {/* «Работа с документами»: the choice screen, then the constructor or the check. */}
+                {/* «Работа со служебными документами»: dashboard, create, catalog, documents, check, history. */}
                 <Route path="workspace" element={<AccountWorkspacePage />} />
                 <Route
                   path="workspace/create"
@@ -220,10 +223,19 @@ function App() {
                     </RequireAuth>
                   }
                 />
+                <Route path="workspace/catalog" element={<AccountCatalogPage />} />
+                <Route
+                  path="workspace/history"
+                  element={
+                    <RequireAuth>
+                      <AccountHistoryPage />
+                    </RequireAuth>
+                  }
+                />
                 <Route path="docs" element={<Navigate to="/account/workspace/check" replace />} />
                 <Route path="documents" element={<RedirectKeepingQuery to="/account/workspace/create" />} />
                 {/* «Мои рапорты» now live in «Мои документы» of the constructor. */}
-                <Route path="smart-report" element={<Navigate to="/account/workspace/create?tab=mine" replace />} />
+                <Route path="smart-report" element={<Navigate to="/account/workspace/documents" replace />} />
                 <Route
                   path="documents/new/:templateId"
                   element={
@@ -312,6 +324,7 @@ function App() {
           </div>
         </Suspense>
       </div>
+      <AiConsentHost />
       <AIAssistant />
     </>
   )

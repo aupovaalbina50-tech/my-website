@@ -20,6 +20,8 @@
 //
 // item = {
 //   id, category: 'terminology' | 'language' | 'structure',
+//   group: one of GROUPS — the group of checks the remark belongs to
+//                           (older checks have none: groupOf() derives it)
 //   severity: 'error' | 'remark' | 'recommendation',
 //   target,                 value path of the field ('' = the whole document)
 //   label,                  field label
@@ -42,6 +44,25 @@
 export const CHECK_VERSION = 2
 export const CATEGORIES = ['terminology', 'language', 'structure']
 export const FILTERS = ['all', 'terminology', 'language', 'structure', 'unconfirmed']
+
+// The eight groups of checks of a document, in the order they are shown.
+export const GROUPS = ['terminology', 'style', 'structure', 'grammar', 'logic', 'consistency', 'references', 'doctype']
+const GROUP_OF_CATEGORY = { terminology: 'terminology', language: 'grammar', structure: 'structure' }
+
+/** The group of a remark; remarks of checks made before the groups existed get one from their category. */
+export const groupOf = (item) => (GROUPS.includes(item?.group) ? item.group : GROUP_OF_CATEGORY[item?.category] ?? 'style')
+
+/**
+ * What kind of finding it is, for the reader:
+ *   confirmed  an error confirmed by the term base or a rule of the template
+ *   review     needs a specialist: unconfirmed, a found source to check, a normative reference
+ *   advice     a recommendation (style, wording) — never a violation of law
+ */
+export function kindOf(item) {
+  if (needsConfirmation(item) || groupOf(item) === 'references') return 'review'
+  if (item.severity === 'error' && (item.confirmation === 'base' || item.confirmation === 'rule')) return 'confirmed'
+  return 'advice'
+}
 
 /** The stored check, or null for an old-format check of the constructor. */
 export function readExpertise(raw) {
@@ -73,7 +94,8 @@ export function isStale(item, check, values) {
 
 export const needsConfirmation = (item) => item.confirmation === 'unconfirmed' || item.confirmation === 'source'
 
-export function matchesFilter(item, filter) {
+export function matchesFilter(item, filter, group = 'all') {
+  if (group !== 'all' && groupOf(item) !== group) return false
   if (filter === 'all') return true
   if (filter === 'unconfirmed') return needsConfirmation(item)
   return item.category === filter
@@ -93,6 +115,7 @@ export function counts(check, values) {
     unconfirmed: active.filter(needsConfirmation).length,
     stale: (check?.items ?? []).filter((i) => i.status === 'open' && isStale(i, check, values)).length,
     errors: active.filter((i) => i.severity === 'error').length,
+    groups: Object.fromEntries(GROUPS.map((g) => [g, active.filter((i) => groupOf(i) === g).length])),
   }
 }
 
