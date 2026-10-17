@@ -168,6 +168,8 @@ function withoutNewColumns(fields) {
 export async function duplicateDocument(userId, source, template, copySuffix) {
   const values = { ...(source.values ?? {}) }
   for (const field of fieldsOf(template)) if (field.volatile) delete values[field.key]
+  // Origins of transferred values belong to the original's links, not to the copy.
+  delete values.__provenance
   return createDocument(userId, {
     template_id: source.template_id,
     lang: source.lang,
