@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   History,
+  IdCard,
   AlertTriangle,
   CloudOff,
   HardDriveDownload,
@@ -48,6 +49,9 @@ import { contentKey, isOffline, isRealConflict, reconcile } from '../../workspac
 import { deleteDraftIf, getDraft, putDraft, saveEmergency } from '../../workspace/drafts/localDrafts.js'
 import { recordOpen } from '../../workspace/drafts/recent.js'
 import { ConflictDialog } from '../../workspace/drafts/ConflictDialog.jsx'
+import { logEvent } from '../../workspace/passport/passportApi.js'
+import { changedFields } from '../../workspace/passport/passportModel.js'
+import { PassportPanel } from '../../workspace/passport/PassportPanel.jsx'
 import '../../workspace/drafts/drafts.css'
 
 // The universal editor of «Конструктор профессиональной документации».
@@ -103,7 +107,7 @@ function DocumentEditor() {
   const [flashKey, setFlashKey] = useState(null)
   const [rightTab, setRightTab] = useState('preview')
   const [mobileView, setMobileView] = useState('form')
-  const [dialog, setDialog] = useState(null) // 'profile' | 'assist' | 'photo' | 'versions' | 'links' | 'export'
+  const [dialog, setDialog] = useState(null) // 'profile' | 'assist' | 'photo' | 'versions' | 'links' | 'passport' | 'export'
   const [assistText, setAssistText] = useState('')
   const loaded = useRef(false)
   // What is stored now: opening a document must not count as a change (it would move updated_at).
@@ -184,7 +188,9 @@ function DocumentEditor() {
           setTitle(copy.payload.title ?? '')
           setDocLang(copy.payload.lang ?? 'ru')
           setRestoredAt(copy.savedAt)
+          logEvent(user.id, row.id, 'draft_restored', '', { savedAt: copy.savedAt }, row.current_version ?? null)
         }
+        sessionStart.current = row.values ?? {}
         // Let the first render pass before changes count as edits.
         setTimeout(() => (loaded.current = true), 0)
       })
@@ -301,6 +307,24 @@ function DocumentEditor() {
   latest.current = { values, doc, saveState, title, docLang, status, check }
   const userRef = useRef(user)
   userRef.current = user
+  // Status changes that mean something for the passport (not the automatic draft → filling).
+  const prevStatus = useRef(null)
+  useEffect(() => {
+    const before = prevStatus.current
+    prevStatus.current = status
+    if (!loaded.current || before == null || before === status) return
+    const meaningful = ['issues', 'checked', 'ready', 'archive']
+    if (meaningful.includes(status) || meaningful.includes(before)) log('status_changed', '', { from: before, to: status })
+    // log reads refs only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status])
+  /** One action into the passport's log (never blocks the work). */
+  const log = (kind, summary = '', details = {}) => {
+    const d = latest.current.doc
+    if (d && userRef.current) logEvent(userRef.current.id, d.id, kind, summary, details, d.current_version ?? null)
+  }
+  // The text at the start of this editing session: one «edited» record per session, not per keystroke.
+  const sessionStart = useRef(null)
   // Lost connection: retry as soon as it is back; leaving with unsaved changes asks first.
   useEffect(() => {
     const online = () => ['error', 'offline'].includes(latest.current.saveState) && saveNowRef.current?.()
@@ -338,6 +362,8 @@ function DocumentEditor() {
       const { values: v, doc: d } = latest.current
       if (!loaded.current || !d || blocked.current) return
       persist().catch(() => {})
+      const changed = changedFields(templateById(d.template_id), sessionStart.current ?? {}, v)
+      if (changed.text.length || changed.requisites.length) log('edited', '', changed)
       if (!Object.keys(v ?? {}).some((k) => !k.startsWith('__') && v[k] !== '' && v[k] != null)) return
       if (contentHash(v) === lastVersionHash.current) return
       enqueue(() => saveDocVersion({ ...d, current_version: versionNo.current++ }, v, 'user', onLeaveNote.current, writeNow)).catch(() => {})
@@ -376,6 +402,20 @@ function DocumentEditor() {
     return version
   }
 
+  /** The text of an older version back in the editor (the current one was kept as a version first). */
+  const restoreVersion = (version) => {
+    const at = new Date().toISOString()
+    setValues((current) => {
+      const next = { ...(version.values ?? {}) }
+      const changed = changedFields(template, current, next)
+      const origin = { ...(current.__origin ?? {}), ...(next.__origin ?? {}) }
+      for (const k of [...changed.text, ...changed.requisites]) origin[k] = { by: 'version', at, version: version.version }
+      return { ...next, __origin: origin }
+    })
+    setStatus('filling')
+    log('version_restored', '', { from: version.version })
+  }
+
   /** Transfer of values the user chose in «Связанные документы»: a version first, then exactly these fields. */
   const transferFrom = async (items, source) => {
     const lt = t.workspace.links
@@ -386,6 +426,7 @@ function DocumentEditor() {
       return false
     }
     setValues((v) => applyTransfer(v, items, source))
+    log('values_transferred', '', { from: source.id, title: source.title, keys: items.map((i) => i.key) })
     showToast(lt.transferred(items.length), { type: 'success' })
     return true
   }
@@ -409,6 +450,7 @@ function DocumentEditor() {
       setDocLang(mine.lang ?? 'ru')
       lastSaved.current = null
       setConflict(null)
+      log('conflict_resolved', '', { kept: 'mine' })
       setSaveState('saving')
       setTimeout(() => saveNowRef.current?.(), 0)
     } catch (err) {
@@ -433,6 +475,7 @@ function DocumentEditor() {
       setCheck(stored)
       if (user) deleteDraftIf(user.id, server.id, null).catch(() => {})
       setConflict(null)
+      log('conflict_resolved', '', { kept: 'server' })
       setSaveState('saved')
     } catch (err) {
       failed(err)
@@ -464,9 +507,13 @@ function DocumentEditor() {
 
   // ---- editing ----
   const changeValues = useCallback(
-    (patch) => {
+    (patch, by = 'manual') => {
       setValues((current) => {
-        const next = { ...current, ...patch }
+        // Where each value came from, for «Происхождение сведений» of the passport.
+        const at = new Date().toISOString()
+        const origin = { ...(current.__origin ?? {}) }
+        for (const k of Object.keys(patch)) origin[k] = { by, at }
+        const next = { ...current, ...patch, __origin: origin }
         // A value the user typed is theirs: it leaves the «from the description, to check» list.
         const fromText = readFlow(current).fromText ?? {}
         if (!Object.keys(patch).some((k) => k in fromText)) return next
@@ -550,6 +597,7 @@ function DocumentEditor() {
       setStatus(prevStatus)
       write({ status: prevStatus }).catch(() => {})
       setCheckFailure(x.failedAll)
+      log('check_failed', '', { errors: Object.entries(next?.errors ?? {}).filter(([, c]) => c).map(([part, code]) => ({ part, code })) })
       showToast(x.failedAll, { type: 'error' })
       return
     }
@@ -610,13 +658,16 @@ function DocumentEditor() {
     setValues(out.values)
     setCheck(out.check)
     setStatus((st) => (st === 'ready' ? 'filling' : st))
+    log(how === 'edited' ? 'remark_edited' : 'remark_accepted', '', { itemId: item.id, target: item.target, was: item.fragment, now: replacement, checkAt: check?.at ?? null })
     showToast(x.accepted, { type: 'success' })
   }
   const undoChange = () => {
     const out = undoLast(check, values)
     if (out.error) return showToast(x.undoStale, { type: 'error' })
+    const last = check?.changes?.at(-1)
     setValues(out.values)
     setCheck(out.check)
+    log('remark_undone', '', { target: last?.target ?? null, was: last?.now ?? null, now: last?.was ?? null })
     showToast(x.undone, { type: 'success' })
   }
 
@@ -655,6 +706,7 @@ function DocumentEditor() {
       return
     }
     try {
+      log('exported', '', { format: kind })
       if (kind === 'docx') downloadBlob(await documentToDocx(rendered, docLang), fileNameOf(title || template.title[docLang], 'docx'))
       if (kind === 'pdf') downloadBlob(await documentToPdf(rendered, docLang), fileNameOf(title || template.title[docLang], 'pdf'))
       if (kind === 'copy') {
@@ -722,7 +774,7 @@ function DocumentEditor() {
         gen[f.key] = { text: section.text, at }
       }
     }
-    if (Object.keys(patch).length) changeValues(patch)
+    if (Object.keys(patch).length) changeValues(patch, 'ai')
     setValues((v) => withFlow(v, { gen: { ...(readFlow(v).gen ?? {}), ...gen }, genBasis: dataBasis(template, { ...v, ...patch }), outcome }))
     if (Object.keys(patch).length) showToast(wz.composed, { type: 'success' })
     else showToast(wz.composedNothing, { type: 'error' })
@@ -922,6 +974,10 @@ function DocumentEditor() {
           {t.workspace.links.button}
           {links.items.length > 0 && <span className="doc-count">{links.items.length}</span>}
         </button>
+        <button type="button" className="doc-btn" onClick={() => setDialog('passport')}>
+          <IdCard size={16} aria-hidden="true" />
+          {t.workspace.passport.button}
+        </button>
         <div className="doc-menu">
           <button type="button" className="doc-btn" aria-expanded={dialog === 'export'} onClick={() => setDialog(dialog === 'export' ? null : 'export')}>
             <Download size={16} aria-hidden="true" />
@@ -1072,7 +1128,10 @@ function DocumentEditor() {
                 onRun={runCheck}
                 onAccept={(item) => applyRemark(item, item.suggestion, 'accepted')}
                 onManual={(item, text) => applyRemark(item, text, 'edited')}
-                onReject={(item) => setCheck((c) => setItemStatus(c, item.id, 'rejected'))}
+                onReject={(item) => {
+                  setCheck((c) => setItemStatus(c, item.id, 'rejected'))
+                  log('remark_rejected', '', { itemId: item.id, target: item.target, fragment: item.fragment, suggestion: item.suggestion ?? null, checkAt: check?.at ?? null })
+                }}
                 onReopen={(item) => setCheck((c) => setItemStatus(c, item.id, 'open'))}
                 onGoTo={goToItem}
               />
@@ -1096,7 +1155,7 @@ function DocumentEditor() {
           onApply={async (patch, profilePatch) => {
             setDialog(null)
             if (Object.keys(patch).length) {
-              changeValues(patch)
+              changeValues(patch, 'profile')
               showToast(e.filledFromProfile(Object.keys(patch).length), { type: 'success' })
             }
             if (profilePatch && user) {
@@ -1121,7 +1180,7 @@ function DocumentEditor() {
           onClose={() => setDialog(null)}
           onApply={(patch, meta = {}) => {
             setDialog(null)
-            changeValues(patch)
+            changeValues(patch, 'ai_description')
             // Values from the description stay «to check» until the user marks them; the description itself is kept.
             setValues((v) => {
               const flow = readFlow(v)
@@ -1154,6 +1213,37 @@ function DocumentEditor() {
           onKeepMine={keepMine}
           onTakeServer={takeServer}
           onLater={() => setConflict((cf) => ({ ...cf, open: false }))}
+        />
+      )}
+      {dialog === 'passport' && (
+        <PassportPanel
+          doc={doc}
+          template={template}
+          values={values}
+          title={title}
+          status={status}
+          check={check}
+          docLang={docLang}
+          readOnly={readOnly}
+          onClose={() => setDialog(null)}
+          onRestore={async (version) => {
+            const vs = t.workspace.versions
+            if (!window.confirm(vs.restoreConfirm(version.version))) return false
+            try {
+              await keepVersion(values, 'user', vs.beforeRestore(version.version))
+            } catch {
+              showToast(w.saveFailed, { type: 'error' })
+              return false
+            }
+            restoreVersion(version)
+            showToast(vs.restored(version.version), { type: 'success' })
+            setDialog(null)
+            return true
+          }}
+          onGoTo={(item) => {
+            setDialog(null)
+            goToItem(item)
+          }}
         />
       )}
       {dialog === 'links' && (
@@ -1197,8 +1287,7 @@ function DocumentEditor() {
               return
             }
             setDialog(null)
-            setValues(version.values ?? {})
-            setStatus('filling')
+            restoreVersion(version)
             showToast(vs.restored(version.version), { type: 'success' })
           }}
         />
@@ -1228,6 +1317,10 @@ export function NewDocument() {
       return
     }
     createDocument(user.id, { template_id: template.id, lang, title: template.title[lang], status: 'draft', values: {} })
+      .then((row) => {
+        logEvent(user.id, row.id, 'created', '', { templateId: template.id, method: params.get('mode') === 'text' ? 'text' : 'form' }, 0)
+        return row
+      })
       .then((row) => navigate(`/account/documents/${row.id}${params.get('mode') === 'text' ? '?mode=text' : ''}`, { replace: true }))
       .catch(() => setFailed(true))
   }, [templateId, user, lang, navigate, params])

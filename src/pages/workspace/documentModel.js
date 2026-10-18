@@ -8,6 +8,7 @@ import { useMyDocuments } from '../account/documents/useDocuments.js'
 import { summarize } from '../shared/docInspector/expertise.js'
 import { CHECK_VERSION, counts, expertiseState } from './expertise/model.js'
 import { termItemFromResult } from './expertise/runExpertise.js'
+import { compactItems, sourceSummary } from './passport/passportModel.js'
 
 // One document model for «Работа с документами», built on the existing
 // tables — no new ones (RLS on both: a user reads and changes own rows only):
@@ -260,7 +261,20 @@ export async function saveEditorExpertise(userId, doc, title, check, values) {
       term_count: check.termsFound ?? 0,
       issue_count: c.all,
       compliance: null,
-      snapshot: { kind: 'editor', documentId: doc.id, at: check.at, state: expertiseState(check, values), counts: c, parts: check.parts },
+      // For the passport: which version / text was checked, what failed, which sources were used, the remarks in short.
+      snapshot: {
+        kind: 'editor',
+        documentId: doc.id,
+        at: check.at,
+        state: expertiseState(check, values),
+        counts: c,
+        parts: check.parts,
+        errors: check.errors ?? {},
+        version: check.version ?? null,
+        hash: contentHash(values),
+        sources: sourceSummary(check, templateById(doc.template_id)),
+        items: compactItems(check),
+      },
     })
     .select(HISTORY_COLUMNS)
     .single()

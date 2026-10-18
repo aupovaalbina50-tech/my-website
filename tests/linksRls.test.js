@@ -32,7 +32,7 @@ before(async () => {
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     create role authenticated nologin; create table public.profiles (id uuid primary key references auth.users (id));
     insert into auth.users values ('${A}'), ('${B}');`)
-  for (const f of ['0023_inspection_history.sql', '0029_work_reports.sql', '0031_document_builder.sql', '0055_document_status_and_check_link.sql', '0058_work_document_links.sql']) await db.exec(sql(f))
+  for (const f of ['0023_inspection_history.sql', '0029_work_reports.sql', '0031_document_builder.sql', '0055_document_status_and_check_link.sql', '0058_work_document_links.sql', '0059_work_document_events.sql']) await db.exec(sql(f))
   await db.exec(`grant usage on schema public, auth to authenticated; grant all on all tables in schema public to authenticated; grant execute on all functions in schema auth to authenticated;`)
   a1 = await newDoc(A, 'Рапорт о пожаре')
   a2 = await newDoc(A, 'Справка о пожаре')
@@ -111,4 +111,21 @@ test('documents: another user can neither read nor change them; a write on a sta
   const stale = (await as(A, `update public.work_documents set values = '{"body":"старая вкладка"}' where id = $1 and updated_at = $2 returning id`, [d, at])).rows
   assert.equal(stale.length, 0)
   assert.deepEqual((await as(A, `select values from public.work_documents where id = $1`, [d])).rows[0].values, { body: 'v1' })
+})
+
+test('passport events: owner only, insert-only, gone with the document', async () => {
+  const d = await newDoc(A, 'Документ с паспортом')
+  const ins = await as(A, `insert into public.work_document_events (document_id, user_id, kind, details) values ($1, $2, 'exported', '{"format":"pdf"}') returning id`, [d, A])
+  assert.equal(ins.rows.length, 1)
+  // another user: cannot read, cannot write into A's log, cannot forge in A's name
+  assert.equal((await as(B, `select id from public.work_document_events where document_id = $1`, [d])).rows.length, 0)
+  await assert.rejects(as(B, `insert into public.work_document_events (document_id, user_id, kind) values ($1, $2, 'edited')`, [d, B]))
+  await assert.rejects(as(B, `insert into public.work_document_events (document_id, user_id, kind) values ($1, $2, 'edited')`, [d, A]))
+  // nobody rewrites the log, not even the owner
+  assert.equal((await as(A, `update public.work_document_events set kind = 'created' where document_id = $1 returning id`, [d])).rows.length, 0)
+  assert.equal((await as(A, `delete from public.work_document_events where document_id = $1 returning id`, [d])).rows.length, 0)
+  await assert.rejects(as(A, `insert into public.work_document_events (document_id, user_id, kind) values ($1, $2, 'approved')`, [d, A]), 'unknown kinds (e.g. «approved») are refused')
+  await as(A, `delete from public.work_documents where id = $1`, [d])
+  await db.exec('reset role')
+  assert.equal((await db.query(`select count(*)::int as n from public.work_document_events where document_id = $1`, [d])).rows[0].n, 0)
 })
