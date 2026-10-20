@@ -1,5 +1,26 @@
 import { useId, useState } from 'react'
-import { ChevronDown, MapPin, Network, Landmark, Mail, Phone, ShieldCheck } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import {
+  ArrowRight,
+  ChevronDown,
+  Factory,
+  Flame,
+  FlaskConical,
+  HeartPulse,
+  Landmark,
+  LifeBuoy,
+  Mail,
+  MapPin,
+  Network,
+  Phone,
+  Radio,
+  Search,
+  Shield,
+  ShieldAlert,
+  Siren,
+  Trophy,
+  Warehouse,
+} from 'lucide-react'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import {
@@ -8,9 +29,7 @@ import {
   MINISTRY_SOURCES,
   MINISTRY_DIRECTIONS,
   MINISTRY_LEADERSHIP,
-  MINISTRY_CONTACTS,
   MINISTRY_CENTRAL_DEPARTMENTS,
-  MINISTRY_VERIFIED_AT,
 } from '../data/ministry'
 import {
   MINISTRY_STRUCTURE_SOURCE_URL,
@@ -56,6 +75,103 @@ function AccordionSection({ icon: Icon, title, count, isOpen, onToggle, children
   )
 }
 
+// Icon and related glossary category for each item of MINISTRY_DIRECTIONS,
+// by position (the kk and ru lists are in the same order).
+const DIRECTION_META = [
+  { icon: LifeBuoy, category: 'rescue_ops' },
+  { icon: ShieldAlert, category: 'emergencies' },
+  { icon: Search, category: 'rescue_ops' },
+  { icon: Siren, category: 'emergencies' },
+  { icon: Shield, category: 'civil_defense' },
+  { icon: HeartPulse, category: 'disaster_medicine' },
+  { icon: Flame, category: 'fire_safety' },
+  { icon: Factory, category: 'industrial_safety' },
+  { icon: Warehouse, category: null },
+  { icon: Radio, category: 'alerting_comms' },
+  { icon: FlaskConical, category: 'fire_safety' },
+  { icon: Trophy, category: null },
+]
+
+function findCurator(direction, lang) {
+  return MINISTRY_LEADERSHIP.find((person) =>
+    person.areas?.[lang].split(',').some((area) => area.trim() === direction),
+  )
+}
+
+function MinisterPortrait({ person, lang }) {
+  const [hasPhoto, setHasPhoto] = useState(true)
+
+  return (
+    <figure className="ministry-portrait">
+      <div className={`ministry-portrait-frame${hasPhoto ? '' : ' ministry-portrait-frame--emblem'}`}>
+        {hasPhoto ? (
+          <img src="/ministry/minister.jpg" alt={person.name[lang]} onError={() => setHasPhoto(false)} />
+        ) : (
+          <img src="/emblems/ministry.webp" alt="" aria-hidden="true" />
+        )}
+      </div>
+      <figcaption>
+        <strong className="ministry-portrait-name">{person.name[lang]}</strong>
+        <span className="ministry-portrait-role">{person.role[lang]}</span>
+      </figcaption>
+    </figure>
+  )
+}
+
+function DirectionsExplorer({ lang, m }) {
+  const [active, setActive] = useState(0)
+  const directions = MINISTRY_DIRECTIONS[lang]
+  const current = directions[active]
+  const meta = DIRECTION_META[active] || {}
+  const CurrentIcon = meta.icon || Shield
+  const curator = findCurator(current, lang)
+
+  return (
+    <div className="direction-explorer">
+      <p className="direction-hint">{m.directionsHint}</p>
+      <div className="direction-grid" role="tablist" aria-label={m.directionsTitle}>
+        {directions.map((item, index) => {
+          const Icon = DIRECTION_META[index]?.icon || Shield
+          const selected = index === active
+          return (
+            <button
+              key={item}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              className={`direction-tile${selected ? ' active' : ''}`}
+              onClick={() => setActive(index)}
+            >
+              <span className="direction-tile-icon">
+                <Icon size={20} aria-hidden="true" />
+              </span>
+              <span className="direction-tile-label">{item}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="direction-detail" role="tabpanel" aria-live="polite">
+        <span className="direction-detail-icon">
+          <CurrentIcon size={26} aria-hidden="true" />
+        </span>
+        <div className="direction-detail-body">
+          <h3 className="direction-detail-title">{current}</h3>
+          <p className="direction-detail-curator">
+            <span>{m.curatorLabel}:</span> {curator ? curator.name[lang] : m.noCurator}
+          </p>
+          {meta.category && (
+            <Link className="direction-detail-link" to={`/category/${meta.category}`}>
+              {m.directionTermsLink}
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StructureList({ title, items, sourceUrl, sourceText }) {
   return (
     <div className="ministry-structure-subgroup">
@@ -81,25 +197,25 @@ function MinistryPage() {
   }
 
   const territorial = MINISTRY_TERRITORIAL_BODIES[lang]
+  const minister = MINISTRY_LEADERSHIP.find((person) => person.id === 'minister')
 
   return (
     <SiteSectionLayout activeSection="ministry">
       <section id="ministry" className="section-ministry">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{t.sections.ministryTitle}</h1>
-        <p className="org-verified-note">
-          <ShieldCheck size={15} aria-hidden="true" />
-          {m.verifiedNote(MINISTRY_VERIFIED_AT)}
-        </p>
 
         <div className="ministry-panel">
           <div className="ministry-panel-section ministry-mission-block">
-            <h2 className="ministry-subtitle">{m.missionTitle}</h2>
-            <p className="ministry-mission">
-              <strong className="ministry-mission-name">{MINISTRY_NAME[lang]}</strong>
-              {missionRest}
-            </p>
-            <SourceLink href={MINISTRY_SOURCES.gov[lang]}>{m.sourceGovText}</SourceLink>
+            <div className="ministry-mission-text">
+              <h2 className="ministry-subtitle">{m.missionTitle}</h2>
+              <p className="ministry-mission">
+                <strong className="ministry-mission-name">{MINISTRY_NAME[lang]}</strong>
+                {missionRest}
+              </p>
+              <SourceLink href={MINISTRY_SOURCES.gov[lang]}>{m.sourceGovText}</SourceLink>
+            </div>
+            {minister && <MinisterPortrait person={minister} lang={lang} />}
           </div>
 
           <div className="ministry-panel-section">
@@ -143,43 +259,8 @@ function MinistryPage() {
 
           <div className="ministry-panel-section">
             <h2 className="ministry-subtitle">{m.directionsTitle}</h2>
-            <ul className="org-tag-list">
-              {MINISTRY_DIRECTIONS[lang].map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+            <DirectionsExplorer lang={lang} m={m} />
             <SourceLink href={MINISTRY_SOURCES.gov[lang]}>{m.structureSourceText}</SourceLink>
-          </div>
-
-          <div className="ministry-panel-section">
-            <h2 className="ministry-subtitle">{m.contactsTitle}</h2>
-            <div className="modal-meta org-contacts">
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{m.addressLabel}:</span>
-                <span>{MINISTRY_CONTACTS.address[lang]}</span>
-              </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{m.officeLabel}:</span>
-                <span>{MINISTRY_CONTACTS.office}</span>
-              </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{m.trustLineLabel}:</span>
-                <span>{MINISTRY_CONTACTS.trustLine}</span>
-              </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{m.pressLabel}:</span>
-                <span>{MINISTRY_CONTACTS.press}</span>
-              </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{m.emergencyLabel}:</span>
-                <span>{MINISTRY_CONTACTS.emergency}</span>
-              </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{m.emailLabel}:</span>
-                <a href={`mailto:${MINISTRY_CONTACTS.email}`}>{MINISTRY_CONTACTS.email}</a>
-              </div>
-            </div>
-            <SourceLink href={MINISTRY_SOURCES.contacts[lang]}>{m.structureSourceText}</SourceLink>
           </div>
 
           <div className="ministry-panel-section">
