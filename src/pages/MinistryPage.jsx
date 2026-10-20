@@ -248,9 +248,7 @@ function MinistryPage() {
                         </a>
                       )}
                     </div>
-                  ) : (
-                    <p className="org-person-note">{m.noPersonalContacts}</p>
-                  )}
+                  ) : null}
                 </article>
               ))}
             </div>

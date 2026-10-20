@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, Info, Users, Link2, Target, ListChecks, Phone, Mail } from 'lucide-react'
+import { Building2, Users, Link2, Target, ListChecks, Phone, Mail } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import {
   COMMITTEES,
@@ -57,35 +57,25 @@ function CommitteesContent() {
             {c.detailEyebrow}
           </p>
           <h2 className="committees-detail-title">{selected.name[lang]}</h2>
+          <p className="committees-detail-lead">{selected.description[lang]}</p>
 
-          <div className="committees-detail-section">
-            <h3 className="committees-detail-heading">
-              <Info size={16} aria-hidden="true" />
-              {c.sectionGeneral}
-            </h3>
-            <p className="committees-detail-text">{selected.description[lang]}</p>
-            <SourceLink href={sources.about}>{c.sourceShort}</SourceLink>
-          </div>
-
-          {selected.tasks && (
-            <div className="committees-detail-section">
-              <h3 className="committees-detail-heading">
-                <Target size={16} aria-hidden="true" />
+          <div className="committees-pair">
+            <section className="committees-block" aria-labelledby="committee-tasks">
+              <h3 className="committees-detail-heading" id="committee-tasks">
+                <Target size={18} aria-hidden="true" />
                 {c.sectionTasks}
               </h3>
-              {selected.tasks[lang].map((paragraph) => (
-                <p key={paragraph} className="committees-detail-text committees-detail-text--spaced">
-                  {paragraph}
-                </p>
-              ))}
-              <SourceLink href={sources.about}>{c.sourceShort}</SourceLink>
-            </div>
-          )}
+              <ul className="committees-tasks">
+                {selected.tasks[lang].map((task) => (
+                  <li key={task}>{task}</li>
+                ))}
+              </ul>
+              <SourceLink href={selected.regulationUrl ?? sources.about}>{selected.regulationUrl ? c.regulationLink : c.sourceShort}</SourceLink>
+            </section>
 
-          {selected.directions && (
-            <div className="committees-detail-section">
-              <h3 className="committees-detail-heading">
-                <ListChecks size={16} aria-hidden="true" />
+            <section className="committees-block" aria-labelledby="committee-directions">
+              <h3 className="committees-detail-heading" id="committee-directions">
+                <ListChecks size={18} aria-hidden="true" />
                 {c.sectionDirections}
               </h3>
               <ul className="org-tag-list">
@@ -94,86 +84,80 @@ function CommitteesContent() {
                 ))}
               </ul>
               <SourceLink href={sources.about}>{c.sourceShort}</SourceLink>
-            </div>
-          )}
+            </section>
+          </div>
 
-          <div className="committees-detail-section">
-            <h3 className="committees-detail-heading">
-              <Users size={16} aria-hidden="true" />
+          <section className="committees-detail-section" aria-labelledby="committee-leadership">
+            <h3 className="committees-detail-heading" id="committee-leadership">
+              <Users size={18} aria-hidden="true" />
               {c.sectionLeadership}
             </h3>
-            <div className="org-person-grid org-person-grid--compact">
+            <ul className="committees-people">
               {selected.leadership[lang].map((person) => (
-                <article
-                  key={person.name}
-                  className={`org-person-card${person.chair ? ' org-person-card--lead' : ''}`}
-                >
-                  <p className="org-person-role">{person.role}</p>
-                  <h4 className="org-person-name">{person.name}</h4>
+                <li key={person.name} className={person.chair ? 'is-chair' : undefined}>
+                  <span className="committees-people-name">{person.name}</span>
+                  <span className="committees-people-role">{person.role}</span>
                   {person.chair && (chairPhone || selected.chairEmail) && (
-                    <div className="org-person-contacts">
+                    <span className="committees-people-contacts">
                       {chairPhone && (
                         <a href={telHref(chairPhone)}>
-                          <Phone size={13} aria-hidden="true" />
+                          <Phone size={14} aria-hidden="true" />
                           {chairPhone}
                         </a>
                       )}
                       {selected.chairEmail && (
                         <a href={`mailto:${selected.chairEmail}`}>
-                          <Mail size={13} aria-hidden="true" />
+                          <Mail size={14} aria-hidden="true" />
                           {selected.chairEmail}
                         </a>
                       )}
-                    </div>
+                    </span>
                   )}
-                </article>
+                </li>
               ))}
-            </div>
+            </ul>
             <SourceLink href={sources.structure}>{c.sourceShort}</SourceLink>
-          </div>
+          </section>
 
-          <div className="committees-detail-section">
-            <h3 className="committees-detail-heading">
-              <Phone size={16} aria-hidden="true" />
+          <section className="committees-detail-section" aria-labelledby="committee-contacts">
+            <h3 className="committees-detail-heading" id="committee-contacts">
+              <Phone size={18} aria-hidden="true" />
               {c.sectionContacts}
             </h3>
-            <div className="modal-meta org-contacts">
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{c.addressLabel}:</span>
-                <span>{pick(contacts.address, lang) || c.infoPending}</span>
+            <dl className="committees-contacts">
+              <div>
+                <dt>{c.addressLabel}</dt>
+                <dd>{pick(contacts.address, lang) || c.infoPending}</dd>
               </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{c.officeLabel}:</span>
-                <span>{pick(contacts.office, lang) || c.infoPending}</span>
+              <div>
+                <dt>{c.officeLabel}</dt>
+                <dd>{pick(contacts.office, lang) || c.infoPending}</dd>
               </div>
-              <div className="modal-meta-row">
-                <span className="modal-meta-label">{c.emailLabel}:</span>
-                {contactEmail ? <a href={`mailto:${contactEmail}`}>{contactEmail}</a> : <span>{c.infoPending}</span>}
+              <div>
+                <dt>{c.emailLabel}</dt>
+                <dd>{contactEmail ? <a href={`mailto:${contactEmail}`}>{contactEmail}</a> : c.infoPending}</dd>
               </div>
               {contacts.extra &&
-                contacts.extra[lang].map((line) => (
-                  <div key={line} className="modal-meta-row">
-                    <span>{line}</span>
-                  </div>
-                ))}
-            </div>
-            <SourceLink href={sources.contacts}>{c.sourceShort}</SourceLink>
-          </div>
-
-          <div className="committees-detail-section">
-            <h3 className="committees-detail-heading">
-              <Link2 size={16} aria-hidden="true" />
-              {c.sectionLinks}
-            </h3>
-            <div className="committees-detail-links">
-              <a className="modal-source-link" href={sources.about} target="_blank" rel="noreferrer">
-                {c.detailsButton}: gov.kz ↗
+                contacts.extra[lang].map((line) => {
+                  const [label, value] = line.split(' — ')
+                  return (
+                    <div key={line}>
+                      <dt>{label}</dt>
+                      <dd>{value ?? ''}</dd>
+                    </div>
+                  )
+                })}
+            </dl>
+            <p className="committees-links">
+              <Link2 size={15} aria-hidden="true" />
+              <a className="modal-source-link" href={sources.contacts} target="_blank" rel="noreferrer">
+                {c.sourceShort}
               </a>
               <a className="modal-source-link" href={COMMITTEES_SOURCE_URL[lang]} target="_blank" rel="noreferrer">
                 {c.sourceLabel}: {c.sourceLinkText} ↗
               </a>
-            </div>
-          </div>
+            </p>
+          </section>
         </div>
       </div>
     </section>
