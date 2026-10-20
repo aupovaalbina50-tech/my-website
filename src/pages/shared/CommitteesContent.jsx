@@ -82,22 +82,20 @@ function CommitteesContent() {
             </div>
           )}
 
-          <div className="committees-detail-section">
-            <h3 className="committees-detail-heading">
-              <ListChecks size={16} aria-hidden="true" />
-              {c.sectionDirections}
-            </h3>
-            {selected.directions ? (
+          {selected.directions && (
+            <div className="committees-detail-section">
+              <h3 className="committees-detail-heading">
+                <ListChecks size={16} aria-hidden="true" />
+                {c.sectionDirections}
+              </h3>
               <ul className="org-tag-list">
                 {selected.directions[lang].map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
-            ) : (
-              <p className="modal-meta-empty">{c.infoPending}</p>
-            )}
-            <SourceLink href={sources.about}>{c.sourceShort}</SourceLink>
-          </div>
+              <SourceLink href={sources.about}>{c.sourceShort}</SourceLink>
+            </div>
+          )}
 
           <div className="committees-detail-section">
             <h3 className="committees-detail-heading">
