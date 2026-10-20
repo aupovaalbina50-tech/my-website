@@ -23,6 +23,10 @@ const CHUNK_CHARS = 12000
 // matches are NOT here: their meaning depends on each sentence.
 const CONTEXT_FREE_TYPES = new Set(['spelling', 'hyphenation'])
 
+// Server failures after which a chunk is checked by the reference list
+// alone instead of failing the whole check.
+const SERVER_FAILURES = new Set(['timeout', 'internal_error', 'ai_unavailable', 'ai_busy', 'bad_response', 'truncated', 'network_error'])
+
 // Phrases per official-source lookup request.
 const LOOKUP_BATCH = 10
 // What the OCR prompt writes for a place it cannot read.
@@ -121,13 +125,23 @@ export async function runInspection(file, lang, onProgress) {
   let results = []
   let aiFailedChunks = 0
   let aiError = null
+  let serverFailedChunks = 0
+  let serverError = null
   let glossarySize = null
   const documentTypes = []
   for (let i = 0; i < chunks.length; i++) {
     onProgress({ stage: 'analyze', current: i + 1, total: chunks.length })
     // «Не путать» pairs mentioned in this chunk, with their legal definitions.
     const pairs = pairsPayload(pairsInText(chunks[i].map((s) => s.text).join('\n')))
-    const report = await analyzeChunk(chunks[i], lang, pairs)
+    let report
+    try {
+      report = await analyzeChunk(chunks[i], lang, pairs)
+    } catch (err) {
+      if (!(err instanceof InspectorError) || !SERVER_FAILURES.has(err.code)) throw err
+      serverFailedChunks++
+      serverError = err.code
+      continue
+    }
     results.push(...report.results)
     glossarySize = report.glossarySize ?? glossarySize
     if (report.documentType) documentTypes.push(report.documentType)
@@ -139,6 +153,8 @@ export async function runInspection(file, lang, onProgress) {
 
   // ---- Jargon and colloquial service phrases (no AI, see styleRules.js) ------
   results = mergeStyleFindings(results, textPages)
+  // Nothing at all to show: the server error is the answer.
+  if (serverFailedChunks === chunks.length && results.length === 0) throw new InspectorError(serverError)
 
   // ---- Official sources for phrases with no match in the base --------------
   const unmatched = new Map() // phrase (lower case) -> { phrase, context }
@@ -185,6 +201,7 @@ export async function runInspection(file, lang, onProgress) {
     documentType: documentTypes.find((t) => t !== 'иное') ?? documentTypes[0] ?? null,
     checkedAt: new Date().toISOString(),
     ai: { failedChunks: aiFailedChunks, totalChunks: chunks.length, error: aiError },
+    server: { failedChunks: serverFailedChunks, error: serverError },
     lookup: { searched: phrases.length, found: external.size, failed: lookupFailed },
   }
 }

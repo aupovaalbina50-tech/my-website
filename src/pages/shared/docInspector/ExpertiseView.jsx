@@ -62,6 +62,14 @@ export function StageNav({ stage, reachable, done, onGo, ti }) {
 export function CheckNotes({ inspection, ti }) {
   const { ai, lookup, unreadablePages, illegiblePages } = inspection
   const notes = []
+  const server = inspection.server
+  if (server?.failedChunks > 0) {
+    notes.push({
+      key: 'server',
+      warn: true,
+      text: ti.serverFailed(server.failedChunks, ai?.totalChunks ?? server.failedChunks),
+    })
+  }
   if (ai?.failedChunks > 0) {
     notes.push({
       key: 'ai',
