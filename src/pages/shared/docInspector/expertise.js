@@ -108,3 +108,8 @@ export function conclusionText(summary, ti) {
 export function fixableResults(results) {
   return results.filter((r) => r.status !== 'ok' && r.candidates.some((c) => c.applicable))
 }
+
+/** True when part of the analysis did not run, so the figures may be incomplete. */
+export function isPartial(inspection) {
+  return inspection.ai?.failedChunks > 0 || inspection.lookup?.failed > 0 || inspection.unreadablePages > 0
+}

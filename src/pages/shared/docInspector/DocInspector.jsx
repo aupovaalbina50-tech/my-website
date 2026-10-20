@@ -1,206 +1,364 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Camera, Check, CheckCircle2, CircleDashed, Download, FilePenLine, FileSearch, FileText, ImageUp, Info, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Upload, Wand2 } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Loader2, Upload } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../../auth/AuthContext.jsx'
 import { loadDocument } from '../../account/documents/useDocuments.js'
 import { createUploadedDocument, documentPlainText, markDocumentChecked } from '../../workspace/documentModel.js'
 import { useFavoriteTerms } from '../../account/useFavoriteTerms.js'
 import { InspectorError } from './inspectorClient.js'
+import { detectKind } from './extract.js'
 import { categoryOf, chosenFix, decisionRecord, runInspection } from './pipeline.js'
 import { buildCorrectedFiles, buildReportDocx, downloadBlob, textToDocxFile } from './writers.js'
 import DocPreview from './DocPreview.jsx'
 import { ChangesCompare, FixDialog } from './FixDialog.jsx'
-import { Conclusion, FilterBar, FindingCard, HistoryList, OkRow, Passport, ResultsHeader, Stepper, TermProfile } from './ExpertiseView.jsx'
+import { CheckNotes, FilterBar, FinalConclusion, FindingCard, HistoryList, OkRow, StageNav, StatList } from './ExpertiseView.jsx'
 import { fixableResults, summarize } from './expertise.js'
 import { CATEGORY_ICON, documentTypeLabel, locationLabel } from './helpers.js'
 import { fromSnapshot, useInspectionHistory } from './useInspectionHistory.js'
+import './inspector.css'
 
 // «Цифровой инспектор терминологии»: a real terminology check of a PDF / DOCX
-// / photo / pasted text against the site's base of official terms.
-//   01 upload -> 02 terminology check (processing, review) -> 03 correction and
-//   conclusion (confirmation of fixes, corrected file, comparison, downloads).
+// / photo / pasted text against the site's base of official terms, in three
+// stages:
+//   1 upload  — choose a file (checked by its content), see it, go on;
+//   2 expertise — extraction, OCR, base + AI analysis with real progress;
+//   3 correction and conclusion — document and findings side by side,
+//     confirmed fixes, corrected file, final conclusion, downloads.
+// Going back to an earlier stage keeps the file and the results; only
+// replacing or removing the file clears what belonged to it.
 // Checks of a signed-in user are kept in «История экспертиз».
 
 const ACCEPT = '.pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png'
 // A pasted text is for a quick check; longer texts belong in a file.
 const MAX_PASTE_CHARS = 20000
 
-function UploadScreen({ onFile, history, onOpenHistory, ti, lang }) {
+const STAGE_OF_SCREEN = { upload: 1, processing: 2, analyzed: 2, error: 2, review: 3, done: 3 }
+
+function formatLabel(kind, file) {
+  if (kind === 'pdf') return 'PDF'
+  if (kind === 'docx') return 'DOCX'
+  const sub = (file.type.split('/')[1] || 'image').toUpperCase()
+  return sub === 'JPEG' ? 'JPG' : sub
+}
+
+function formatSize(bytes) {
+  const kb = bytes / 1024
+  if (kb < 1024) return `${Math.max(1, Math.round(kb))} КБ`
+  return `${(kb / 1024).toFixed(1).replace('.', ',')} МБ`
+}
+
+/** «Сфотографировать» is offered only where a camera capture input makes sense. */
+const canCapture = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+
+function errorMessage(error, ti, tw) {
+  if (error.code === 'document_not_found') return tw.documentNotFound
+  if (error.code === 'document_empty') return tw.documentEmpty
+  return ti.errors[error.code] || ti.errors.internal_error
+}
+
+// ---- Stage 1: upload -------------------------------------------------------------
+
+function FileCard({ source, inspection, onReplace, onRemove, ti }) {
+  const status = inspection ? ti.fileChecked : ti.fileReady
+  const format = source.kind === 'history' ? ti.fileFromHistory : source.kind === 'document' ? ti.fileFromDocument : source.format
+  return (
+    <div className="insp-file">
+      <FileText className="insp-file-icon" size={24} strokeWidth={1.6} aria-hidden="true" />
+      <div className="insp-file-main">
+        <p className="insp-file-name">{source.name}</p>
+        <dl className="insp-file-meta">
+          {format && (
+            <div>
+              <dt>{ti.fileFormat}</dt>
+              <dd>{format}</dd>
+            </div>
+          )}
+          {source.size != null && (
+            <div>
+              <dt>{ti.fileSize}</dt>
+              <dd>{formatSize(source.size)}</dd>
+            </div>
+          )}
+          {inspection?.doc.totalPages ? (
+            <div>
+              <dt>{ti.filePages}</dt>
+              <dd>{inspection.doc.totalPages}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>{ti.fileStatus}</dt>
+            <dd className={inspection ? 'insp-ok-text' : undefined}>{status}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="insp-file-actions">
+        {onReplace && (
+          <button type="button" className="insp-text-btn" onClick={onReplace}>
+            {ti.replaceFile}
+          </button>
+        )}
+        <button type="button" className="insp-text-btn insp-text-btn--muted" onClick={onRemove}>
+          {ti.removeFile}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function UploadStage({ source, inspection, pickError, onPick, onPaste, onRemove, onStart, onOpenResults, onRecheck, history, onOpenHistory, ti, tw, lang }) {
   const [dragging, setDragging] = useState(false)
   const [pasted, setPasted] = useState('')
   const fileInputRef = useRef(null)
   const photoInputRef = useRef(null)
   const cameraInputRef = useRef(null)
+  const [capture] = useState(canCapture)
 
   const pick = (event) => {
     const file = event.target.files?.[0]
     event.target.value = '' // allow choosing the same file again later
-    if (file) onFile(file)
-  }
-
-  const checkPasted = async () => {
-    if (!pasted.trim()) return
-    onFile(await textToDocxFile(pasted.trim(), ti.pastedFileName))
+    if (file) onPick(file)
   }
 
   return (
-    <div className="inspector-upload">
-      {/* The instructions come first, so the user reads how the check works before uploading. */}
-      <section className="inspector-guide" aria-labelledby="inspector-guide-title">
-        <h3 id="inspector-guide-title" className="inspector-subheading">{ti.howTitle}</h3>
-        <ol className="inspector-how">
-          {ti.howSteps.map((step) => (
-            <li key={step.title}>
-              <strong>{step.title}</strong> — {step.text}
-            </li>
-          ))}
-        </ol>
+    <div className="insp-stage-area">
+      <section className="insp-card" aria-labelledby="insp-upload-title">
+        <h3 className="insp-card-title" id="insp-upload-title">
+          {ti.uploadTitle}
+        </h3>
+        <p className="insp-card-lead">{ti.uploadLead}</p>
 
-        <p className="inspector-important">
-          <strong>{ti.importantLabel}</strong> {ti.importantText}
-        </p>
+        <div className="insp-how">
+          <p className="insp-section-label">{ti.howShort}</p>
+          <ol>
+            {ti.howSteps.map((step) => (
+              <li key={step.title}>
+                <strong>{step.title}</strong> — {step.text}
+              </li>
+            ))}
+          </ol>
+          <p className="insp-how-note">
+            <strong>{ti.importantLabel}</strong> {ti.importantText}
+          </p>
+        </div>
 
-        <dl className="inspector-facts">
-          {ti.facts.map((fact) => (
-            <div key={fact.label} className="inspector-fact">
-              <dt>{fact.label}:</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <div
+          className={`insp-dropzone${dragging ? ' is-dragging' : ''}`}
+          onDragOver={(event) => {
+            event.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault()
+            setDragging(false)
+            const file = event.dataTransfer.files?.[0]
+            if (file) onPick(file)
+          }}
+        >
+          <FileText className="insp-dropzone-icon" size={40} strokeWidth={1.3} aria-hidden="true" />
+          <p className="insp-dropzone-title">{ti.dropTitle}</p>
+          <p className="insp-dropzone-sub">{ti.dropSub}</p>
+          <div className="insp-dropzone-buttons">
+            <button type="button" className="insp-btn insp-btn--primary" onClick={() => fileInputRef.current?.click()}>
+              <Upload size={16} aria-hidden="true" />
+              {ti.chooseFileBtn}
+            </button>
+            <button type="button" className="insp-btn" onClick={() => photoInputRef.current?.click()}>
+              {ti.uploadPhoto}
+            </button>
+            {/* capture="environment" opens the rear camera on phones. */}
+            {capture && (
+              <button type="button" className="insp-btn" onClick={() => cameraInputRef.current?.click()}>
+                {ti.takePhoto}
+              </button>
+            )}
+          </div>
+          <p className="insp-dropzone-limits">{ti.facts.map((fact) => `${fact.label}: ${fact.value}`).join(' · ')}</p>
+          <input ref={fileInputRef} type="file" accept={ACCEPT} hidden onChange={pick} />
+          <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" hidden onChange={pick} />
+          <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png" capture="environment" hidden onChange={pick} />
+        </div>
+        <p className="insp-muted insp-small">{ti.photoHint}</p>
+
+        {pickError && (
+          <p className="insp-alert" role="alert">
+            {errorMessage({ code: pickError }, ti, tw)}
+          </p>
+        )}
+
+        {source && (
+          <FileCard
+            source={source}
+            inspection={inspection}
+            onReplace={source.kind === 'document' ? null : () => fileInputRef.current?.click()}
+            onRemove={onRemove}
+            ti={ti}
+          />
+        )}
+
+        <div className="insp-card-footer">
+          {inspection ? (
+            <>
+              <button type="button" className="insp-btn insp-btn--primary" onClick={onOpenResults}>
+                {ti.openResults}
+              </button>
+              {onRecheck && (
+                <button type="button" className="insp-btn" onClick={onRecheck}>
+                  {ti.recheck}
+                </button>
+              )}
+            </>
+          ) : (
+            <button type="button" className="insp-btn insp-btn--primary" onClick={onStart} disabled={!source?.file}>
+              {ti.goToExpertise}
+            </button>
+          )}
+        </div>
       </section>
 
-      <h3 className="inspector-subheading">{ti.uploadHeading}</h3>
-      <div
-        className={`inspector-dropzone${dragging ? ' inspector-dropzone--active' : ''}`}
-        onDragOver={(event) => {
-          event.preventDefault()
-          setDragging(true)
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault()
-          setDragging(false)
-          const file = event.dataTransfer.files?.[0]
-          if (file) onFile(file)
-        }}
-      >
-        <span className="inspector-dropzone-icon" aria-hidden="true">
-          <FileSearch size={30} strokeWidth={1.6} />
-        </span>
-        <p className="inspector-dropzone-title">{ti.dropTitle}</p>
-        <p className="inspector-dropzone-or">{ti.dropOr}</p>
-        <div className="inspector-dropzone-buttons">
-          <button type="button" className="inspector-btn inspector-btn--primary" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={16} aria-hidden="true" />
-            {ti.uploadDocument}
-          </button>
-          <button type="button" className="inspector-btn" onClick={() => photoInputRef.current?.click()}>
-            <ImageUp size={16} aria-hidden="true" />
-            {ti.uploadPhoto}
-          </button>
-          {/* capture="environment" opens the rear camera on phones. */}
-          <button type="button" className="inspector-btn" onClick={() => cameraInputRef.current?.click()}>
-            <Camera size={16} aria-hidden="true" />
-            {ti.takePhoto}
-          </button>
-        </div>
-        <div className="inspector-dropzone-chips">
-          <code className="inspector-chip">{ti.formatsChip}</code>
-          <code className="inspector-chip">{ti.limitsChip}</code>
-        </div>
-        <input ref={fileInputRef} type="file" accept={ACCEPT} hidden onChange={pick} />
-        <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" hidden onChange={pick} />
-        <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png" capture="environment" hidden onChange={pick} />
-      </div>
-      <p className="inspector-summary-note">{ti.photoHint}</p>
-
-      <h3 className="inspector-subheading">{ti.pasteHeading}</h3>
-      <div className="inspector-paste">
+      <section className="insp-card insp-card--quiet" aria-labelledby="insp-paste-title">
+        <h3 className="insp-card-title" id="insp-paste-title">
+          {ti.pasteHeading}
+        </h3>
         <textarea
-          aria-label={ti.pasteHeading}
-          className="inspector-paste-input"
+          aria-labelledby="insp-paste-title"
+          className="insp-paste"
           value={pasted}
           onChange={(event) => setPasted(event.target.value.slice(0, MAX_PASTE_CHARS))}
           placeholder={ti.pastePlaceholder}
-          rows={6}
+          rows={5}
         />
-        <div className="inspector-paste-footer">
-          <span className="inspector-paste-count">
+        <div className="insp-paste-footer">
+          <span className="insp-muted insp-small">
             {pasted.length.toLocaleString()} / {MAX_PASTE_CHARS.toLocaleString()}
           </span>
-          <button type="button" className="inspector-btn inspector-btn--primary" onClick={checkPasted} disabled={!pasted.trim()}>
-            <FileSearch size={16} aria-hidden="true" />
+          <button type="button" className="insp-btn" onClick={() => onPaste(pasted.trim())} disabled={!pasted.trim()}>
             {ti.pasteCheck}
           </button>
         </div>
-      </div>
+      </section>
 
       <HistoryList history={history} onOpen={onOpenHistory} ti={ti} lang={lang} />
     </div>
   )
 }
 
+// ---- Stage 2: expertise ------------------------------------------------------------
+
 const STAGE_ORDER = ['read', 'ocr', 'analyze', 'lookup']
 
-/** Real progress: each step shows done / running / waiting as it happens. */
-function ProcessingScreen({ fileName, progress, sawOcr, ti }) {
+/** Real progress: each step is done / running / waiting as it happens. */
+function ProcessingView({ progress, sawOcr, onCancel, ti }) {
   const current = STAGE_ORDER.indexOf(progress.stage)
   const steps = [
     { stage: 'read', label: ti.stepRead },
     ...(sawOcr ? [{ stage: 'ocr', label: ti.stepOcr, detail: progress.stage === 'ocr' && ti.stepOcrProgress(progress.current, progress.total) }] : []),
-    {
-      stage: 'analyze',
-      label: ti.stepAnalyze,
-      detail: progress.stage === 'analyze' && ti.stepAnalyzeProgress(progress.current, progress.total),
-    },
+    { stage: 'analyze', label: ti.stepAnalyze, detail: progress.stage === 'analyze' && ti.stepAnalyzeProgress(progress.current, progress.total) },
     // Only shown once it actually runs (phrases with no match in the base).
-    ...(progress.stage === 'lookup'
-      ? [{ stage: 'lookup', label: ti.stepLookup, detail: ti.stepAnalyzeProgress(progress.current, progress.total) }]
-      : []),
+    ...(progress.stage === 'lookup' ? [{ stage: 'lookup', label: ti.stepLookup, detail: ti.stepAnalyzeProgress(progress.current, progress.total) }] : []),
   ]
+  const running = steps.find((step) => step.stage === progress.stage) ?? steps[0]
   return (
-    <div className="inspector-processing" role="status" aria-live="polite">
-      <p className="inspector-processing-title">
-        <span className="inspector-processing-badge" aria-hidden="true">
-          <FileText size={22} strokeWidth={1.75} />
+    <div className="insp-processing" role="status" aria-live="polite">
+      <p className="insp-current">
+        <Loader2 size={20} className="insp-spin" aria-hidden="true" />
+        <span>
+          <span className="insp-current-label">{ti.currentAction}: </span>
+          {running.label}
+          {running.detail && ` — ${running.detail}`}
         </span>
-        {ti.processingTitle}
       </p>
-      <p className="inspector-processing-file">
-        <FileText size={15} aria-hidden="true" />
-        {fileName}
-      </p>
-      <ol className="inspector-steps">
+      <ol className="insp-progress">
         {steps.map((step) => {
           const index = STAGE_ORDER.indexOf(step.stage)
           const state = index < current ? 'done' : index === current ? 'active' : 'waiting'
           return (
-            <li key={step.stage} className={`inspector-step inspector-step--${state}`}>
-              <span className="inspector-step-mark" aria-hidden="true">
-                {state === 'done' && <Check size={18} strokeWidth={3} />}
-                {state === 'active' && <Loader2 size={26} className="inspector-spin" />}
-                {state === 'waiting' && <CircleDashed size={24} />}
-              </span>
-              <span className="inspector-step-label">{step.label}</span>
-              {step.detail && (
-                <span className="inspector-step-detail">
-                  <FileText size={15} aria-hidden="true" />
-                  {step.detail}
-                </span>
-              )}
+            <li key={step.stage} className={`is-${state}`}>
+              {step.label}
             </li>
           )
         })}
       </ol>
-      <p className="inspector-processing-note">
-        <Info size={20} aria-hidden="true" />
-        <span>{ti.processingNote}</span>
-      </p>
+      <p className="insp-muted insp-small">{ti.processingNote}</p>
+      <div className="insp-card-footer">
+        <button type="button" className="insp-btn" onClick={onCancel}>
+          <ArrowLeft size={15} aria-hidden="true" />
+          {ti.cancelAndBack}
+        </button>
+      </div>
     </div>
   )
 }
+
+function AnalysisStage({ screen, name, progress, sawOcr, inspection, error, onCancel, onBack, onResults, onRetry, ti, tw }) {
+  const summary = useMemo(() => (inspection ? summarize(inspection.results) : null), [inspection])
+  const status = { processing: ti.statusProcessing, analyzed: ti.statusDone, error: ti.statusFailed }[screen]
+  return (
+    <section className="insp-card" aria-labelledby="insp-analysis-title">
+      <div className="insp-card-head">
+        <div>
+          <p className="insp-eyebrow">{ti.analysisTitle}</p>
+          <h3 className="insp-card-title" id="insp-analysis-title">
+            {name}
+          </h3>
+          {inspection?.doc.totalPages ? (
+            <p className="insp-card-meta">
+              {ti.metaPages}: {inspection.doc.totalPages}
+            </p>
+          ) : null}
+        </div>
+        <span className={`insp-run-status insp-run-status--${screen}`}>{status}</span>
+      </div>
+
+      {screen === 'processing' && <ProcessingView progress={progress} sawOcr={sawOcr} onCancel={onCancel} ti={ti} />}
+
+      {screen === 'analyzed' && inspection && (
+        <>
+          <p className="insp-state insp-state--ok">{ti.analysisDoneTitle}</p>
+          <p className="insp-card-lead">{ti.analysisDoneLead}</p>
+          <StatList summary={summary} ti={ti} />
+          <CheckNotes inspection={inspection} ti={ti} />
+          <div className="insp-card-footer">
+            <button type="button" className="insp-btn insp-btn--primary" onClick={onResults}>
+              {ti.goToResults}
+            </button>
+            <button type="button" className="insp-btn" onClick={onBack}>
+              <ArrowLeft size={15} aria-hidden="true" />
+              {ti.backToUpload}
+            </button>
+          </div>
+        </>
+      )}
+
+      {screen === 'error' && error && (
+        <div role="alert">
+          <p className="insp-state insp-state--error">{ti.analysisFailedTitle}</p>
+          <p className="insp-error-text">{errorMessage(error, ti, tw)}</p>
+          {error.code === 'rate_limited' && <p className="insp-muted">{ti.rateLimitHint}</p>}
+          <div className="insp-card-footer">
+            {onRetry && (
+              <button type="button" className="insp-btn insp-btn--primary" onClick={onRetry}>
+                {ti.retry}
+              </button>
+            )}
+            {inspection ? (
+              <button type="button" className="insp-btn" onClick={onResults}>
+                {ti.backToResults}
+              </button>
+            ) : null}
+            <button type="button" className="insp-btn" onClick={onBack}>
+              <ArrowLeft size={15} aria-hidden="true" />
+              {ti.backToUpload}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ---- Stage 3: correction and conclusion ---------------------------------------------
 
 /**
  * The document of «Работа с документами» a check belongs to: back to its
@@ -213,12 +371,10 @@ function DocumentBar({ inspection, notice, onRecheck, tw }) {
       {notice && <p className={`inspector-document-note${notice === 'notSavedAsDocument' ? ' is-warning' : ''}`}>{tw[notice]}</p>}
       {inspection.documentId && (
         <div className="inspector-document-actions">
-          <Link to={`/account/documents/${inspection.documentId}`} className="inspector-btn inspector-btn--primary">
-            <FilePenLine size={16} aria-hidden="true" />
+          <Link to={`/account/documents/${inspection.documentId}`} className="insp-btn insp-btn--primary">
             {tw.continueEditing}
           </Link>
-          <button type="button" className="inspector-btn" onClick={() => onRecheck(inspection.documentId)}>
-            <RotateCcw size={15} aria-hidden="true" />
+          <button type="button" className="insp-btn" onClick={() => onRecheck(inspection.documentId)}>
             {tw.recheck}
           </button>
         </div>
@@ -227,7 +383,12 @@ function DocumentBar({ inspection, notice, onRecheck, tw }) {
   )
 }
 
-function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices, onOpenFixes, onReport, onRecords, onReset, ti, lang }) {
+function appliedCount(output) {
+  if (!output) return null
+  return [...output.status.values()].filter((s) => s === 'applied' || s === 'text_only').length
+}
+
+function ReviewScreen({ inspection, output, decisions, setDecisions, choices, setChoices, onOpenFixes, onOpenFixed, onReport, onRecords, onReset, ti, lang }) {
   const { favoriteIds, toggleFavorite } = useFavoriteTerms()
   const { results, doc } = inspection
   const summary = useMemo(() => summarize(results), [results])
@@ -246,6 +407,14 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
   // Findings are numbered in document order, the same in every filter.
   const numbers = useMemo(() => new Map(results.filter((r) => r.status !== 'ok').map((r, i) => [r.id, i + 1])), [results])
   const fixable = fixableResults(results).length
+  const type = documentTypeLabel(inspection.documentType, ti)
+  const date = inspection.checkedAt ? new Date(inspection.checkedAt).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null
+  const meta = [
+    type && `${ti.metaType}: ${type}`,
+    date,
+    doc.totalPages ? `${ti.metaPages}: ${doc.totalPages}` : null,
+    `${ti.metaTerms}: ${summary.total}`,
+  ].filter(Boolean)
 
   const show = (result) => {
     setSelectedId(result.id)
@@ -274,34 +443,56 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
   }
 
   return (
-    <div className="inspector-review">
-      <ResultsHeader inspection={inspection} summary={summary} ti={ti} lang={lang} />
-      <Passport inspection={inspection} summary={summary} ti={ti} />
+    <div className="insp-stage-area">
+      <section className="insp-card" aria-labelledby="insp-results-title">
+        <div className="insp-card-head">
+          <div>
+            <p className="insp-eyebrow">{ti.resultsTitle}</p>
+            <h3 className="insp-card-title" id="insp-results-title">
+              {inspection.fileName}
+            </h3>
+            <p className="insp-card-meta">{meta.join(' · ')}</p>
+          </div>
+        </div>
 
-      <div className="inspector-review-actions">
-        <button type="button" className="inspector-btn inspector-btn--primary" onClick={onOpenFixes} disabled={fixable === 0}>
-          <Wand2 size={16} aria-hidden="true" />
-          {ti.fixConfirmed}
-        </button>
-        <button type="button" className="inspector-btn" onClick={onReport}>
-          <Download size={15} aria-hidden="true" />
-          {ti.downloadReport}
-        </button>
-        <button type="button" className="inspector-btn" onClick={onRecords}>
-          <FileText size={15} aria-hidden="true" />
-          {ti.downloadRecords}
-        </button>
-        <button type="button" className="inspector-btn" onClick={onReset}>
-          <RotateCcw size={15} aria-hidden="true" />
-          {ti.checkAnother}
-        </button>
-      </div>
-      {fixable > 0 && <p className="inspector-review-hint">{ti.fixAllHint}</p>}
+        <div className="insp-actions">
+          {fixable > 0 ? (
+            <button type="button" className="insp-btn insp-btn--primary" onClick={onOpenFixes}>
+              {ti.fixConfirmed} ({fixable})
+            </button>
+          ) : (
+            <p className={`insp-state ${summary.toFix ? 'insp-state--note' : 'insp-state--ok'}`}>{summary.toFix ? ti.manualOnly : ti.noErrorsState}</p>
+          )}
+          <span className="insp-actions-secondary">
+            <button type="button" className="insp-btn insp-btn--small" onClick={onReport}>
+              <Download size={14} aria-hidden="true" />
+              {ti.downloadReport}
+            </button>
+            <button type="button" className="insp-btn insp-btn--small" onClick={onRecords}>
+              <Download size={14} aria-hidden="true" />
+              {ti.downloadRecords}
+            </button>
+            <button type="button" className="insp-btn insp-btn--small" onClick={onReset}>
+              {ti.checkAnother}
+            </button>
+          </span>
+        </div>
+        {fixable > 0 && <p className="insp-muted insp-small">{ti.fixAllHint}</p>}
+        {output && (
+          <p className="insp-banner">
+            {ti.fixedBanner(appliedCount(output))}{' '}
+            <button type="button" className="insp-text-btn" onClick={onOpenFixed}>
+              {ti.openFixed}
+            </button>
+          </p>
+        )}
+        <CheckNotes inspection={inspection} ti={ti} />
+      </section>
 
       <FilterBar filter={filter} onChange={setFilter} summary={summary} ti={ti} />
 
-      <div className="inspector-split">
-        <div className="inspector-split-preview" ref={previewRef}>
+      <div className="insp-split">
+        <div className="insp-split-doc" ref={previewRef}>
           <DocPreview
             doc={doc}
             pageNumber={pageNumber}
@@ -314,16 +505,14 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
           />
         </div>
 
-        <div className="inspector-split-results">
-          {filter !== 'ok' && (
-            <p className="inspector-issues-title">
-              {filter === 'all' ? ti.issuesTitle(summary.issues) : `${CATEGORY_ICON[filter]} ${ti.filterLabels[filter]} — ${issues.length}`}
-            </p>
-          )}
+        <div className="insp-split-results">
+          <p className="insp-results-count">
+            {filter === 'all' ? ti.issuesTitle(summary.issues) : `${ti.filterLabels[filter]} — ${visible.length}`}
+          </p>
           {visible.length === 0 ? (
-            <p className="inspector-empty">{filter === 'all' ? ti.categoryEmpty.ok : ti.categoryEmpty[filter]}</p>
+            <p className="insp-empty">{filter === 'all' ? ti.categoryEmpty.ok : ti.categoryEmpty[filter]}</p>
           ) : (
-            <ol className="inspector-cards">
+            <ol className="insp-findings">
               {issues.map((result) => (
                 <FindingCard
                   key={result.id}
@@ -344,7 +533,7 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
                   lang={lang}
                 />
               ))}
-              {okRows.length > 0 && filter === 'all' && <li className="inspector-cards-divider">{ti.okDivider(okRows.length)}</li>}
+              {okRows.length > 0 && filter === 'all' && <li className="insp-findings-divider">{ti.okDivider(okRows.length)}</li>}
               {okRows.map((result) => (
                 <OkRow key={result.id} result={result} location={locate(result)} selected={result.id === selectedId} onShow={show} ti={ti} />
               ))}
@@ -353,74 +542,78 @@ function ReviewScreen({ inspection, decisions, setDecisions, choices, setChoices
         </div>
       </div>
 
-      <div className="inspector-review-bottom">
-        <TermProfile inspection={inspection} ti={ti} lang={lang} />
-        <Conclusion summary={summary} ti={ti} />
-      </div>
-
-      <p className="inspector-disclaimer">{ti.disclaimer}</p>
+      <FinalConclusion inspection={inspection} summary={summary} fixed={appliedCount(output)} ti={ti} lang={lang} />
     </div>
   )
 }
 
-function DoneScreen({ inspection, output, decisions, choices, onReport, onRecords, onBack, onReset, locate, ti }) {
+function FixedScreen({ inspection, output, decisions, choices, onReport, onRecords, onBack, onReset, locate, ti }) {
   const values = [...output.status.values()]
-  const applied = values.filter((s) => s === 'applied').length
   const textOnly = values.filter((s) => s === 'text_only').length
   const failed = values.filter((s) => s === 'failed').length
   const kind = inspection.doc.kind
   const primary = output.files.find((f) => f.key !== 'text') ?? output.files[0]
   const textVersion = output.files.find((f) => f.key === 'text' && f !== primary)
   const formattingNote = { docx: ti.formattingNoteDocx, pdf: ti.formattingNotePdf, image: ti.formattingNoteImage, saved: ti.formattingNoteSaved }[kind]
-  const summary = useMemo(() => summarize(inspection.results), [inspection])
 
   return (
-    <div className="inspector-done">
-      <p className="inspector-done-title">
-        <CheckCircle2 size={22} aria-hidden="true" />
-        {ti.doneTitle}
-      </p>
-      <p className="inspector-done-count">
-        {ti.fixedCount}: <strong>{applied + textOnly}</strong>
-      </p>
-      <p className="inspector-summary-note">{formattingNote}</p>
-      {textOnly > 0 && kind === 'pdf' && <p className="inspector-warning">{ti.textOnlyNote(textOnly)}</p>}
-      {failed > 0 && <p className="inspector-warning">{ti.failedNote(failed)}</p>}
+    <div className="insp-stage-area">
+      <section className="insp-card" aria-labelledby="insp-fixed-title">
+        <div className="insp-card-head">
+          <div>
+            <p className="insp-eyebrow">{ti.fixedDocTitle}</p>
+            <h3 className="insp-card-title" id="insp-fixed-title">
+              {inspection.fileName}
+            </h3>
+          </div>
+        </div>
+        <p className="insp-state insp-state--ok">
+          {ti.fixedCount}: {appliedCount(output)}
+        </p>
+        <p className="insp-muted">{formattingNote}</p>
+        {textOnly > 0 && kind === 'pdf' && <p className="insp-card-note insp-card-note--warning">{ti.textOnlyNote(textOnly)}</p>}
+        {failed > 0 && <p className="insp-card-note insp-card-note--warning">{ti.failedNote(failed)}</p>}
 
-      <div className="inspector-done-actions">
-        <button type="button" className="inspector-btn inspector-btn--primary" onClick={() => downloadBlob(primary.blob, primary.fileName)}>
-          <Download size={16} aria-hidden="true" />
-          {kind === 'image' || kind === 'saved' ? ti.downloadFixedText : ti.downloadFixed}
-        </button>
-        {textVersion && (
-          <button type="button" className="inspector-btn" onClick={() => downloadBlob(textVersion.blob, textVersion.fileName)}>
-            <FileText size={15} aria-hidden="true" />
-            {ti.downloadFixedText}
+        <div className="insp-actions">
+          <button type="button" className="insp-btn insp-btn--primary" onClick={() => downloadBlob(primary.blob, primary.fileName)}>
+            <Download size={16} aria-hidden="true" />
+            {kind === 'image' || kind === 'saved' ? ti.downloadFixedText : ti.downloadFixed}
           </button>
-        )}
-        <button type="button" className="inspector-btn" onClick={onReport}>
-          <Download size={15} aria-hidden="true" />
-          {ti.downloadReport}
-        </button>
-        <button type="button" className="inspector-btn" onClick={onRecords}>
-          <FileText size={15} aria-hidden="true" />
-          {ti.downloadRecords}
-        </button>
-        <button type="button" className="inspector-btn" onClick={onReset}>
-          <RotateCcw size={15} aria-hidden="true" />
-          {ti.checkAnother}
-        </button>
-      </div>
+          <span className="insp-actions-secondary">
+            {textVersion && (
+              <button type="button" className="insp-btn insp-btn--small" onClick={() => downloadBlob(textVersion.blob, textVersion.fileName)}>
+                <Download size={14} aria-hidden="true" />
+                {ti.downloadFixedText}
+              </button>
+            )}
+            <button type="button" className="insp-btn insp-btn--small" onClick={onReport}>
+              <Download size={14} aria-hidden="true" />
+              {ti.downloadReport}
+            </button>
+            <button type="button" className="insp-btn insp-btn--small" onClick={onRecords}>
+              <Download size={14} aria-hidden="true" />
+              {ti.downloadRecords}
+            </button>
+          </span>
+        </div>
 
-      <ChangesCompare inspection={inspection} decisions={decisions} choices={choices} locate={locate} ti={ti} />
-      <Conclusion summary={summary} ti={ti} />
+        <ChangesCompare inspection={inspection} decisions={decisions} choices={choices} locate={locate} ti={ti} />
 
-      <button type="button" className="inspector-link-btn" onClick={onBack}>
-        {ti.backToResults}
-      </button>
+        <div className="insp-card-footer">
+          <button type="button" className="insp-btn" onClick={onBack}>
+            <ArrowLeft size={15} aria-hidden="true" />
+            {ti.backToResults}
+          </button>
+          <button type="button" className="insp-btn" onClick={onReset}>
+            {ti.checkAnother}
+          </button>
+        </div>
+      </section>
     </div>
   )
 }
+
+// ---- The inspector -------------------------------------------------------------------
 
 // In «Работа с документами» (personal account) the inspector works on the
 // user's documents: `documentId` checks a saved document without a new upload,
@@ -435,8 +628,10 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
   const history = useInspectionHistory()
   const [notice, setNotice] = useState(null) // 'savedAsDocument' | 'notSavedAsDocument'
 
-  const [screen, setScreen] = useState('upload') // upload | processing | review | done | error
-  const [fileName, setFileName] = useState('')
+  const [screen, setScreen] = useState('upload') // upload | processing | analyzed | error | review | done
+  // What is being checked: { kind: 'file'|'pasted'|'document'|'history', file, name, size, format }
+  const [source, setSource] = useState(null)
+  const [pickError, setPickError] = useState(null)
   const [progress, setProgress] = useState({ stage: 'read' })
   const [sawOcr, setSawOcr] = useState(false)
   const [inspection, setInspection] = useState(null)
@@ -448,20 +643,53 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
   const [historyId, setHistoryId] = useState(null)
   const [error, setError] = useState(null)
   const panelRef = useRef(null)
+  // Each run gets a number; a run that was stopped or replaced is ignored when it finishes.
+  const runRef = useRef(0)
 
+  const stage = STAGE_OF_SCREEN[screen]
   const locate = useCallback((r) => locationLabel(inspection, r, ti), [inspection, ti])
   const closeDialog = useCallback(() => setDialogOpen(false), [])
 
   // Free the photo preview URL when the inspection is replaced.
   useEffect(() => () => inspection?.doc.pages.forEach((p) => p.imageUrl && URL.revokeObjectURL(p.imageUrl)), [inspection])
-  // Each step starts at the top of the panel.
+  // Each stage starts at the top of the panel.
+  const firstStage = useRef(true)
   useEffect(() => {
-    if (screen !== 'upload') panelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-  }, [screen])
+    if (firstStage.current) {
+      firstStage.current = false
+      return
+    }
+    panelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [stage, screen])
+
+  /** A new or removed document: everything that belonged to the old one goes. */
+  const replaceSource = (next) => {
+    runRef.current++
+    setSource(next)
+    setPickError(null)
+    setNotice(null)
+    setInspection(null)
+    setOutput(null)
+    setDecisions({})
+    setChoices({})
+    setHistoryId(null)
+    setError(null)
+    setScreen('upload')
+  }
+
+  /** Stage 1: a chosen file is checked by its content before it can be sent to the expertise. */
+  const pickFile = async (file) => {
+    try {
+      const kind = await detectKind(file)
+      replaceSource({ kind: 'file', file, name: file.name, size: file.size, format: formatLabel(kind, file) })
+    } catch (err) {
+      setPickError(err instanceof InspectorError ? err.code : 'unsupported_file')
+    }
+  }
 
   const start = async (file, { fromDocument = null, fromValues = null } = {}) => {
+    const run = ++runRef.current
     setNotice(null)
-    setFileName(file.name)
     setError(null)
     setInspection(null)
     setOutput(null)
@@ -473,9 +701,11 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
     setScreen('processing')
     try {
       const result = await runInspection(file, lang, (p) => {
+        if (run !== runRef.current) return
         if (p.stage === 'ocr') setSawOcr(true)
         setProgress(p)
       })
+      if (run !== runRef.current) return
       if (fromDocument) {
         result.documentId = fromDocument
         await markDocumentChecked(fromDocument, result, fromValues).catch((err) => console.error('Document status was not updated:', err))
@@ -490,11 +720,13 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
           setNotice('notSavedAsDocument')
         }
       }
+      if (run !== runRef.current) return
       setInspection(result)
-      setScreen('review')
+      setScreen('analyzed')
       // Saved for a signed-in user; the check itself never depends on it.
       history.save(result, {}, {}, (r) => locationLabel(result, r, ti)).then(setHistoryId)
     } catch (err) {
+      if (run !== runRef.current) return
       console.error('Inspection failed:', err)
       setError(err instanceof InspectorError ? err : new InspectorError('internal_error'))
       setScreen('error')
@@ -504,11 +736,13 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
   /** Checks the current text of a saved document — no new upload. */
   const checkDocument = useCallback(
     async (id) => {
+      const run = ++runRef.current
       setNotice(null)
       setError(null)
       setInspection(null)
+      setOutput(null)
       setScreen('processing')
-      setFileName(tw.loadingDocument)
+      setSource({ kind: 'document', file: null, name: tw.loadingDocument, size: null, format: null })
       setProgress({ stage: 'read' })
       let row = null
       try {
@@ -516,6 +750,7 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
       } catch (err) {
         console.error('Document could not be loaded:', err)
       }
+      if (run !== runRef.current) return
       if (!row) {
         setError(new InspectorError('document_not_found'))
         setScreen('error')
@@ -528,12 +763,21 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
         return
       }
       const name = `${(row.title || 'document').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'document'}.docx`
-      startRef.current(await textToDocxFile(text, name), { fromDocument: row.id, fromValues: row.values })
+      const file = await textToDocxFile(text, name)
+      setSource({ kind: 'document', file, name, size: file.size, format: 'DOCX', documentId: row.id })
+      startRef.current(file, { fromDocument: row.id, fromValues: row.values })
     },
     [tw],
   )
   const startRef = useRef(start)
   startRef.current = start
+
+  const checkPasted = async (text) => {
+    if (!text) return
+    const file = await textToDocxFile(text, ti.pastedFileName)
+    replaceSource({ kind: 'pasted', file, name: ti.pastedFileName, size: file.size, format: ti.pastedFormat })
+    start(file)
+  }
 
   const openFromHistory = async (id) => {
     const snapshot = await history.load(id)
@@ -548,7 +792,10 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
       return
     }
     const restored = fromSnapshot(snapshot)
-    setFileName(restored.fileName)
+    runRef.current++
+    setSource({ kind: 'history', file: null, name: restored.fileName, size: null, format: null })
+    setPickError(null)
+    setError(null)
     setInspection(restored)
     setDecisions(snapshot.decisions ?? {})
     setChoices(snapshot.choices ?? {})
@@ -572,13 +819,25 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
     }
   }, [documentId, openHistoryId, user, checkDocument])
 
-  const reset = () => {
-    setNotice(null)
-    setScreen('upload')
-    setInspection(null)
-    setOutput(null)
-    setError(null)
-    setHistoryId(null)
+  /** Runs the expertise again on the same document (a saved document: its current text). */
+  const recheck = source?.kind === 'document' && source.documentId ? () => checkDocument(source.documentId) : source?.file ? () => start(source.file) : null
+
+  /** Stage navigation: earlier stages keep the file and the results. */
+  const goToStage = (n) => {
+    if (n === 1) setScreen('upload')
+    else if (n === 2) setScreen(inspection ? 'analyzed' : error ? 'error' : screen)
+    else if (n === 3 && inspection) setScreen('review')
+  }
+  const reachable = (n) => {
+    if (screen === 'processing') return false
+    if (n === 1) return true
+    if (n === 2) return Boolean(inspection || error)
+    return Boolean(inspection)
+  }
+  const done = (n) => {
+    if (n === 1) return Boolean(source) && (stage > 1 || Boolean(inspection))
+    if (n === 2) return Boolean(inspection)
+    return Boolean(output)
   }
 
   /** Builds the corrected document from the decisions confirmed in the dialog. */
@@ -621,11 +880,7 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
       .map((r, i) => {
         const status = reportStatus(r)
         const fix = chosenFix(r, decisions[r.id], choices[r.id])
-        const official = r.candidates.length
-          ? r.candidates.map((cand) => cand.official).join(' / ')
-          : r.external
-            ? r.external.officialTerm
-            : '—'
+        const official = r.candidates.length ? r.candidates.map((cand) => cand.official).join(' / ') : r.external ? r.external.officialTerm : '—'
         return [
           String(i + 1),
           locate(r),
@@ -671,38 +926,72 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
 
   return (
     <section id="docs" className="section-static inspector-section">
-      <div className="inspector-panel" ref={panelRef}>
-        <header className="inspector-header">
-          <h2 className="inspector-title">
-            <ShieldCheck className="inspector-title-icon" size={44} strokeWidth={1.5} aria-hidden="true" />
-            {ti.title}
-          </h2>
-          {screen === 'upload' && <p className="inspector-lead">{ti.lead}</p>}
-          <Stepper screen={screen} ti={ti} />
+      <div className="insp-panel" ref={panelRef}>
+        <header className="insp-header">
+          <h2 className="insp-title">{ti.title}</h2>
+          <p className="insp-lead">{ti.lead}</p>
+          <StageNav stage={stage} reachable={reachable} done={done} onGo={goToStage} ti={ti} />
         </header>
 
-        {screen === 'upload' && <UploadScreen onFile={start} history={history} onOpenHistory={openFromHistory} ti={ti} lang={lang} />}
-        {screen === 'processing' && <ProcessingScreen fileName={fileName} progress={progress} sawOcr={sawOcr} ti={ti} />}
-        {(screen === 'review' || screen === 'done') && inspection && (
-          <DocumentBar inspection={inspection} notice={notice} onRecheck={checkDocument} tw={tw} />
+        {screen === 'upload' && (
+          <UploadStage
+            source={source}
+            inspection={inspection}
+            pickError={pickError}
+            onPick={pickFile}
+            onPaste={checkPasted}
+            onRemove={() => replaceSource(null)}
+            onStart={() => source?.file && start(source.file)}
+            onOpenResults={() => setScreen('review')}
+            onRecheck={recheck}
+            history={history}
+            onOpenHistory={openFromHistory}
+            ti={ti}
+            tw={tw}
+            lang={lang}
+          />
         )}
+
+        {stage === 2 && (
+          <AnalysisStage
+            screen={screen}
+            name={source?.name ?? inspection?.fileName ?? ''}
+            progress={progress}
+            sawOcr={sawOcr}
+            inspection={inspection}
+            error={error}
+            onCancel={() => {
+              runRef.current++
+              setScreen('upload')
+            }}
+            onBack={() => setScreen('upload')}
+            onResults={() => setScreen('review')}
+            onRetry={error?.code === 'build_failed' ? null : recheck}
+            ti={ti}
+            tw={tw}
+          />
+        )}
+
+        {stage === 3 && inspection && <DocumentBar inspection={inspection} notice={notice} onRecheck={checkDocument} tw={tw} />}
         {screen === 'review' && inspection && (
           <ReviewScreen
             inspection={inspection}
+            output={output}
             decisions={decisions}
             setDecisions={setDecisions}
             choices={choices}
             setChoices={setChoices}
             onOpenFixes={() => setDialogOpen(true)}
+            onOpenFixed={() => setScreen('done')}
             onRecords={downloadRecords}
             onReport={downloadReport}
-            onReset={reset}
+            onReset={() => replaceSource(null)}
             ti={ti}
             lang={lang}
           />
         )}
-        {screen === 'done' && output && (
-          <DoneScreen
+        {screen === 'done' && inspection && output && (
+          <FixedScreen
             inspection={inspection}
             output={output}
             decisions={decisions}
@@ -710,23 +999,10 @@ function DocInspector({ documentId = null, historyId: openHistoryId = null, link
             onReport={downloadReport}
             onRecords={downloadRecords}
             onBack={() => setScreen('review')}
-            onReset={reset}
+            onReset={() => replaceSource(null)}
             locate={locate}
             ti={ti}
           />
-        )}
-        {screen === 'error' && error && (
-          <div className="inspector-error" role="alert">
-            <ShieldAlert size={22} aria-hidden="true" />
-            <p className="inspector-error-title">
-              {error.code === 'document_not_found' ? tw.documentNotFound : error.code === 'document_empty' ? tw.documentEmpty : ti.errors[error.code] || ti.errors.internal_error}
-            </p>
-            {error.code === 'rate_limited' && <p className="inspector-error-sub">{ti.rateLimitHint}</p>}
-            <button type="button" className="inspector-btn inspector-btn--primary" onClick={inspection ? () => setScreen('review') : reset}>
-              <RotateCcw size={15} aria-hidden="true" />
-              {inspection ? ti.backToResults : ti.tryAgain}
-            </button>
-          </div>
         )}
       </div>
 
