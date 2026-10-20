@@ -21,6 +21,10 @@ export interface ModelCall {
   /** Plain JSON Schema (lower-case types, additionalProperties: false). */
   schema: Record<string, unknown>
   maxTokens: number
+  /** Gemini only: a model to try first (the shared one is the fallback). */
+  geminiModel?: string
+  /** Gemini only: cap on «thinking» tokens, so a call cannot run into the time limit. */
+  thinkingBudget?: number
 }
 
 /** A failure with an HTTP status and a stable code the frontend can switch on. */
@@ -41,7 +45,21 @@ export function aiConfigured(): boolean {
 export async function callModel(call: ModelCall): Promise<{ json: any; model: string }> {
   if (Deno.env.get('ANTHROPIC_API_KEY')) return callClaude(call)
   const geminiKey = Deno.env.get('GEMINI_API_KEY')
-  if (geminiKey) return callGemini(call, geminiKey)
+  if (geminiKey) {
+    if (call.geminiModel && call.geminiModel !== GEMINI_MODEL) {
+      try {
+        return await callGemini(call, geminiKey)
+      } catch (error) {
+        // Unknown name, quota or an outage of the preferred model: the shared
+        // one still answers. Refusals and cut-off answers are real results.
+        if (!(error instanceof InspectionError) || !['ai_unavailable', 'ai_busy', 'image_rejected', 'config_error'].includes(error.code)) throw error
+        console.warn(`doc-inspector: ${call.geminiModel} failed (${error.code}), falling back to ${GEMINI_MODEL}`)
+      }
+    }
+    // The shared model after a failed preferred one gets the call without its
+    // model-specific options; otherwise the call goes as given.
+    return callGemini(call.geminiModel && call.geminiModel !== GEMINI_MODEL ? { ...call, geminiModel: undefined, thinkingBudget: undefined } : call, geminiKey)
+  }
   throw new InspectionError(500, 'config_error', 'Set the GEMINI_API_KEY (free) or ANTHROPIC_API_KEY secret')
 }
 
@@ -219,8 +237,9 @@ function toGeminiSchema(schema: any): any {
 // Reasons Gemini stops without (usable) output because of its content filters.
 const BLOCKED_FINISH_REASONS = new Set(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'])
 
-async function callGemini({ system, parts, schema, maxTokens }: ModelCall, apiKey: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+async function callGemini({ system, parts, schema, maxTokens, geminiModel, thinkingBudget }: ModelCall, apiKey: string) {
+  const modelName = geminiModel || GEMINI_MODEL
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
   let res: Response
   try {
     res = await fetch(url, {
@@ -242,6 +261,7 @@ async function callGemini({ system, parts, schema, maxTokens }: ModelCall, apiKe
           maxOutputTokens: maxTokens,
           responseMimeType: 'application/json',
           responseSchema: toGeminiSchema(schema),
+          ...(thinkingBudget === undefined ? {} : { thinkingConfig: { thinkingBudget } }),
         },
       }),
     })
@@ -273,7 +293,7 @@ async function callGemini({ system, parts, schema, maxTokens }: ModelCall, apiKe
     .map((part: { text: string }) => part.text)
     .join('')
   try {
-    return { json: JSON.parse(text), model: data?.modelVersion || GEMINI_MODEL }
+    return { json: JSON.parse(text), model: data?.modelVersion || modelName }
   } catch {
     throw new InspectionError(502, 'bad_response', 'Gemini returned malformed JSON')
   }

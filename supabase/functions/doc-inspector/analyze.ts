@@ -120,6 +120,9 @@ const LANGUAGE_NAME = { kk: 'казахский', ru: 'русский', en: 'а�
 // replace with the same term in a verified, inflected form.
 const BASE_CONFIRMED = new Set<ErrorType>(['unofficial_variant', 'language_mismatch'])
 
+// The model of the AI pass (Gemini): override with DOC_INSPECTOR_ANALYZE_MODEL.
+const ANALYZE_GEMINI_MODEL = Deno.env.get('DOC_INSPECTOR_ANALYZE_MODEL') || 'gemini-flash-latest'
+
 // Confidence levels for semantic matching.
 const HIGH_CONFIDENCE = 0.85
 const MEDIUM_CONFIDENCE = 0.6
@@ -344,6 +347,10 @@ export async function analyzeSegments(
       parts: [{ type: 'text', text: userMessage(segments, matches, lang, pairs) }],
       schema: ANALYZER_SCHEMA,
       maxTokens: 16000,
+      // The shared GEMINI_MODEL is a lite model chosen for the chat; with it
+      // the analysis found next to nothing beyond the exact base matches.
+      geminiModel: ANALYZE_GEMINI_MODEL,
+      thinkingBudget: 2048,
     })
     raw = Array.isArray(out.json?.findings) ? out.json.findings : []
     documentType = typeof out.json?.document_type === 'string' ? out.json.document_type : undefined
