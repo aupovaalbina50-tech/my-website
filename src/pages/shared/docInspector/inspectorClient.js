@@ -68,6 +68,9 @@ async function callOnce(payload) {
   const body = await res.json().catch(() => null)
   // 404 from the Supabase gateway = the doc-inspector function isn't deployed.
   if (res.status === 404) throw new InspectorError('service_unavailable')
+  // 504 / 546 without our error body: the platform stopped the function for
+  // running too long. Sending the same request again would only repeat it.
+  if (!res.ok && !body?.error && (res.status === 504 || res.status === 546)) throw new InspectorError('timeout')
   if (!res.ok) {
     const error = new InspectorError(body?.error || 'internal_error', {
       retryAfterSeconds: body?.retryAfterSeconds,
