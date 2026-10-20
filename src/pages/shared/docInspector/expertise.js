@@ -4,6 +4,7 @@
 import { CATEGORIES as TERM_CATEGORIES } from '../../../i18n/translations.js'
 import { categoryOf } from './pipeline.js'
 import { isPairTerm, pairForResult } from './confusables.js'
+import { isStyleTerm } from './styleRules.js'
 
 /** Counts per status and the share of terms that match the base. */
 export function summarize(results) {
@@ -26,7 +27,7 @@ export function termProfile(results, lang) {
   const seen = new Map()
   for (const r of results) {
     const term = r.term
-    if (!term || isPairTerm(term) || !term.category) continue
+    if (!term || isPairTerm(term) || isStyleTerm(term) || !term.category) continue
     seen.set(term.category, (seen.get(term.category) ?? 0) + 1)
   }
   return [...seen.entries()]
@@ -52,7 +53,9 @@ export function reasoningSteps(result, ti, location, lang = 'ru') {
   // baseMatch: the base found the phrase first and the AI only inflected the
   // replacement — that is still a base match, not a guess.
   const baseType = result.source === 'glossary' ? result.errorType : result.baseMatch
-  if (result.source === 'glossary' || result.baseMatch) {
+  if (result.source === 'style') {
+    steps.push(w.styleRule(result.official))
+  } else if (result.source === 'glossary' || result.baseMatch) {
     if (baseType === 'unofficial_variant') steps.push(w.variantInBase(result.official))
     else if (baseType === 'language_mismatch') steps.push(w.languageInBase(result.official))
     else if (baseType === 'hyphenation') steps.push(w.hyphenInBase(result.official))

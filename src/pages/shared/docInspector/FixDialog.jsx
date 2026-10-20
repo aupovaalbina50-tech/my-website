@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { categoryOf, chosenFix } from './pipeline.js'
 import { isPairTerm } from './confusables.js'
+import { isStyleTerm } from './styleRules.js'
 import { fixableResults } from './expertise.js'
 
 /** Index of the candidate currently applied for a finding, or null. */
@@ -83,7 +84,7 @@ export function FixDialog({ inspection, decisions, choices, onApply, onCancel, b
               const needsDecision = r.status !== 'fix' && appliedIndex(r, decisions[r.id], choices[r.id]) === null
               const shown = r.candidates[index ?? firstApplicable(r)]
               const reason = r.explanation || (r.errorType ? ti.errorTypes[r.errorType] : null)
-              const basis = isPairTerm(shown.term) ? ti.basisConfusableShort : r.source === 'glossary' || r.baseMatch ? ti.basisGlossary : ti.basisBaseAi
+              const basis = isPairTerm(shown.term) ? ti.basisConfusableShort : isStyleTerm(shown.term) ? ti.basisStyle : r.source === 'glossary' || r.baseMatch ? ti.basisGlossary : ti.basisBaseAi
               return (
                 <li key={r.id} className={`insp-fix${index !== null ? ' is-on' : ''}`}>
                   <label className="insp-fix-main">
@@ -221,7 +222,7 @@ export function ChangesCompare({ inspection, decisions, choices, locate, ti }) {
               </div>
               <div className="insp-change-basis">
                 <dt>{ti.changeBasis}</dt>
-                <dd>{fromPair ? ti.basisConfusableShort : result.source === 'glossary' || result.baseMatch ? ti.basisGlossary : ti.basisBaseAi}</dd>
+                <dd>{fromPair ? ti.basisConfusableShort : result.source === 'style' ? ti.basisStyle : result.source === 'glossary' || result.baseMatch ? ti.basisGlossary : ti.basisBaseAi}</dd>
               </div>
             </dl>
           </li>

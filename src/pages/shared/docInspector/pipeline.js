@@ -12,6 +12,7 @@
 import { extractDocument, pdfPageImage } from './extract.js'
 import { analyzeChunk, InspectorError, lookupPhrases, ocrPage } from './inspectorClient.js'
 import { pairsInText, pairsPayload } from './confusables.js'
+import { mergeStyleFindings } from './styleRules.js'
 
 // Characters per analyze request. Long enough for whole pages, short enough
 // for a careful model pass and the Edge Function time limit.
@@ -136,7 +137,9 @@ export async function runInspection(file, lang, onProgress) {
     }
   }
 
-  // ---- Assemble ----------------------------------------------------------------
+  // ---- Jargon and colloquial service phrases (no AI, see styleRules.js) ------
+  results = mergeStyleFindings(results, textPages)
+
   // ---- Official sources for phrases with no match in the base --------------
   const unmatched = new Map() // phrase (lower case) -> { phrase, context }
   for (const r of results) {
