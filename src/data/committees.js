@@ -11,8 +11,6 @@
 // или число заместителей) — каждая версия сайта показывает данные своей
 // языковой версии gov.kz, ничего не дополняется и не переводится вручную.
 
-export const COMMITTEES_VERIFIED_AT = '01.10.2026'
-
 export const COMMITTEES_SOURCE_URL = {
   kk: 'https://www.gov.kz/memleket/entities/emer/about/structure/1/1?lang=kk',
   ru: 'https://www.gov.kz/memleket/entities/emer/about/structure/1/1?lang=ru',

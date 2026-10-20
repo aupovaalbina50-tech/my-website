@@ -18,8 +18,6 @@
 // должность руководителя аппарата на gov.kz не указана — поэтому её на сайте
 // нет, а контакты министра не выдумываются (используются контакты канцелярии).
 
-export const MINISTRY_VERIFIED_AT = '01.10.2026'
-
 export const MINISTRY_SOURCES = {
   gov: {
     kk: 'https://www.gov.kz/memleket/entities/emer/about?lang=kk',

@@ -2263,19 +2263,7 @@
   margin-top: var(--space-3);
 }
 
-/* Ministry / committees: verified-at note, people cards, direction tags. */
-.org-verified-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0 0 var(--space-4);
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--green-bg);
-  color: var(--green);
-  font-size: 13px;
-  font-weight: 600;
-}
+/* Ministry / committees: people cards, direction tags. */
 
 .org-count-badge {
   margin-left: 8px;
