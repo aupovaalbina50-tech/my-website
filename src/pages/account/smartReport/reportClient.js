@@ -19,6 +19,10 @@ export class ReportError extends Error {
   }
 }
 
+// The function answers in seconds; past this the request is dropped with
+// an error instead of a spinner that never ends.
+const TIMEOUT_MS = 120000
+
 async function callReport(payload) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -33,11 +37,14 @@ async function callReport(payload) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     })
-  } catch {
-    throw new ReportError('network')
+  } catch (error) {
+    throw new ReportError(error?.name === 'TimeoutError' ? 'timeout' : 'network')
   }
   const body = await res.json().catch(() => null)
+  // 504 / 546: the platform stopped the function because it ran too long.
+  if (!res.ok && !body?.error && (res.status === 504 || res.status === 546)) throw new ReportError('timeout')
   if (!res.ok) throw new ReportError(body?.error || 'internal_error', { retryAfterSeconds: body?.retryAfterSeconds })
   return body
 }
