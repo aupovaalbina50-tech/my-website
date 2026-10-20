@@ -2272,3 +2272,223 @@ textarea.doc-input {
   background: var(--navy, #0f305a);
   border-radius: 999px;
 }
+
+/* ---- «Умный рабочий рапорт»: the main card of the section ---- */
+.doc-smart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: linear-gradient(135deg, #ffffff 0%, #eef7fd 100%);
+  border: 1px solid #c7e3f3;
+  border-left: 5px solid #168bc4;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(24, 49, 83, 0.08);
+
+  @media (max-width: 760px) {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+}
+.doc-smart-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.doc-smart-kicker {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #168bc4;
+}
+.doc-smart-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  color: #183153;
+
+  @media (max-width: 640px) {
+    font-size: 21px;
+  }
+}
+.doc-smart-text {
+  margin: 0;
+  max-width: 720px;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: #34465e;
+}
+.doc-smart-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: smart;
+
+  li {
+    counter-increment: smart;
+    padding: 4px 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #183153;
+    background: #fff;
+    border: 1px solid #d6e8f4;
+    border-radius: 999px;
+  }
+  li::before {
+    content: counter(smart) '. ';
+    color: #168bc4;
+  }
+}
+.doc-smart-side {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  max-width: 260px;
+
+  @media (max-width: 760px) {
+    max-width: none;
+  }
+}
+.doc-smart-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #52637a;
+}
+.doc-btn--large {
+  min-height: 48px;
+  padding: 0 22px;
+  font-size: 16px;
+}
+.doc-smart .doc-btn--primary {
+  background: #168bc4;
+  border-color: #168bc4;
+
+  &:hover:not(:disabled) {
+    background: #11729f;
+    border-color: #11729f;
+  }
+}
+
+/* ---- simple catalog cards ---- */
+.doc-card-meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.doc-card-status {
+  font-weight: 600;
+  color: var(--navy);
+}
+.doc-card-status--official {
+  color: #1d6b45;
+}
+.doc-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: #0f6fa0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
+}
+.doc-card-actions .doc-link-btn {
+  flex: 0 0 auto;
+}
+.doc-legend-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+/* ---- recent documents on «Создание документа» ---- */
+.doc-recent {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  @media (max-width: 640px) {
+    padding: var(--space-4);
+  }
+}
+.doc-recent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.doc-recent-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.doc-recent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  &:hover,
+  &:focus-visible {
+    background: #f6fafd;
+    border-color: #9fcde6;
+  }
+}
+.doc-recent-title {
+  font-weight: 600;
+  color: var(--navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-recent-meta {
+  grid-column: 1;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.doc-recent-row .doc-status {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+@media (max-width: 520px) {
+  .doc-recent-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .doc-recent-row .doc-status {
+    grid-row: auto;
+    grid-column: 1;
+    justify-self: start;
+  }
+}

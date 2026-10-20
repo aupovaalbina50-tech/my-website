@@ -1,22 +1,27 @@
 import { L } from './fields.js'
-import { TEMPLATES } from './templates.js'
+import { CATALOG_IDS, TEMPLATES } from './templates.js'
 
-export { TEMPLATES, TEMPLATE_STATUSES, FREE_TEXT_ID } from './templates.js'
+export { TEMPLATES, TEMPLATE_STATUSES, FREE_TEXT_ID, CATALOG_IDS } from './templates.js'
 export { FIELD_TYPES } from './fields.js'
 
+// Categories of the catalog. Hidden templates may still name the former
+// «analytics» / «personnel» groups; those are not offered any more.
 export const CATEGORIES = [
-  { key: 'service', letter: 'A', title: L('Қызметтік-баяндау құжаттамасы', 'Служебно-докладная документация') },
-  { key: 'reports', letter: 'B', title: L('Есептік құжаттама', 'Отчётная документация') },
-  { key: 'incident', letter: 'C', title: L('Оқиғалар мен ТЖ бойынша құжаттама', 'Документация по происшествиям и ЧС') },
-  { key: 'organization', letter: 'D', title: L('Ұйымдастыру құжаттамасы', 'Организационная документация') },
-  { key: 'acts', letter: 'E', title: L('Актілер мен тіркеу құжаттамасы', 'Актовая и фиксирующая документация') },
-  { key: 'analytics', letter: 'F', title: L('Талдамалық құжаттама', 'Аналитическая документация') },
-  { key: 'personnel', letter: 'G', title: L('Кадрлық / ішкі қызметтік құжаттама', 'Кадровая и внутрислужебная документация') },
+  { key: 'service', letter: 'A', title: L('Қызметтік құжаттама', 'Служебная документация') },
+  { key: 'incident', letter: 'B', title: L('Оқиғалар мен ТЖ бойынша құжаттама', 'Документация по происшествиям и ЧС') },
+  { key: 'reports', letter: 'C', title: L('Есептік құжаттама', 'Отчётная документация') },
+  { key: 'acts', letter: 'D', title: L('Актілер және нәтижелерді тіркеу', 'Акты и фиксация результатов') },
+  { key: 'organization', letter: 'E', title: L('Ұйымдастыру құжаттамасы', 'Организационная документация') },
 ]
 
 const BY_ID = new Map(TEMPLATES.map((t) => [t.id, t]))
 
+/** Every template by id — also the hidden ones, so older documents keep working. */
 export const templateById = (id) => BY_ID.get(id) ?? null
+
+/** The forms offered for new documents, in catalog order. */
+export const CATALOG = CATALOG_IDS.map((id) => BY_ID.get(id))
+export const inCatalog = (id) => CATALOG_IDS.includes(id)
 
 /** Every field of a template in order, with the section it belongs to. */
 export function fieldsOf(template) {
@@ -28,7 +33,7 @@ const lower = (s) => String(s ?? '').toLowerCase()
 /** Templates of a category (or all), matching the search words in either language. */
 export function searchTemplates({ query = '', category = 'all', favorites = null } = {}) {
   const words = lower(query).split(/\s+/).filter(Boolean)
-  return TEMPLATES.filter((t) => {
+  return CATALOG.filter((t) => {
     if (category === 'favorites') {
       if (!favorites?.has(t.id)) return false
     } else if (category !== 'all' && !t.categories.includes(category)) return false
@@ -77,7 +82,7 @@ function haystack(template) {
   }
   return lower(parts.filter(Boolean).join(' ')).split(/[^\p{L}\p{N}]+/u)
 }
-const HAY = new Map(TEMPLATES.map((t) => [t.id, haystack(t)]))
+const HAY = new Map(CATALOG.map((t) => [t.id, haystack(t)]))
 
 /**
  * The catalog with every filter: words (names, purpose and the fields of
@@ -87,7 +92,7 @@ const HAY = new Map(TEMPLATES.map((t) => [t.id, haystack(t)]))
 export function filterCatalog({ query = '', category = 'all', kind = 'all', lang = 'all', status = 'all', favoritesOnly = false, favorites = null, sort = 'category', uiLang = 'ru' } = {}) {
   const words = lower(query).split(/\s+/).filter((w) => w.length > 1)
   const scored = []
-  for (const t of TEMPLATES) {
+  for (const t of CATALOG) {
     if (category !== 'all' && !t.categories.includes(category)) continue
     if (kind !== 'all' && kindOfTemplate(t) !== kind) continue
     if (lang !== 'all' && !templateLanguages(t).includes(lang)) continue

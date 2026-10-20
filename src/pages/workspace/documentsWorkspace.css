@@ -585,136 +585,6 @@
   min-width: 0;
 }
 
-/* ---- dashboard ---- */
-
-.dws-dashboard {
-  display: grid;
-  gap: var(--space-4, 24px);
-}
-
-.dws-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  @media (max-width: 520px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.dws-action {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-width: 0;
-  padding: 16px 18px;
-  color: #fff;
-  text-decoration: none;
-  background: linear-gradient(165deg, rgba(30, 78, 138, 0.55) 0%, rgba(10, 33, 63, 0.8) 100%);
-  border: 1px solid rgba(148, 197, 227, 0.28);
-  border-radius: 14px;
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease;
-
-  & > svg {
-    color: #7dd3fc;
-  }
-}
-
-a.dws-action:hover,
-a.dws-action:focus-visible {
-  transform: translateY(-2px);
-  border-color: rgba(125, 211, 252, 0.7);
-}
-
-.dws-action--create,
-.dws-action--describe {
-  border-top: 3px solid #e2343f;
-}
-
-.dws-action.is-disabled {
-  opacity: 0.6;
-}
-
-.dws-action-title {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.dws-action-text {
-  font-size: 14px;
-  line-height: 1.45;
-  color: #c7d8ec;
-  overflow-wrap: anywhere;
-}
-
-.dws-counters {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-
-  & > .dws-muted,
-  & > .dws-error {
-    grid-column: 1 / -1;
-  }
-  @media (max-width: 760px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.dws-counter {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 2px 12px;
-  padding: 14px 18px;
-  color: #fff;
-  text-decoration: none;
-  background: rgba(10, 33, 63, 0.72);
-  border: 1px solid rgba(148, 197, 227, 0.22);
-  border-left: 4px solid #7dd3fc;
-  border-radius: 12px;
-
-  & > svg {
-    grid-row: span 2;
-    color: #7dd3fc;
-  }
-}
-
-.dws-counter:hover,
-.dws-counter:focus-visible {
-  border-color: rgba(125, 211, 252, 0.6);
-}
-
-.dws-counter--issues {
-  border-left-color: #f97316;
-}
-.dws-counter--checked {
-  border-left-color: #38bdf8;
-}
-.dws-counter--ready {
-  border-left-color: #22c55e;
-}
-
-.dws-counter-value {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.dws-counter-label {
-  font-size: 13.5px;
-  color: #c7d8ec;
-}
-
-.dws-empty--inline {
-  padding: 16px;
-}
-
 .dws-public-open {
   justify-self: start;
   color: #fff;
@@ -833,53 +703,6 @@ a.dws-action:focus-visible {
   }
 }
 
-/* ---- dashboard search ---- */
-
-.dws-search {
-  display: grid;
-  gap: 10px;
-}
-
-.dws-search-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-  color: #7dd3fc;
-  background: rgba(10, 33, 63, 0.8);
-  border: 1px solid rgba(148, 197, 227, 0.35);
-  border-radius: 12px;
-
-  & input {
-    flex: 1;
-    min-width: 0;
-    min-height: 48px;
-    font: inherit;
-    font-size: 16px;
-    color: #fff;
-    background: transparent;
-    border: 0;
-    outline: none;
-  }
-  & input::placeholder {
-    color: #9fb6cf;
-  }
-  &:focus-within {
-    border-color: #7dd3fc;
-  }
-}
-
-.dws-search-results {
-  display: grid;
-  gap: 10px;
-  padding: 14px 16px;
-  background: rgba(10, 33, 63, 0.88);
-  border: 1px solid rgba(148, 197, 227, 0.3);
-  border-radius: 12px;
-}
-
-/* ---- registry of sources ---- */
-
 .dws-sources-group {
   display: grid;
   gap: 8px;
@@ -924,5 +747,197 @@ a.dws-action:focus-visible {
 
   & a {
     color: #bae6fd;
+  }
+}
+
+/* =============================================================
+   The account environment («Центр работы со служебными документами»):
+   a light panel over the blue page — white blocks, dark navy text, one
+   blue accent. The public /documents keeps the dark cards above.
+   ============================================================= */
+
+.dws-page--light {
+  --dws-bg: rgba(243, 247, 251, 0.97);
+  --dws-surface: #fff;
+  --dws-text: #183153;
+  --dws-soft: #52637a;
+  --dws-line: #dbe4ee;
+  --dws-accent: #168bc4;
+  --dws-accent-soft: #e8f4fb;
+
+  padding: 24px;
+  color: var(--dws-text);
+  background: var(--dws-bg);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(4, 14, 30, 0.25);
+
+  @media (max-width: 640px) {
+    padding: 16px 12px;
+    border-radius: 16px;
+  }
+
+  & .dws-hero {
+    background: var(--dws-surface);
+    border: 1px solid var(--dws-line);
+    border-top: 3px solid var(--dws-accent);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  & .dws-hero-icon {
+    color: var(--dws-accent);
+    background: var(--dws-accent-soft);
+    border-color: #c7e3f3;
+  }
+  & .dws-hero-kicker {
+    color: var(--dws-accent);
+  }
+  & .dws-hero-title {
+    color: var(--dws-text);
+  }
+  & .dws-hero-lead {
+    color: var(--dws-soft);
+  }
+
+  & .dws-nav {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: var(--dws-line);
+    box-shadow: 0 6px 18px rgba(24, 49, 83, 0.08);
+  }
+  & .dws-nav-link {
+    color: var(--dws-soft);
+  }
+  & .dws-nav-link:hover,
+  & .dws-nav-link:focus-visible {
+    color: var(--dws-text);
+    background: var(--dws-accent-soft);
+  }
+  & .dws-nav-link.is-active {
+    color: var(--dws-text);
+    background: var(--dws-accent-soft);
+    box-shadow: inset 0 -3px 0 var(--dws-accent);
+  }
+
+  & .dws-block,
+  & .dws-empty {
+    color: var(--dws-text);
+    background: var(--dws-surface);
+    border: 1px solid var(--dws-line);
+    backdrop-filter: none;
+  }
+  & .dws-empty {
+    border-style: dashed;
+  }
+  & .dws-block-title {
+    color: var(--dws-text);
+  }
+  & .dws-block-title svg {
+    color: var(--dws-accent);
+  }
+  & .dws-block-lead,
+  & .dws-muted,
+  & .dws-row-meta,
+  & .dws-history-changes {
+    color: var(--dws-soft);
+  }
+  & .dws-block-link,
+  & .dws-history-links a,
+  & .dws-source-link,
+  & .dws-sites a {
+    color: #0f6fa0;
+  }
+  & .dws-error {
+    color: #b42318;
+  }
+  & .dws-retry,
+  & .dws-empty .dws-card-cta {
+    color: var(--dws-text);
+    background: var(--dws-accent-soft);
+    border-color: #b9dcef;
+  }
+
+  & .dws-row,
+  & .dws-history-item {
+    color: var(--dws-text);
+    background: #fff;
+    border-color: var(--dws-line);
+  }
+  & .dws-row:hover,
+  & .dws-row:focus-visible {
+    background: #f6fafd;
+    border-color: #9fcde6;
+  }
+  & .dws-row-icon {
+    color: var(--dws-accent);
+    background: var(--dws-accent-soft);
+  }
+  & .dws-row-badge {
+    color: #1d6b45;
+    background: #e8f6ee;
+  }
+  & .dws-row-badge.is-issues {
+    color: #9a3412;
+    background: #fff1e6;
+  }
+  & .dws-history-head a {
+    color: var(--dws-text);
+  }
+  & .dws-history-counts li {
+    color: var(--dws-soft);
+    background: #f2f5f9;
+  }
+  & .dws-history-counts .is-open {
+    color: #9a3412;
+  }
+  & .dws-history-counts .is-accepted,
+  & .dws-history-changes ins {
+    color: #1d6b45;
+  }
+  & .dws-history-counts .is-rejected,
+  & .dws-history-changes del {
+    color: #b42318;
+  }
+  & .dws-select {
+    color: var(--dws-text);
+    background: #fff;
+    border: 1px solid var(--dws-line);
+  }
+
+  /* «Источники и история»: plain white entries; a colour mark only where the
+     registry really knows the state of the act. */
+  & .dws-sources-title {
+    color: var(--dws-text);
+  }
+  & .dws-source {
+    border-left: 4px solid var(--dws-line);
+  }
+  & .dws-source--confirmed {
+    border-left-color: #2e9d62;
+  }
+  & .dws-source--outdated {
+    border-left-color: #d92d20;
+  }
+  & .dws-source-state {
+    color: #b42318;
+  }
+  & .dws-source--confirmed .dws-source-state {
+    color: #1d6b45;
+  }
+
+  /* The builder screens inside the light panel. */
+  & .doc-group-title {
+    color: var(--dws-text);
+    text-shadow: none;
+
+    & span {
+      background: var(--dws-accent);
+    }
+  }
+  & .doc-loading {
+    color: var(--dws-text);
+  }
+  & .doc-card {
+    border-top-color: var(--dws-accent);
+    box-shadow: 0 4px 14px rgba(24, 49, 83, 0.06);
   }
 }
