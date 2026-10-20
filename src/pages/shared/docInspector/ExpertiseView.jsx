@@ -11,6 +11,7 @@ import { adiletUrl, isPairTerm, pairForResult } from './confusables.js'
 import { conclusionText, isPartial, reasoningSteps, termProfile } from './expertise.js'
 import { documentTypeLabel, entryText, same } from './helpers.js'
 import { TrilingualLine } from './ui.jsx'
+import { isStyleTerm } from './styleRules.js'
 
 // ---- Stage navigation -------------------------------------------------------------
 
@@ -61,6 +62,14 @@ export function StageNav({ stage, reachable, done, onGo, ti }) {
 export function CheckNotes({ inspection, ti }) {
   const { ai, lookup, unreadablePages, illegiblePages } = inspection
   const notes = []
+  const server = inspection.server
+  if (server?.failedChunks > 0) {
+    notes.push({
+      key: 'server',
+      warn: true,
+      text: ti.serverFailed(server.failedChunks, ai?.totalChunks ?? server.failedChunks),
+    })
+  }
   if (ai?.failedChunks > 0) {
     notes.push({
       key: 'ai',
@@ -183,6 +192,9 @@ function BasisBlock({ result, candidate, ti, lang }) {
     const side = candidate.term.id.endsWith(':A') ? pair.a : pair.b
     definition = side.definition[lang] ?? side.definition.ru
     links = pair.sources.map((s) => ({ href: adiletUrl(s.docId, lang), label: s.label[lang] }))
+  } else if (candidate && result.source === 'style') {
+    source = ti.basisStyle
+    term = candidate.official
   } else if (candidate) {
     source = result.source === 'glossary' || result.baseMatch ? ti.basisGlossary : ti.basisBaseAi
     term = entryText(candidate.term, result, candidate.official)
@@ -212,7 +224,7 @@ function BasisBlock({ result, candidate, ti, lang }) {
             <dd>«{term}»</dd>
           </>
         )}
-        {candidate && (
+        {candidate && result.source !== 'style' && (
           <>
             <dt>{ti.basisDefinition}</dt>
             <dd>{definition ?? <span className="insp-muted">{ti.definitionMissing}</span>}</dd>
@@ -409,7 +421,7 @@ export function FindingCard({
 
           <WhyBlock result={result} location={location} ti={ti} lang={lang} />
 
-          {shown?.term && !isPairTerm(shown.term) && (
+          {shown?.term && !isPairTerm(shown.term) && !isStyleTerm(shown.term) && (
             <button type="button" className="insp-text-btn" onClick={() => onAddToDictionary(shown.term)} disabled={favoriteIds.has(shown.term.id)}>
               {favoriteIds.has(shown.term.id) ? <BookmarkCheck size={14} aria-hidden="true" /> : <BookmarkPlus size={14} aria-hidden="true" />}
               {favoriteIds.has(shown.term.id) ? ti.inDictionary : ti.addToDictionary}

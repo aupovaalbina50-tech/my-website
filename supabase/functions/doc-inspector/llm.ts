@@ -240,9 +240,9 @@ function toGeminiSchema(schema: any): any {
 // answer at all. A model call is dropped well before that, so the function
 // still returns the base matches with ai.status = 'failed'. A preferred
 // model that is too slow leaves time for the shared one.
-const MODEL_TIMEOUT_MS = 110_000
-const PREFERRED_TIMEOUT_MS = 75_000
-const FALLBACK_TIMEOUT_MS = 50_000
+const MODEL_TIMEOUT_MS = 90_000
+const PREFERRED_TIMEOUT_MS = 55_000
+const FALLBACK_TIMEOUT_MS = 35_000
 
 // Reasons Gemini stops without (usable) output because of its content filters.
 const BLOCKED_FINISH_REASONS = new Set(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'])

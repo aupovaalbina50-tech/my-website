@@ -148,7 +148,9 @@ function TermPopup({ result, onClose, onDetails, ti }) {
   const source = candidate
     ? isPairTerm(candidate.term)
       ? ti.basisConfusableShort
-      : ti.sourceOfficialBase
+      : result.source === 'style'
+        ? ti.basisStyle
+        : ti.sourceOfficialBase
     : result.external
       ? ti.basisExternal
       : result.status === 'ok'
