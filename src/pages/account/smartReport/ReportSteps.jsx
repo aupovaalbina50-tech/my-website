@@ -172,13 +172,19 @@ function factStatus(field, fact) {
   return 'fact'
 }
 
+/**
+ * One field. A fact taken from the description needs no mark (its source
+ * phrase is in the tooltip); only what needs attention is labelled: an
+ * assumption (with its source phrase and «Подтвердить») or a required
+ * field that is still empty.
+ */
 function FactField({ field, fact, onChange, onConfirm, readOnly, tr, lang }) {
   const empty = !fact.value?.trim()
   const status = factStatus(field, fact)
   const inferred = fact.inferred && !empty
   return (
     <div
-      className={`report-fact${field.required && empty ? ' report-fact--missing' : ''}${inferred ? ' report-fact--inferred' : ''}${
+      className={`report-fact${status === 'missing' ? ' report-fact--missing' : ''}${status === 'assumption' ? ' report-fact--inferred' : ''}${
         field.wide ? ' report-fact--wide' : ''
       }${field.time ? ' report-fact--time' : ''}`}
     >
@@ -196,24 +202,20 @@ function FactField({ field, fact, onChange, onConfirm, readOnly, tr, lang }) {
         value={fact.value ?? ''}
         onChange={(e) => onChange(field.key, e.target.value)}
         placeholder={field.time ? '00:00' : ''}
+        title={fact.quote ? `${tr.step2.fromText} «${fact.quote}»` : undefined}
         readOnly={readOnly}
       />
-      <div className="report-fact-status">
-        {status !== 'empty' && (
-          <span className={`report-dot report-dot--${status}`} title={fact.quote ? `«${fact.quote}»` : undefined}>
-            {tr.factStatus[status]}
-          </span>
-        )}
-        {inferred && !readOnly && (
-          <button type="button" className="report-confirm" onClick={() => onConfirm(field.key)}>
-            <Check size={13} aria-hidden="true" />
-            {tr.step2.confirm}
-          </button>
-        )}
-      </div>
-      {fact.quote && (
-        <p className="report-quote" title={fact.quote}>
-          «{fact.quote}»
+      {status === 'missing' && <p className="report-fact-note report-fact-note--missing">{tr.factStatus.missing}</p>}
+      {status === 'assumption' && (
+        <p className="report-fact-note report-fact-note--assumption">
+          <span>{tr.factStatus.assumption}</span>
+          {fact.quote && fact.quote.trim().toLowerCase() !== fact.value.trim().toLowerCase() && <span className="report-fact-source">«{fact.quote}»</span>}
+          {inferred && !readOnly && (
+            <button type="button" className="report-confirm" onClick={() => onConfirm(field.key)}>
+              <Check size={13} aria-hidden="true" />
+              {tr.step2.confirm}
+            </button>
+          )}
         </p>
       )}
     </div>
@@ -233,13 +235,7 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
   return (
     <div className="report-step">
       <p className="report-step-hint">{tr.step2.hint}</p>
-      <StatusBar
-        items={[
-          { key: 'found', value: filled, label: tr.status.found },
-          { key: 'review', value: inferred.length + chrono.length, label: tr.status.review },
-          { key: 'missing', value: missing.length, label: tr.status.missing },
-        ]}
-      />
+      <p className="report-step-summary">{tr.step2.summary(filled, inferred.length + chrono.length, missing.length)}</p>
 
       <div className="report-title-row">
         <label className="report-fact-label" htmlFor="report-title">
@@ -260,12 +256,15 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
           <details key={group.key} className="report-group" open={startOpen}>
             <summary className="report-group-head">
               <span className="report-group-title">{group.title[lang]}</span>
-              <span className="report-group-count">
-                {filledHere}/{fields.length}
-              </span>
-              {missingHere > 0 && <span className="report-group-flag report-group-flag--missing">{tr.step2.missingCount(missingHere)}</span>}
-              {inferredHere > 0 && <span className="report-group-flag report-group-flag--review">{tr.step2.inferredCount(inferredHere)}</span>}
-              {chronoHere && <span className="report-group-flag report-group-flag--review">{tr.step2.chronoFlag}</span>}
+              <span className="report-group-count">{tr.step2.groupCount(filledHere, fields.length)}</span>
+              {/* One note per group, the most important one. */}
+              {missingHere > 0 ? (
+                <span className="report-group-flag report-group-flag--missing">{tr.step2.missingCount(missingHere)}</span>
+              ) : chronoHere ? (
+                <span className="report-group-flag report-group-flag--review">{tr.step2.chronoFlag}</span>
+              ) : inferredHere > 0 ? (
+                <span className="report-group-flag report-group-flag--review">{tr.step2.inferredCount(inferredHere)}</span>
+              ) : null}
             </summary>
             {chronoHere && (
               <ul className="report-chrono">
