@@ -48,7 +48,7 @@ export async function callModel(call: ModelCall): Promise<{ json: any; model: st
   if (geminiKey) {
     if (call.geminiModel && call.geminiModel !== GEMINI_MODEL) {
       try {
-        return await callGemini(call, geminiKey)
+        return await callGemini(call, geminiKey, PREFERRED_TIMEOUT_MS)
       } catch (error) {
         // Unknown name, quota or an outage of the preferred model: the shared
         // one still answers. Refusals and cut-off answers are real results.
@@ -58,7 +58,9 @@ export async function callModel(call: ModelCall): Promise<{ json: any; model: st
     }
     // The shared model after a failed preferred one gets the call without its
     // model-specific options; otherwise the call goes as given.
-    return callGemini(call.geminiModel && call.geminiModel !== GEMINI_MODEL ? { ...call, geminiModel: undefined, thinkingBudget: undefined } : call, geminiKey)
+    return call.geminiModel && call.geminiModel !== GEMINI_MODEL
+      ? callGemini({ ...call, geminiModel: undefined, thinkingBudget: undefined }, geminiKey, FALLBACK_TIMEOUT_MS)
+      : callGemini(call, geminiKey, MODEL_TIMEOUT_MS)
   }
   throw new InspectionError(500, 'config_error', 'Set the GEMINI_API_KEY (free) or ANTHROPIC_API_KEY secret')
 }
@@ -234,10 +236,18 @@ function toGeminiSchema(schema: any): any {
   return out
 }
 
+// The platform stops a function after ~150 s and the page then gets no
+// answer at all. A model call is dropped well before that, so the function
+// still returns the base matches with ai.status = 'failed'. A preferred
+// model that is too slow leaves time for the shared one.
+const MODEL_TIMEOUT_MS = 110_000
+const PREFERRED_TIMEOUT_MS = 75_000
+const FALLBACK_TIMEOUT_MS = 50_000
+
 // Reasons Gemini stops without (usable) output because of its content filters.
 const BLOCKED_FINISH_REASONS = new Set(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'])
 
-async function callGemini({ system, parts, schema, maxTokens, geminiModel, thinkingBudget }: ModelCall, apiKey: string) {
+async function callGemini({ system, parts, schema, maxTokens, geminiModel, thinkingBudget }: ModelCall, apiKey: string, timeoutMs = MODEL_TIMEOUT_MS) {
   const modelName = geminiModel || GEMINI_MODEL
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
   let res: Response
@@ -264,8 +274,10 @@ async function callGemini({ system, parts, schema, maxTokens, geminiModel, think
           ...(thinkingBudget === undefined ? {} : { thinkingConfig: { thinkingBudget } }),
         },
       }),
+      signal: AbortSignal.timeout(timeoutMs),
     })
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new InspectionError(503, 'ai_unavailable', `Gemini did not answer in ${timeoutMs / 1000} s`)
     throw new InspectionError(503, 'ai_unavailable', 'Gemini API is unreachable')
   }
 
