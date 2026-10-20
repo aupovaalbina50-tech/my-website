@@ -1,4 +1,3 @@
--- =============================================================
 -- Terms on «Х», «Ш», «Ы», «Л» (Kazakh): the old cards are replaced by the
 -- user's lists (kk / ru / en): «Х» — 39, «Ш» — 35, «Ы» — 91, «Л» — 82
 -- (247 terms). Exact duplicates inside the lists are dropped (лақтыра жарылыс,
@@ -18,7 +17,6 @@
 --
 -- Apply: Supabase → SQL Editor → paste this file → Run
 --   or:  npx supabase db query --linked -f supabase/migrations/0060_replace_kk_kh_sh_y_l_terms.sql
--- =============================================================
 
 begin;
 
