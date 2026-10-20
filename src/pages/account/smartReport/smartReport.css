@@ -475,10 +475,16 @@
 }
 .report-busy {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   color: var(--navy);
+}
+.report-busy-slow {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: #8a5a00;
 }
 
 .report-notice {

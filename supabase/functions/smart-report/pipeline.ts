@@ -92,6 +92,7 @@ export async function extractFacts(rawText: unknown, lang: Lang, rawToday: unkno
     parts: [{ type: 'text', text: `Описание ситуации:\n"""\n${text}\n"""` }],
     schema: EXTRACT_SCHEMA,
     maxTokens: 8000,
+    thinkingBudget: 0,
   })
 
   // Keep a fact only if its quote really is in the description (or it has no
@@ -176,6 +177,7 @@ export async function composeReport(body: any, lang: Lang) {
     ],
     schema: COMPOSE_SCHEMA,
     maxTokens: 10000,
+    thinkingBudget: 1024,
   })
 
   const byKey = new Map<string, string>()
@@ -242,6 +244,7 @@ export async function reviewReport(body: any, lang: Lang) {
     ],
     schema: REVIEW_SCHEMA,
     maxTokens: 8000,
+    thinkingBudget: 1024,
   })
 
   // «K3» / «R1» → the entry it names; anything else (or an invented number) → null.

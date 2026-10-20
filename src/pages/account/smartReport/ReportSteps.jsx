@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   Check,
@@ -21,11 +21,20 @@ import { dateIssue, hasPlaceholder, inferredFacts, missingFacts, requisiteIssues
 // The five steps of «Рапортты құрастыру». Each step is a plain view over the
 // draft; the editor owns the state, saving and the server calls.
 
-function Busy({ label }) {
+// After this long a waiting user is told the service is slow, not stuck.
+const SLOW_MS = 15000
+
+function Busy({ label, slowLabel }) {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SLOW_MS)
+    return () => clearTimeout(timer)
+  }, [])
   return (
     <span className="report-busy" role="status">
       <Loader2 size={18} className="report-spin" aria-hidden="true" />
       {label}
+      {slow && slowLabel && <span className="report-busy-slow">{slowLabel}</span>}
     </span>
   )
 }
@@ -128,7 +137,7 @@ export function StepSituation({ draft, patch, onExtract, busy, error, readOnly, 
             {hasFacts ? tr.step1.reextract : tr.step1.extract}
           </button>
         )}
-        {busy && <Busy label={tr.step1.extracting} />}
+        {busy && <Busy label={tr.step1.extracting} slowLabel={tr.step1.slow} />}
       </div>
       {error && <p className="report-error">{error}</p>}
     </div>
@@ -300,7 +309,7 @@ export function StepFacts({ draft, template, patch, onCompose, busy, error, read
             <Wand2 size={18} aria-hidden="true" />
             {tr.step2.compose}
           </button>
-          {busy && <Busy label={tr.step2.composing} />}
+          {busy && <Busy label={tr.step2.composing} slowLabel={tr.step1.slow} />}
         </div>
       )}
       {error && <p className="report-error">{error}</p>}
@@ -319,7 +328,7 @@ export function StepPhrasing({ draft, onCompose, onNext, busy, error, readOnly, 
       <KnowledgeNote knowledge={draft.content?.knowledge} tr={tr} />
       {busy ? (
         <div className="report-phrasing-loading">
-          <Busy label={tr.step2.composing} />
+          <Busy label={tr.step2.composing} slowLabel={tr.step1.slow} />
         </div>
       ) : draft.phrasing?.length ? (
         // A new key per composition replays the animation after «Составить заново».
@@ -674,7 +683,7 @@ export function StepCheck({
               </button>
             )}
           </div>
-          {reviewing && <Busy label={tr.step5.reviewing} />}
+          {reviewing && <Busy label={tr.step5.reviewing} slowLabel={tr.step1.slow} />}
           {reviewError && <p className="report-error">{reviewError}</p>}
           {reviewOutdated && !reviewing && <p className="report-note">{tr.step5.outdated}</p>}
 

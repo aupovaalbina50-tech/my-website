@@ -8,6 +8,11 @@
 // one, so the tool keeps working. The expertise and the chat are unaffected.
 //
 //   supabase secrets set SMART_REPORT_GEMINI_MODEL=<model>   (default gemini-flash-latest)
+//
+// Speed: flash models «think» before answering, and by default that thinking
+// is unbounded — a plain extraction then took most of a minute. Each step
+// sets its own budget (`thinkingBudget`, tokens): 0 for extracting facts, a
+// small one for composing and proof-reading.
 
 import { callModel, InspectionError, type ModelCall } from '../doc-inspector/llm.ts'
 
@@ -30,24 +35,38 @@ function toGeminiSchema(schema: any): any {
   return out
 }
 
+export type ReportModelCall = ModelCall & { thinkingBudget?: number }
+
+// The platform stops a function after ~150 s; a slow answer is dropped well
+// before that, so the shared model still has time to answer instead.
+const REPORT_MODEL_TIMEOUT_MS = 60000
+
+const post = (apiKey: string, body: unknown) =>
+  fetch(`https://generativelanguage.googleapis.com/v1beta/models/${REPORT_GEMINI_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REPORT_MODEL_TIMEOUT_MS),
+  })
+
 /** One attempt on the report's own Gemini model; null = try the shared model instead. */
-async function callReportGemini({ system, parts, schema, maxTokens }: ModelCall, apiKey: string) {
+async function callReportGemini({ system, parts, schema, maxTokens, thinkingBudget }: ReportModelCall, apiKey: string) {
+  const generationConfig: Record<string, unknown> = {
+    temperature: 0,
+    maxOutputTokens: maxTokens,
+    responseMimeType: 'application/json',
+    responseSchema: toGeminiSchema(schema),
+  }
+  const body = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: 'user', parts: parts.filter((p) => p.type === 'text').map((p) => ({ text: (p as { text: string }).text })) }],
+    generationConfig: thinkingBudget === undefined ? generationConfig : { ...generationConfig, thinkingConfig: { thinkingBudget } },
+  }
   let res: Response
   try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${REPORT_GEMINI_MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: parts.filter((p) => p.type === 'text').map((p) => ({ text: (p as { text: string }).text })) }],
-        generationConfig: {
-          temperature: 0,
-          maxOutputTokens: maxTokens,
-          responseMimeType: 'application/json',
-          responseSchema: toGeminiSchema(schema),
-        },
-      }),
-    })
+    res = await post(apiKey, body)
+    // A model that does not accept this thinking budget: once more without it.
+    if (res.status === 400 && thinkingBudget !== undefined) res = await post(apiKey, { ...body, generationConfig })
   } catch {
     return null
   }
@@ -55,7 +74,8 @@ async function callReportGemini({ system, parts, schema, maxTokens }: ModelCall,
     console.warn(`smart-report: ${REPORT_GEMINI_MODEL} unavailable (${res.status}), falling back to the shared model`)
     return null
   }
-  const data = await res.json()
+  const data = await res.json().catch(() => null)
+  if (!data) return null
   if (data?.promptFeedback?.blockReason) throw new InspectionError(422, 'refused', `Gemini blocked the request: ${data.promptFeedback.blockReason}`)
   const candidate = data?.candidates?.[0]
   if (candidate?.finishReason === 'MAX_TOKENS') throw new InspectionError(502, 'truncated', 'The model output was cut off')
@@ -70,10 +90,10 @@ async function callReportGemini({ system, parts, schema, maxTokens }: ModelCall,
   }
 }
 
-export async function callReportModel(call: ModelCall): Promise<{ json: any; model: string }> {
+export async function callReportModel({ thinkingBudget, ...call }: ReportModelCall): Promise<{ json: any; model: string }> {
   const geminiKey = Deno.env.get('GEMINI_API_KEY')
   if (!Deno.env.get('ANTHROPIC_API_KEY') && geminiKey) {
-    const result = await callReportGemini(call, geminiKey)
+    const result = await callReportGemini({ ...call, thinkingBudget }, geminiKey)
     if (result) return result
   }
   return callModel(call)
