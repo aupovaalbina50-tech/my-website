@@ -46,6 +46,31 @@ function UploadScreen({ onFile, history, onOpenHistory, ti, lang }) {
 
   return (
     <div className="inspector-upload">
+      {/* The instructions come first, so the user reads how the check works before uploading. */}
+      <section className="inspector-guide" aria-labelledby="inspector-guide-title">
+        <h3 id="inspector-guide-title" className="inspector-subheading">{ti.howTitle}</h3>
+        <ol className="inspector-how">
+          {ti.howSteps.map((step) => (
+            <li key={step.title}>
+              <strong>{step.title}</strong> — {step.text}
+            </li>
+          ))}
+        </ol>
+
+        <p className="inspector-important">
+          <strong>{ti.importantLabel}</strong> {ti.importantText}
+        </p>
+
+        <dl className="inspector-facts">
+          {ti.facts.map((fact) => (
+            <div key={fact.label} className="inspector-fact">
+              <dt>{fact.label}:</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       <h3 className="inspector-subheading">{ti.uploadHeading}</h3>
       <div
         className={`inspector-dropzone${dragging ? ' inspector-dropzone--active' : ''}`}
@@ -113,28 +138,6 @@ function UploadScreen({ onFile, history, onOpenHistory, ti, lang }) {
       </div>
 
       <HistoryList history={history} onOpen={onOpenHistory} ti={ti} lang={lang} />
-
-      <h3 className="inspector-subheading">{ti.howTitle}</h3>
-      <ol className="inspector-how">
-        {ti.howSteps.map((step) => (
-          <li key={step.title}>
-            <strong>{step.title}</strong> — {step.text}
-          </li>
-        ))}
-      </ol>
-
-      <p className="inspector-important">
-        <strong>{ti.importantLabel}</strong> {ti.importantText}
-      </p>
-
-      <dl className="inspector-facts">
-        {ti.facts.map((fact) => (
-          <div key={fact.label} className="inspector-fact">
-            <dt>{fact.label}:</dt>
-            <dd>{fact.value}</dd>
-          </div>
-        ))}
-      </dl>
     </div>
   )
 }
