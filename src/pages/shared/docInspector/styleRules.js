@@ -476,7 +476,9 @@ export function styleFindings(pages) {
           start,
           end,
           text,
-          status: 'review',
+          // A verified form is a confirmed fix (the user can still reject it);
+          // without one the phrase has to be rephrased by hand.
+          status: suggestion ? 'fix' : 'review',
           matchType: 'semantic',
           confidence: 0.95,
           level: 'high',
