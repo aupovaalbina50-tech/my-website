@@ -8,12 +8,10 @@
 // as Было / Стало / Основание, and the document before / after side by side.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Loader2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { categoryOf, chosenFix } from './pipeline.js'
 import { isPairTerm } from './confusables.js'
-import { CATEGORY_ICON } from './helpers.js'
 import { fixableResults } from './expertise.js'
-
 
 /** Index of the candidate currently applied for a finding, or null. */
 function appliedIndex(result, decision, choice) {
@@ -59,9 +57,9 @@ export function FixDialog({ inspection, decisions, choices, onApply, onCancel, b
   }
 
   return (
-    <div className="inspector-modal-backdrop" onClick={onCancel}>
+    <div className="insp-modal-backdrop" onClick={onCancel}>
       <div
-        className="inspector-modal"
+        className="insp-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="inspector-fix-dialog-title"
@@ -69,40 +67,55 @@ export function FixDialog({ inspection, decisions, choices, onApply, onCancel, b
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="inspector-modal-title" id="inspector-fix-dialog-title">
+        <h3 className="insp-modal-title" id="inspector-fix-dialog-title">
           {ti.dialogTitle(confirmedCount)}
-        </p>
-        <p className="inspector-summary-note">{ti.dialogLead}</p>
+        </h3>
+        <p className="insp-muted">{ti.dialogLead}</p>
 
         {items.length === 0 ? (
-          <p className="inspector-empty">{ti.noFixes}</p>
+          <p className="insp-empty">{ti.noFixes}</p>
         ) : (
-          <ul className="inspector-fix-checks">
+          <ul className="insp-fix-list">
             {items.map((r) => {
               const category = categoryOf(r)
               const index = selection[r.id]
               const several = r.candidates.filter((c) => c.applicable).length > 1
               const needsDecision = r.status !== 'fix' && appliedIndex(r, decisions[r.id], choices[r.id]) === null
               const shown = r.candidates[index ?? firstApplicable(r)]
+              const reason = r.explanation || (r.errorType ? ti.errorTypes[r.errorType] : null)
+              const basis = isPairTerm(shown.term) ? ti.basisConfusableShort : r.source === 'glossary' || r.baseMatch ? ti.basisGlossary : ti.basisBaseAi
               return (
-                <li key={r.id} className={`inspector-fix-check${index !== null ? ' inspector-fix-check--on' : ''}`}>
-                  <label className="inspector-fix-check-main">
+                <li key={r.id} className={`insp-fix${index !== null ? ' is-on' : ''}`}>
+                  <label className="insp-fix-main">
                     <input type="checkbox" checked={index !== null} onChange={() => toggle(r)} />
-                    <span className="inspector-fix-check-text">
-                      <span className="inspector-fix-was">«{r.text}»</span>
-                      <span aria-hidden="true"> → </span>
-                      <span className="inspector-fix-proposed">«{shown.suggestion}»</span>
+                    <span className="insp-fix-pair">
+                      <span>
+                        <span className="insp-fix-label">{ti.wasLabel}</span>
+                        <span className="insp-fix-was">«{r.text}»</span>
+                      </span>
+                      <span>
+                        <span className="insp-fix-label">{ti.recommendedShort}</span>
+                        <span className="insp-fix-proposed">«{shown.suggestion}»</span>
+                      </span>
                     </span>
                   </label>
-                  <span className="inspector-fix-check-meta">
-                    {CATEGORY_ICON[category]} {ti.categoriesShort[category]} · {locate(r)}
-                    {needsDecision && <span className="inspector-fix-check-flag"> — {ti.dialogNeedsDecision}</span>}
-                  </span>
+                  <p className="insp-fix-meta">
+                    {ti.categories[category]} · {locate(r)}
+                    {needsDecision && <span className="insp-fix-flag"> · {ti.dialogNeedsDecision}</span>}
+                  </p>
+                  {reason && (
+                    <p className="insp-fix-line">
+                      <span className="insp-fix-label">{ti.reasonShort}</span> {reason}
+                    </p>
+                  )}
+                  <p className="insp-fix-line">
+                    <span className="insp-fix-label">{ti.changeBasis}</span> {basis}
+                  </p>
                   {several && (
-                    <span className="inspector-fix-options">
+                    <span className="insp-fix-options">
                       {r.candidates.map((c, i) =>
                         c.applicable ? (
-                          <label key={c.term.id} className="inspector-fix-option">
+                          <label key={c.term.id} className="insp-fix-option">
                             <input type="radio" name={`dialog-${r.id}`} checked={index === i} onChange={() => pick(r, i)} />
                             {ti.variantN(i + 1)}: «{c.suggestion}»
                           </label>
@@ -110,20 +123,19 @@ export function FixDialog({ inspection, decisions, choices, onApply, onCancel, b
                       )}
                     </span>
                   )}
-                  {index !== null && isPairTerm(r.candidates[index]?.term) && <span className="inspector-card-note">{ti.rephraseNote}</span>}
+                  {index !== null && isPairTerm(r.candidates[index]?.term) && <p className="insp-card-note">{ti.rephraseNote}</p>}
                 </li>
               )
             })}
           </ul>
         )}
 
-        <div className="inspector-modal-actions">
-          <button type="button" className="inspector-btn inspector-btn--primary" onClick={apply} disabled={selectedCount === 0 || building}>
-            {building ? <Loader2 size={16} className="inspector-spin" aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
+        <div className="insp-modal-actions">
+          <button type="button" className="insp-btn insp-btn--primary" onClick={apply} disabled={selectedCount === 0 || building}>
+            {building && <Loader2 size={16} className="insp-spin" aria-hidden="true" />}
             {building ? ti.building : ti.applySelected(selectedCount)}
           </button>
-          <button type="button" className="inspector-btn" onClick={onCancel}>
-            <X size={16} aria-hidden="true" />
+          <button type="button" className="insp-btn" onClick={onCancel}>
             {ti.cancel}
           </button>
         </div>
@@ -151,18 +163,18 @@ function pageParts(text, changes, side) {
 
 function CompareColumn({ title, pages, side, changesByPage, ti }) {
   return (
-    <div className="inspector-compare-col">
-      <p className="inspector-compare-title">{title}</p>
-      <div className="inspector-compare-body">
+    <div className="insp-compare-col">
+      <p className="insp-compare-title">{title}</p>
+      <div className="insp-compare-body">
         {pages.map((page) => (
-          <div key={page.number} className="inspector-compare-page">
-            {pages.length > 1 && <p className="inspector-compare-page-label">{ti.pageLabel(page.number)}</p>}
-            <p className="inspector-compare-text">
+          <div key={page.number} className="insp-compare-page">
+            {pages.length > 1 && <p className="insp-compare-page-label">{ti.pageLabel(page.number)}</p>}
+            <p className="insp-compare-text">
               {pageParts(page.text, changesByPage.get(page.number) ?? [], side).map((part, i) =>
                 part.kind === 'plain' ? (
                   <span key={i}>{part.text}</span>
                 ) : (
-                  <mark key={i} className={`inspector-diff inspector-diff--${part.kind}`}>
+                  <mark key={i} className={`insp-diff insp-diff--${part.kind}`}>
                     {part.text}
                   </mark>
                 ),
@@ -192,22 +204,22 @@ export function ChangesCompare({ inspection, decisions, choices, locate, ti }) {
   const pages = inspection.doc.pages.filter((p) => p.text.trim())
 
   return (
-    <section className="inspector-block">
-      <p className="inspector-block-title">{ti.compareChanges}</p>
-      <ol className="inspector-change-list">
+    <section className="insp-compare-section">
+      <p className="insp-section-label">{ti.compareChanges}</p>
+      <ol className="insp-change-list">
         {changes.map(({ result, suggestion, fromPair }) => (
-          <li key={result.id} className="inspector-change">
-            <span className="inspector-card-page">{locate(result)}</span>
+          <li key={result.id} className="insp-change">
+            <span className="insp-change-loc">{locate(result)}</span>
             <dl>
               <div>
                 <dt>{ti.wasLabel}</dt>
-                <dd className="inspector-fix-was">«{result.text}»</dd>
+                <dd className="insp-fix-was">«{result.text}»</dd>
               </div>
               <div>
                 <dt>{ti.changeNow}</dt>
-                <dd className="inspector-fix-proposed">«{suggestion}»</dd>
+                <dd className="insp-fix-proposed">«{suggestion}»</dd>
               </div>
-              <div className="inspector-change-basis">
+              <div className="insp-change-basis">
                 <dt>{ti.changeBasis}</dt>
                 <dd>{fromPair ? ti.basisConfusableShort : result.source === 'glossary' || result.baseMatch ? ti.basisGlossary : ti.basisBaseAi}</dd>
               </div>
@@ -215,11 +227,11 @@ export function ChangesCompare({ inspection, decisions, choices, locate, ti }) {
           </li>
         ))}
       </ol>
-      <p className="inspector-compare-legend">
-        <mark className="inspector-diff inspector-diff--deleted">{ti.legendDeleted}</mark>
-        <mark className="inspector-diff inspector-diff--inserted">{ti.legendInserted}</mark>
+      <p className="insp-compare-legend">
+        <mark className="insp-diff insp-diff--deleted">{ti.legendDeleted}</mark>
+        <mark className="insp-diff insp-diff--inserted">{ti.legendInserted}</mark>
       </p>
-      <div className="inspector-compare">
+      <div className="insp-compare">
         <CompareColumn title={ti.beforeTitle} pages={pages} side="before" changesByPage={changesByPage} ti={ti} />
         <CompareColumn title={ti.afterTitle} pages={pages} side="after" changesByPage={changesByPage} ti={ti} />
       </div>

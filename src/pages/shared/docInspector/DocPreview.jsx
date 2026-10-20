@@ -55,10 +55,10 @@ function PdfPageView({ pdf, page, results, selectedId, onPick }) {
   }, [pdf, page.number])
 
   useEffect(() => {
-    holderRef.current?.querySelector('.inspector-hl--selected')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    holderRef.current?.querySelector('.insp-hl--selected')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [selectedId, rendered])
 
-  if (!rendered) return <div className="inspector-preview-loading" aria-busy="true" />
+  if (!rendered) return <div className="insp-preview-loading" aria-busy="true" />
 
   const boxes =
     page.source === 'text'
@@ -83,13 +83,13 @@ function PdfPageView({ pdf, page, results, selectedId, onPick }) {
       : []
 
   return (
-    <div className="inspector-page-image" ref={holderRef}>
+    <div className="insp-page-image" ref={holderRef}>
       <img src={rendered.url} alt="" />
       {boxes.map((box) => (
         <button
           type="button"
           key={box.key}
-          className={`inspector-hl inspector-hl--${box.category}${box.selected ? ' inspector-hl--selected' : ''}`}
+          className={`insp-hl insp-hl--${box.category}${box.selected ? ' insp-hl--selected' : ''}`}
           style={box.style}
           onClick={() => onPick(box.result)}
           aria-label={box.result.text}
@@ -102,10 +102,10 @@ function PdfPageView({ pdf, page, results, selectedId, onPick }) {
 function TextView({ page, results, selectedId, onPick, ti }) {
   const holderRef = useRef(null)
   useEffect(() => {
-    holderRef.current?.querySelector('.inspector-mark--selected')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    holderRef.current?.querySelector('.insp-mark--selected')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [selectedId, page.number])
 
-  if (!page.text.trim()) return <p className="inspector-preview-empty">{ti.emptyPage}</p>
+  if (!page.text.trim()) return <p className="insp-preview-empty">{ti.emptyPage}</p>
 
   const parts = []
   let pos = 0
@@ -115,7 +115,7 @@ function TextView({ page, results, selectedId, onPick, ti }) {
     parts.push(
       <mark
         key={r.id}
-        className={`inspector-mark inspector-mark--${categoryOf(r)}${r.id === selectedId ? ' inspector-mark--selected' : ''}`}
+        className={`insp-mark insp-mark--${categoryOf(r)}${r.id === selectedId ? ' insp-mark--selected' : ''}`}
         role="button"
         tabIndex={0}
         onClick={() => onPick(r)}
@@ -128,7 +128,7 @@ function TextView({ page, results, selectedId, onPick, ti }) {
   }
   parts.push(page.text.slice(pos))
   return (
-    <div className="inspector-page-text" ref={holderRef}>
+    <div className="insp-page-text" ref={holderRef}>
       {parts}
     </div>
   )
@@ -156,13 +156,13 @@ function TermPopup({ result, onClose, onDetails, ti }) {
         : ti.basisNone
   const why = result.explanation || result.external?.reason || ''
   return (
-    <div className={`inspector-popup inspector-popup--${category}`} role="dialog" aria-label={ti.popFound}>
-      <button type="button" className="inspector-popup-close" onClick={onClose} aria-label={ti.close}>
+    <div className={`insp-popup insp-popup--${category}`} role="dialog" aria-label={ti.popFound}>
+      <button type="button" className="insp-popup-close" onClick={onClose} aria-label={ti.close}>
         <X size={15} />
       </button>
       <dl>
         <dt>{ti.popFound}</dt>
-        <dd className="inspector-popup-term">«{result.text}»</dd>
+        <dd className="insp-popup-term">«{result.text}»</dd>
         <dt>{ti.statusLabel}</dt>
         <dd>{ti.categories[category]}</dd>
         {recommended && (
@@ -180,7 +180,7 @@ function TermPopup({ result, onClose, onDetails, ti }) {
         <dt>{ti.basisSource}</dt>
         <dd>{source}</dd>
       </dl>
-      <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onDetails(result)}>
+      <button type="button" className="insp-btn insp-btn--small" onClick={() => onDetails(result)}>
         {ti.more}
       </button>
     </div>
@@ -205,23 +205,24 @@ function DocPreview({ doc, pageNumber, onPageChange, results, selected, onSelect
   const selectedOnPage = selected && selected.page === page.number ? selected : null
 
   return (
-    <div className="inspector-preview">
-      <div className="inspector-preview-bar">
+    <div className="insp-preview">
+      {(pages.length > 1 || page.source === 'ocr' || visualAvailable) && (
+      <div className="insp-preview-bar">
         {pages.length > 1 && (
-          <div className="inspector-pager">
+          <div className="insp-pager">
             <button
               type="button"
-              className="inspector-icon-btn"
+              className="insp-icon-btn"
               onClick={() => onPageChange(pages[index - 1].number)}
               disabled={index === 0}
               aria-label={ti.prevPage}
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="inspector-pager-label">{ti.pageOf(page.number, pages.at(-1).number)}</span>
+            <span className="insp-pager-label">{ti.pageOf(page.number, pages.at(-1).number)}</span>
             <button
               type="button"
-              className="inspector-icon-btn"
+              className="insp-icon-btn"
               onClick={() => onPageChange(pages[index + 1].number)}
               disabled={index === pages.length - 1}
               aria-label={ti.nextPage}
@@ -230,9 +231,9 @@ function DocPreview({ doc, pageNumber, onPageChange, results, selected, onSelect
             </button>
           </div>
         )}
-        {page.source === 'ocr' && <span className="inspector-badge">{ti.ocrBadge}</span>}
+        {page.source === 'ocr' && <span className="insp-badge">{ti.ocrBadge}</span>}
         {visualAvailable && (
-          <div className="inspector-toggle" role="tablist">
+          <div className="insp-toggle" role="tablist">
             <button type="button" role="tab" aria-selected={mode === 'page'} onClick={() => setMode('page')}>
               {ti.previewPage}
             </button>
@@ -242,13 +243,14 @@ function DocPreview({ doc, pageNumber, onPageChange, results, selected, onSelect
           </div>
         )}
       </div>
+      )}
 
-      <div className="inspector-preview-body">
+      <div className="insp-preview-body">
         {mode === 'page' && doc.kind === 'pdf' && (
           <PdfPageView pdf={doc.pdf} page={page} results={pageResults} selectedId={selectedOnPage?.id} onPick={pick} />
         )}
         {mode === 'page' && doc.kind === 'image' && (
-          <div className="inspector-page-image">
+          <div className="insp-page-image">
             <img src={page.imageUrl} alt="" />
           </div>
         )}
@@ -268,8 +270,8 @@ function DocPreview({ doc, pageNumber, onPageChange, results, selected, onSelect
 
       {/* Scans have no positions for the fragment — show it as text instead. */}
       {mode === 'page' && selectedOnPage && page.source === 'ocr' && (
-        <p className="inspector-preview-fragment">
-          {ti.fragmentLabel}: <mark className={`inspector-mark inspector-mark--${categoryOf(selectedOnPage)}`}>{selectedOnPage.text}</mark>
+        <p className="insp-preview-fragment">
+          {ti.fragmentLabel}: <mark className={`insp-mark insp-mark--${categoryOf(selectedOnPage)}`}>{selectedOnPage.text}</mark>
         </p>
       )}
     </div>

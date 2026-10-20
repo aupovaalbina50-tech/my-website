@@ -1,181 +1,165 @@
-// Building blocks of the «Цифровой инспектор терминологии» results: the
-// 01-02-03 stepper, the results header and «паспорт проверки», the finding
-// cards with «Почему система так решила?», the terminology profile, the
-// conclusion and the history of expertises. Every figure and text comes from
-// the real results of the check (see expertise.js).
+// Building blocks of the «Цифровой инспектор терминологии»: the three-stage
+// navigation, the filter bar, the finding cards (details on demand), the
+// check notes, the final conclusion and the history of expertises. Every
+// figure and text comes from the real results of the check (see expertise.js).
 
 import { useEffect, useRef } from 'react'
-import { BookmarkCheck, BookmarkPlus, Check, ChevronDown, CircleCheck, ClipboardCheck, CloudUpload, Eye, FolderOpen, History, RotateCcw, Search, ShieldAlert, Trash2, X } from 'lucide-react'
+import { BookmarkCheck, BookmarkPlus, Check, ChevronDown, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { categoryOf, chosenFix } from './pipeline.js'
 import { adiletUrl, isPairTerm, pairForResult } from './confusables.js'
-import { conclusionText, reasoningSteps, termProfile } from './expertise.js'
-import { CATEGORY_ICON, documentTypeLabel, entryText, same } from './helpers.js'
-import { ConfidenceBadge, TrilingualLine } from './ui.jsx'
+import { conclusionText, isPartial, reasoningSteps, termProfile } from './expertise.js'
+import { documentTypeLabel, entryText, same } from './helpers.js'
+import { TrilingualLine } from './ui.jsx'
 
-// ---- 01 / 02 / 03 --------------------------------------------------------------
+// ---- Stage navigation -------------------------------------------------------------
 
-const STEP_OF_SCREEN = { upload: 0, processing: 1, review: 1, error: 1, fixes: 2, done: 2 }
-const STEP_ICONS = [CloudUpload, Search, CircleCheck]
-
-export function Stepper({ screen, ti }) {
-  const active = STEP_OF_SCREEN[screen] ?? 0
+/**
+ * Three stage cards. `stage` is the open one (1–3); `reachable(n)` says
+ * whether stage n can be opened now, `done(n)` whether it is completed.
+ */
+export function StageNav({ stage, reachable, done, onGo, ti }) {
   return (
-    <ol className="inspector-stepper" aria-label={ti.stepperLabel}>
-      {ti.stages.map((label, i) => {
-        const Icon = STEP_ICONS[i]
-        return (
-          <li
-            key={label}
-            className={`inspector-stepper-item${i === active ? ' inspector-stepper-item--active' : ''}${i < active ? ' inspector-stepper-item--done' : ''}`}
-            aria-current={i === active ? 'step' : undefined}
-          >
-            <span className="inspector-stepper-num">{String(i + 1).padStart(2, '0')}</span>
-            <Icon className="inspector-stepper-icon" size={26} strokeWidth={1.75} aria-hidden="true" />
-            <span className="inspector-stepper-label">{label}</span>
-          </li>
-        )
-      })}
-    </ol>
+    <nav className="insp-stages" aria-label={ti.stepperLabel}>
+      <ol>
+        {ti.stageSteps.map((step, i) => {
+          const n = i + 1
+          const isActive = n === stage
+          const isDone = done(n)
+          return (
+            <li key={step.title}>
+              <button
+                type="button"
+                className={`insp-stage${isActive ? ' is-active' : ''}${isDone ? ' is-done' : ''}`}
+                aria-current={isActive ? 'step' : undefined}
+                disabled={!isActive && !reachable(n)}
+                onClick={() => onGo(n)}
+              >
+                <span className="insp-stage-num" aria-hidden="true">
+                  {isDone && !isActive ? <Check size={14} strokeWidth={3} /> : n}
+                </span>
+                <span className="insp-stage-body">
+                  <span className="insp-stage-kicker">
+                    {ti.stageLabel(n)}
+                    {isDone && <span className="insp-stage-done"> · {ti.stageDone}</span>}
+                  </span>
+                  <span className="insp-stage-title">{step.title}</span>
+                  <span className="insp-stage-text">{step.text}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
   )
 }
 
-// ---- Header + паспорт проверки ----------------------------------------------------
+// ---- Notes about how complete the check is ------------------------------------------
 
-export function ResultsHeader({ inspection, summary, ti, lang }) {
-  const date = inspection.checkedAt ? new Date(inspection.checkedAt).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null
-  const type = documentTypeLabel(inspection.documentType, ti)
-  return (
-    <div className="inspector-results-head">
-      <h3 className="inspector-results-title">{ti.resultsTitle}</h3>
-      <dl className="inspector-results-meta">
-        <div>
-          <dt>{ti.metaDocument}</dt>
-          <dd>{inspection.fileName}</dd>
-        </div>
-        {type && (
-          <div>
-            <dt>{ti.metaType}</dt>
-            <dd>
-              {type} <span className="inspector-results-meta-note">{ti.metaTypeByAi}</span>
-            </dd>
-          </div>
-        )}
-        {date && (
-          <div>
-            <dt>{ti.metaDate}</dt>
-            <dd>{date}</dd>
-          </div>
-        )}
-        {inspection.doc.totalPages ? (
-          <div>
-            <dt>{ti.metaPages}</dt>
-            <dd>{inspection.doc.totalPages}</dd>
-          </div>
-        ) : null}
-        <div>
-          <dt>{ti.metaTerms}</dt>
-          <dd>{summary.total}</dd>
-        </div>
-      </dl>
-    </div>
-  )
-}
-
-export function Passport({ inspection, summary, ti }) {
+/** Honest notes on parts of the check that did not run fully. */
+export function CheckNotes({ inspection, ti }) {
   const { ai, lookup, unreadablePages, illegiblePages } = inspection
-  const rows = [
-    { key: 'checked', label: ti.passport.checked, value: summary.total },
-    { key: 'ok', label: ti.passport.ok, value: summary.counts.ok },
-    { key: 'misuse', label: ti.passport.toFix, value: summary.toFix },
-    { key: 'uncertain', label: ti.passport.uncertain, value: summary.counts.uncertain },
-    { key: 'ambiguous', label: ti.passport.ambiguous, value: summary.counts.ambiguous },
-  ]
+  const notes = []
+  if (ai?.failedChunks > 0) {
+    notes.push({
+      key: 'ai',
+      warn: true,
+      text: `${ti.aiFailed(ai.failedChunks, ai.totalChunks)}${ai.error && ti.errors[ai.error] ? ` (${ti.errors[ai.error]})` : ''}`,
+    })
+  }
+  if (lookup?.failed > 0) notes.push({ key: 'lookup-failed', warn: true, text: ti.lookupFailed(lookup.failed) })
+  if (unreadablePages > 0 || illegiblePages > 0) notes.push({ key: 'ocr', warn: true, text: ti.illegibleNote })
+  if (lookup?.searched > 0) notes.push({ key: 'lookup', text: ti.lookupNote(lookup.searched, lookup.found) })
+  if (inspection.fromHistory) notes.push({ key: 'history', text: ti.history.reopenedNote })
+  if (inspection.glossarySize) notes.push({ key: 'base', text: ti.baseNote(inspection.glossarySize) })
+  if (!notes.length) return null
   return (
-    <section className="inspector-passport" aria-labelledby="inspector-passport-title">
-      <p className="inspector-passport-title" id="inspector-passport-title">
-        <ClipboardCheck size={18} aria-hidden="true" />
-        {ti.passport.title}
-      </p>
-      <div className="inspector-passport-body">
-        <dl className="inspector-passport-rows">
-          {rows.map((row) => (
-            <div key={row.key} className={`inspector-passport-row inspector-passport-row--${row.key}`}>
-              <dt>{row.label}</dt>
-              <dd>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-        {summary.compliance !== null && (
-          <div className="inspector-compliance">
-            <p className="inspector-compliance-label">{ti.passport.compliance}</p>
-            <p className="inspector-compliance-value">{summary.compliance}%</p>
-            <div className="inspector-compliance-bar" role="img" aria-label={`${summary.compliance}%`}>
-              <span style={{ width: `${summary.compliance}%` }} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {inspection.glossarySize && <p className="inspector-summary-note">{ti.baseNote(inspection.glossarySize)}</p>}
-      {inspection.fromHistory && <p className="inspector-summary-note">{ti.history.reopenedNote}</p>}
-      {ai?.failedChunks > 0 && (
-        <p className="inspector-warning">
-          <ShieldAlert size={15} aria-hidden="true" />
-          {ti.aiFailed(ai.failedChunks, ai.totalChunks)}
-          {ai.error && ti.errors[ai.error] ? ` (${ti.errors[ai.error]})` : ''}
-        </p>
-      )}
-      {lookup?.searched > 0 && <p className="inspector-summary-note">{ti.lookupNote(lookup.searched, lookup.found)}</p>}
-      {lookup?.failed > 0 && (
-        <p className="inspector-warning">
-          <ShieldAlert size={15} aria-hidden="true" />
-          {ti.lookupFailed(lookup.failed)}
-        </p>
-      )}
-      {(unreadablePages > 0 || illegiblePages > 0) && (
-        <p className="inspector-warning">
-          <ShieldAlert size={15} aria-hidden="true" />
-          {ti.illegibleNote}
-        </p>
-      )}
-    </section>
+    <ul className="insp-notes">
+      {notes.map((note) => (
+        <li key={note.key} className={note.warn ? 'is-warning' : undefined}>
+          {note.text}
+        </li>
+      ))}
+    </ul>
   )
 }
 
-// ---- Filters ----------------------------------------------------------------------
+// ---- Figures ------------------------------------------------------------------------
+
+const STAT_KEYS = ['ok', 'misuse', 'mismatch', 'uncertain', 'ambiguous']
+
+/** Counts of the check; categories with nothing in them are shown only when relevant. */
+export function StatList({ summary, fixed = null, ti }) {
+  return (
+    <dl className="insp-stats">
+      <div className="insp-stat">
+        <dt>{ti.finalStats.checked}</dt>
+        <dd>{summary.total}</dd>
+      </div>
+      {STAT_KEYS.map((key) => (
+        <div key={key} className={`insp-stat insp-stat--${key}`}>
+          <dt>{ti.finalStats[key]}</dt>
+          <dd>{summary.counts[key]}</dd>
+        </div>
+      ))}
+      {fixed !== null && (
+        <div className="insp-stat">
+          <dt>{ti.finalStats.fixed}</dt>
+          <dd>{fixed}</dd>
+        </div>
+      )}
+    </dl>
+  )
+}
+
+// ---- Filters ------------------------------------------------------------------------
 
 const FILTERS = ['all', 'misuse', 'mismatch', 'uncertain', 'ambiguous', 'ok']
 
 export function FilterBar({ filter, onChange, summary, ti }) {
   return (
-    <div className="inspector-filter" role="tablist" aria-label={ti.filtersLabel}>
+    <div className="insp-filters" role="tablist" aria-label={ti.filtersLabel}>
       {FILTERS.map((key) => (
         <button
           key={key}
           type="button"
           role="tab"
           aria-selected={filter === key}
-          className={`inspector-filter-tab inspector-filter-tab--${key}`}
+          className={`insp-filter${filter === key ? ' is-active' : ''}`}
           onClick={() => onChange(key)}
         >
-          {key !== 'all' && <span aria-hidden="true">{CATEGORY_ICON[key]}</span>} {ti.filterLabels[key]}{' '}
-          <span className="inspector-filter-count">{key === 'all' ? summary.total : summary.counts[key]}</span>
+          {ti.filterLabels[key]}
+          <span className="insp-filter-count">{key === 'all' ? summary.total : summary.counts[key]}</span>
         </button>
       ))}
     </div>
   )
 }
 
-// ---- Finding cards ----------------------------------------------------------------
+// ---- Statuses -----------------------------------------------------------------------
+
+export function StatusBadge({ category, ti }) {
+  return <span className={`insp-status insp-status--${category}`}>{ti.categories[category]}</span>
+}
+
+/**
+ * Why a finding «требует внимания»: not verifiable in the base, found only in
+ * an external source, a possible inaccuracy or a low-confidence match.
+ */
+function statusNote(result, ti) {
+  if (categoryOf(result) !== 'uncertain') return null
+  if (!result.candidates.length) return result.external ? ti.statusNotes.external : ti.statusNotes.notVerified
+  if (result.errorType === 'inaccuracy') return ti.statusNotes.possible
+  return ti.statusNotes.lowConfidence
+}
+
+// ---- Finding cards --------------------------------------------------------------------
 
 function WhyBlock({ result, location, ti, lang }) {
   return (
-    <details className="inspector-why">
-      <summary>
-        <ChevronDown size={15} aria-hidden="true" />
-        {ti.whyTitle}
-      </summary>
+    <details className="insp-why">
+      <summary>{ti.whyTitle}</summary>
       <ol>
         {reasoningSteps(result, ti, location, lang).map((step) => (
           <li key={step}>{step}</li>
@@ -210,14 +194,14 @@ function BasisBlock({ result, candidate, ti, lang }) {
     source = ti.basisNone
   }
   return (
-    <div className={`inspector-basis${!candidate ? ' inspector-basis--unconfirmed' : ''}`}>
-      <p className="inspector-basis-title">📚 {ti.basisTitle}</p>
+    <div className={`insp-basis${!candidate ? ' insp-basis--unconfirmed' : ''}`}>
+      <p className="insp-basis-title">{ti.basisTitle}</p>
       <dl>
         <dt>{ti.basisSource}</dt>
         <dd>
           {source}
           {links.map((link) => (
-            <a key={link.href + link.label} className="inspector-source-link inspector-source-link--block" href={link.href} target="_blank" rel="noopener noreferrer">
+            <a key={link.href + link.label} className="insp-link insp-link--block" href={link.href} target="_blank" rel="noopener noreferrer">
               {link.label} ↗
             </a>
           ))}
@@ -231,7 +215,7 @@ function BasisBlock({ result, candidate, ti, lang }) {
         {candidate && (
           <>
             <dt>{ti.basisDefinition}</dt>
-            <dd>{definition ?? <span className="inspector-basis-missing">{ti.definitionMissing}</span>}</dd>
+            <dd>{definition ?? <span className="insp-muted">{ti.definitionMissing}</span>}</dd>
           </>
         )}
       </dl>
@@ -241,27 +225,31 @@ function BasisBlock({ result, candidate, ti, lang }) {
 
 /** The recommended replacement as shown on the card, or what to say instead. */
 function recommendation(result, candidate, ti) {
-  if (result.candidates.length > 1) return { kind: 'several', text: ti.severalVariants(result.candidates.length) }
-  if (candidate) return { kind: 'base', text: candidate.suggestion || entryText(candidate.term, result, candidate.official) }
-  if (result.external) return { kind: 'external', text: result.external.officialTerm }
-  return { kind: 'none', text: ti.noOfficial }
+  if (result.candidates.length > 1) return { kind: 'several', label: ti.recommendedShort, text: ti.severalVariants(result.candidates.length) }
+  if (candidate) return { kind: 'base', label: ti.recommendedShort, text: `«${candidate.suggestion || entryText(candidate.term, result, candidate.official)}»` }
+  if (result.external) return { kind: 'external', label: ti.externalMatch, text: `«${result.external.officialTerm}»` }
+  return { kind: 'none', label: null, text: ti.noOfficial }
 }
 
 export function OkRow({ result, location, selected, onShow, ti }) {
   const official = entryText(result.term, result, result.official)
+  const differs = official && official.toLowerCase() !== result.text.toLowerCase()
   return (
-    <li className={`inspector-card inspector-card--ok${selected ? ' inspector-card--selected' : ''}`} id={`finding-${result.id}`}>
-      <button type="button" className="inspector-ok-row" onClick={() => onShow(result)}>
-        <span aria-hidden="true">{CATEGORY_ICON.ok}</span>
-        <span className="inspector-ok-text">«{result.text}»</span>
-        <span className="inspector-ok-loc">{location}</span>
-      </button>
-      {official && official.toLowerCase() !== result.text.toLowerCase() && (
-        <p className="inspector-ok-official">
-          {ti.okNote}: «{official}»
-        </p>
-      )}
+    <li className={`insp-finding insp-finding--ok${selected ? ' is-selected' : ''}`} id={`finding-${result.id}`}>
+      <div className="insp-finding-head">
+        <p className="insp-finding-term">«{result.text}»</p>
+        <StatusBadge category="ok" ti={ti} />
+      </div>
+      <p className="insp-finding-meta">
+        {location} · {ti.okNote}
+        {differs && `: «${official}»`}
+      </p>
       <TrilingualLine term={result.term} ti={ti} />
+      <div className="insp-finding-actions">
+        <button type="button" className="insp-text-btn" onClick={() => onShow(result)}>
+          {ti.showInDocument}
+        </button>
+      </div>
     </li>
   )
 }
@@ -294,6 +282,8 @@ export function FindingCard({
   const rec = recommendation(result, shown, ti)
   const pair = pairForResult(result)
   const canApply = Boolean(single?.applicable)
+  const note = statusNote(result, ti)
+  const explanation = !result.candidates.length && result.external ? result.external.reason || result.explanation : result.explanation
 
   // A finding picked in the document (or with «Подробнее» in its popup) scrolls into view.
   useEffect(() => {
@@ -313,120 +303,87 @@ export function FindingCard({
     <li
       ref={ref}
       id={`finding-${result.id}`}
-      className={`inspector-card inspector-card--${category}${selected ? ' inspector-card--selected' : ''}${rejected ? ' inspector-card--rejected' : ''}`}
+      className={`insp-finding insp-finding--${category}${selected ? ' is-selected' : ''}${rejected ? ' is-rejected' : ''}`}
     >
-      <div className="inspector-card-head">
-        <span className={`inspector-finding-num inspector-status--${category}`}>
-          {CATEGORY_ICON[category]} {String(number).padStart(2, '0')}
-        </span>
-        <span className={`inspector-status inspector-status--${category}`}>{ti.categories[category]}</span>
+      <div className="insp-finding-head">
+        <p className="insp-finding-term">«{result.text}»</p>
+        <StatusBadge category={category} ti={ti} />
       </div>
+      <p className="insp-finding-meta">
+        № {number} · {location}
+        {note && ` · ${note}`}
+      </p>
+      <p className={`insp-finding-rec insp-finding-rec--${rec.kind}`}>
+        {rec.label && <span className="insp-finding-rec-label">{rec.label}: </span>}
+        {rec.text}
+      </p>
+      <TrilingualLine term={shown?.term ?? result.term} ti={ti} />
 
-      <p className="inspector-finding-text">«{result.text}»</p>
-
-      <dl className="inspector-finding-facts">
-        <div>
-          <dt>{ti.foundIn}</dt>
-          <dd>{location}</dd>
-        </div>
-        <div>
-          <dt>{rec.kind === 'external' ? ti.externalMatch : ti.recommendedTerm}</dt>
-          <dd className={`inspector-finding-rec inspector-finding-rec--${rec.kind}`}>{rec.kind === 'base' || rec.kind === 'external' ? `«${rec.text}»` : rec.text}</dd>
-        </div>
-        <div>
-          <dt>{ti.statusLabel}</dt>
-          <dd>{ti.categories[category]}</dd>
-        </div>
-        <div>
-          <dt>{ti.confidenceLabel}</dt>
-          <dd>
-            <ConfidenceBadge result={result} ti={ti} />
-          </dd>
-        </div>
-      </dl>
-      {rec.kind === 'external' && <p className="inspector-card-note">{ti.externalNote}</p>}
-
-      <div className="inspector-card-actions">
-        <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onToggle(result.id)} aria-expanded={expanded}>
-          <ChevronDown size={14} aria-hidden="true" className={expanded ? 'inspector-rotate' : undefined} />
+      <div className="insp-finding-actions">
+        <button type="button" className="insp-text-btn" onClick={() => onToggle(result.id)} aria-expanded={expanded}>
           {expanded ? ti.less : ti.more}
+          <ChevronDown size={14} aria-hidden="true" className={expanded ? 'insp-rotate' : undefined} />
         </button>
-        <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onShow(result)}>
-          <Eye size={14} aria-hidden="true" />
-          {ti.goToFragment}
+        <button type="button" className="insp-text-btn" onClick={() => onShow(result)}>
+          {ti.showInDocument}
         </button>
-        {canApply && !rejected && (
-          <button
-            type="button"
-            className={`inspector-btn inspector-btn--small${fix ? ' inspector-btn--accepted' : ''}`}
-            onClick={fix ? unapply : apply}
-            aria-pressed={Boolean(fix)}
-          >
-            <Check size={14} aria-hidden="true" />
-            {fix ? ti.fixWillApply : ti.applyFixBtn}
-          </button>
-        )}
-        {rejected ? (
-          <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onDecision(result.id, null)}>
-            <RotateCcw size={14} aria-hidden="true" />
-            {ti.rejected} · {ti.undo}
-          </button>
-        ) : (
-          result.candidates.length > 0 && (
-            <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onDecision(result.id, 'rejected')}>
-              <X size={14} aria-hidden="true" />
-              {ti.reject}
+        <span className="insp-finding-decide">
+          {canApply && !rejected && (
+            <button type="button" className={`insp-btn insp-btn--small${fix ? ' insp-btn--accepted' : ''}`} onClick={fix ? unapply : apply} aria-pressed={Boolean(fix)}>
+              {fix ? ti.fixWillApply : ti.acceptFix}
             </button>
-          )
-        )}
+          )}
+          {rejected ? (
+            <button type="button" className="insp-text-btn" onClick={() => onDecision(result.id, null)}>
+              {ti.rejected} · {ti.undo}
+            </button>
+          ) : (
+            result.candidates.length > 0 && (
+              <button type="button" className="insp-text-btn insp-text-btn--muted" onClick={() => onDecision(result.id, 'rejected')}>
+                {ti.reject}
+              </button>
+            )
+          )}
+        </span>
       </div>
 
       {expanded && (
-        <div className="inspector-finding-details">
+        <div className="insp-finding-details">
           {several && (
-            <fieldset className="inspector-options">
-              <legend className="inspector-fix-label">{ti.ambiguousNote}</legend>
+            <fieldset className="insp-options">
+              <legend>{ti.ambiguousNote}</legend>
               {result.candidates.map((c, i) => (
-                <label key={c.term.id} className={`inspector-option${choice === i ? ' inspector-option--chosen' : ''}`}>
-                  <input
-                    type="radio"
-                    name={`choice-${result.id}`}
-                    checked={choice === i}
-                    disabled={!c.applicable || rejected}
-                    onChange={() => onChoose(result.id, i)}
-                  />
-                  <span className="inspector-option-body">
-                    <span className="inspector-option-term">
+                <label key={c.term.id} className={`insp-option${choice === i ? ' is-chosen' : ''}`}>
+                  <input type="radio" name={`choice-${result.id}`} checked={choice === i} disabled={!c.applicable || rejected} onChange={() => onChoose(result.id, i)} />
+                  <span className="insp-option-body">
+                    <span className="insp-option-term">
                       {ti.variantN(i + 1)}: «{entryText(c.term, result, c.official)}»
                       {c.suggestion && !same(c.suggestion, entryText(c.term, result, c.official)) && ` → «${c.suggestion}»`}
                     </span>
-                    {c.difference && <span className="inspector-option-diff">{c.difference}</span>}
-                    {!c.applicable && <span className="inspector-option-diff">{ti.formNotVerified}</span>}
+                    {c.difference && <span className="insp-option-note">{c.difference}</span>}
+                    {!c.applicable && <span className="insp-option-note">{ti.formNotVerified}</span>}
                   </span>
                 </label>
               ))}
             </fieldset>
           )}
 
-          <dl className="inspector-card-meta">
-            {result.errorType && (
-              <>
-                <dt>{ti.typeLabel}</dt>
-                <dd>{ti.errorTypes[result.errorType] || result.errorType}</dd>
-              </>
-            )}
-            <dt>{ti.matchTypeLabel}</dt>
-            <dd>{result.matchType === 'semantic' ? ti.matchSemantic : ti.matchExact}</dd>
-            {(result.explanation || result.external?.reason) && (
-              <>
-                <dt>📌 {ti.whyLabel}</dt>
-                <dd>{!result.candidates.length && result.external ? result.external.reason || result.explanation : result.explanation}</dd>
-              </>
-            )}
+          <dl className="insp-details">
             {result.context && (
               <>
-                <dt>{ti.contextLabel}</dt>
-                <dd className="inspector-context">«{result.context}»</dd>
+                <dt>{ti.fragmentDoc}</dt>
+                <dd className="insp-context">«{result.context}»</dd>
+              </>
+            )}
+            <dt>{ti.matchResult}</dt>
+            <dd>
+              {result.matchType === 'semantic' ? ti.matchSemantic : ti.matchExact} · {ti.confidenceLevels[result.level]} ({Math.round(result.confidence * 100)}%)
+              {result.errorType && ` · ${ti.errorTypes[result.errorType] || result.errorType}`}
+            </dd>
+            {explanation && (
+              <>
+                <dt>{ti.explanationLabel}</dt>
+                <dd>{explanation}</dd>
               </>
             )}
           </dl>
@@ -434,34 +391,26 @@ export function FindingCard({
           <BasisBlock result={result} candidate={shown} ti={ti} lang={lang} />
 
           {pair && (
-            <div className="inspector-confusable">
-              <p className="inspector-confusable-title">⚠️ {ti.dontConfuse}</p>
-              <p className="inspector-confusable-pair">
+            <div className="insp-confusable">
+              <p className="insp-confusable-title">{ti.dontConfuse}</p>
+              <p className="insp-confusable-pair">
                 «{pair.a.name[lang]}» {ti.dontConfuseAnd} «{pair.b.name[lang]}»
               </p>
-              <p className="inspector-confusable-text">{pair.difference[lang]}</p>
-              <Link className="inspector-source-link" to="/not-to-confuse">
+              <p>{pair.difference[lang]}</p>
+              <Link className="insp-link" to="/not-to-confuse">
                 {ti.dontConfuseMore} →
               </Link>
             </div>
           )}
 
-          <TrilingualLine term={shown?.term ?? result.term} ti={ti} />
-
-          {result.status !== 'fix' && single && !single.applicable && result.errorType === 'unofficial_variant' && (
-            <p className="inspector-card-note">{ti.variantManualNote}</p>
-          )}
-          {result.status !== 'fix' && !result.meaningPreserved && result.candidates.length > 0 && <p className="inspector-card-note">{ti.meaningWarning}</p>}
+          {rec.kind === 'external' && <p className="insp-card-note">{ti.externalNote}</p>}
+          {result.status !== 'fix' && single && !single.applicable && result.errorType === 'unofficial_variant' && <p className="insp-card-note">{ti.variantManualNote}</p>}
+          {result.status !== 'fix' && !result.meaningPreserved && result.candidates.length > 0 && <p className="insp-card-note">{ti.meaningWarning}</p>}
 
           <WhyBlock result={result} location={location} ti={ti} lang={lang} />
 
           {shown?.term && !isPairTerm(shown.term) && (
-            <button
-              type="button"
-              className="inspector-btn inspector-btn--small"
-              onClick={() => onAddToDictionary(shown.term)}
-              disabled={favoriteIds.has(shown.term.id)}
-            >
+            <button type="button" className="insp-text-btn" onClick={() => onAddToDictionary(shown.term)} disabled={favoriteIds.has(shown.term.id)}>
               {favoriteIds.has(shown.term.id) ? <BookmarkCheck size={14} aria-hidden="true" /> : <BookmarkPlus size={14} aria-hidden="true" />}
               {favoriteIds.has(shown.term.id) ? ti.inDictionary : ti.addToDictionary}
             </button>
@@ -472,47 +421,52 @@ export function FindingCard({
   )
 }
 
-// ---- Profile and conclusion -----------------------------------------------------------
+// ---- Final conclusion ----------------------------------------------------------------
 
-export function TermProfile({ inspection, ti, lang }) {
+function TermProfile({ inspection, ti, lang }) {
   const areas = termProfile(inspection.results, lang)
+  if (!areas.length) return null
   const max = Math.max(1, ...areas.map((a) => a.count))
-  const type = documentTypeLabel(inspection.documentType, ti)
   return (
-    <section className="inspector-block">
-      <p className="inspector-block-title">{ti.profileTitle}</p>
-      {type && (
-        <p className="inspector-profile-type">
-          {ti.metaType}: <strong>{type}</strong>
-        </p>
-      )}
-      <p className="inspector-profile-sub">{ti.profileAreas}</p>
-      {areas.length === 0 ? (
-        <p className="inspector-summary-note">{ti.profileEmpty}</p>
-      ) : (
-        <ul className="inspector-profile">
-          {areas.map((area) => (
-            <li key={area.key}>
-              <span className="inspector-profile-label">{area.label}</span>
-              <span className="inspector-profile-bar" aria-hidden="true">
-                <span style={{ width: `${(area.count / max) * 100}%` }} />
-              </span>
-              <span className="inspector-profile-count">{area.count}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <div className="insp-profile">
+      <p className="insp-section-label">{ti.profileAreas}</p>
+      <ul>
+        {areas.map((area) => (
+          <li key={area.key}>
+            <span className="insp-profile-label">{area.label}</span>
+            <span className="insp-profile-bar" aria-hidden="true">
+              <span style={{ width: `${(area.count / max) * 100}%` }} />
+            </span>
+            <span className="insp-profile-count">{area.count}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
-export function Conclusion({ summary, ti }) {
+export function FinalConclusion({ inspection, summary, fixed, ti, lang }) {
+  const type = documentTypeLabel(inspection.documentType, ti)
   return (
-    <section className="inspector-block inspector-conclusion">
-      <p className="inspector-block-title">{ti.conclusionTitle}</p>
-      {conclusionText(summary, ti).map((line) => (
-        <p key={line}>{line}</p>
-      ))}
+    <section className="insp-card insp-conclusion" aria-labelledby="insp-conclusion-title">
+      <h3 className="insp-card-title" id="insp-conclusion-title">
+        {ti.finalTitle}
+      </h3>
+      <StatList summary={summary} fixed={fixed} ti={ti} />
+      {isPartial(inspection) && <p className="insp-card-note insp-card-note--warning">{ti.partialNote}</p>}
+      <div className="insp-conclusion-text">
+        <p className="insp-section-label">{ti.conclusionTitle}</p>
+        {type && (
+          <p>
+            {ti.metaType}: {type} {ti.metaTypeByAi}
+          </p>
+        )}
+        {conclusionText(summary, ti).map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+      <TermProfile inspection={inspection} ti={ti} lang={lang} />
+      <p className="insp-disclaimer">{ti.disclaimer}</p>
     </section>
   )
 }
@@ -520,46 +474,34 @@ export function Conclusion({ summary, ti }) {
 // ---- History ---------------------------------------------------------------------------
 
 export function HistoryList({ history, onOpen, ti, lang }) {
-  if (!history.signedIn) {
-    return (
-      <section className="inspector-block">
-        <p className="inspector-block-title">
-          <History size={16} aria-hidden="true" /> {ti.history.title}
-        </p>
-        <p className="inspector-summary-note">
+  return (
+    <section className="insp-card insp-card--quiet">
+      <h3 className="insp-card-title">{ti.history.title}</h3>
+      {!history.signedIn ? (
+        <p className="insp-muted">
           {ti.history.signIn} <Link to="/account">{ti.history.signInLink}</Link>
         </p>
-      </section>
-    )
-  }
-  return (
-    <section className="inspector-block">
-      <p className="inspector-block-title">
-        <History size={16} aria-hidden="true" /> {ti.history.title}
-      </p>
-      {history.items.length === 0 ? (
-        <p className="inspector-summary-note">{history.loading ? ti.history.loading : ti.history.empty}</p>
+      ) : history.items.length === 0 ? (
+        <p className="insp-muted">{history.loading ? ti.history.loading : ti.history.empty}</p>
       ) : (
-        <ul className="inspector-history">
+        <ul className="insp-history">
           {history.items.map((item) => (
-            <li key={item.id} className="inspector-history-item">
-              <span className="inspector-history-date">{new Date(item.created_at).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')}</span>
-              <span className="inspector-history-name">
-                {item.file_name}
-                {item.document_type && <span className="inspector-history-type"> · {documentTypeLabel(item.document_type, ti)}</span>}
+            <li key={item.id} className="insp-history-item">
+              <span className="insp-history-main">
+                <span className="insp-history-name">{item.file_name}</span>
+                <span className="insp-history-meta">
+                  {new Date(item.created_at).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU')}
+                  {item.document_type && ` · ${documentTypeLabel(item.document_type, ti)}`} · {ti.history.terms(item.term_count)} · {ti.history.issues(item.issue_count)} ·{' '}
+                  {ti.history.status[item.status]}
+                </span>
               </span>
-              <span className="inspector-history-figures">
-                {ti.history.terms(item.term_count)} · {ti.history.issues(item.issue_count)}
-              </span>
-              <span className={`inspector-history-status inspector-history-status--${item.status}`}>{ti.history.status[item.status]}</span>
-              <span className="inspector-history-actions">
-                <button type="button" className="inspector-btn inspector-btn--small" onClick={() => onOpen(item.id)}>
-                  <FolderOpen size={14} aria-hidden="true" />
+              <span className="insp-history-actions">
+                <button type="button" className="insp-btn insp-btn--small" onClick={() => onOpen(item.id)}>
                   {ti.history.open}
                 </button>
                 <button
                   type="button"
-                  className="inspector-icon-btn"
+                  className="insp-icon-btn"
                   onClick={() => window.confirm(ti.history.confirmDelete) && history.remove(item.id)}
                   aria-label={ti.history.delete}
                   title={ti.history.delete}
