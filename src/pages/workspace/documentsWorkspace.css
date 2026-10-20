@@ -941,3 +941,276 @@
     box-shadow: 0 4px 14px rgba(24, 49, 83, 0.06);
   }
 }
+
+/* ---- «Реестр нормативных источников»: search, groups, highlighted cards ---- */
+.dws-page--light {
+  & .dws-sources-tools {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    background: #f6f9fc;
+    border: 1px solid var(--dws-line);
+    border-radius: 14px;
+  }
+  & .dws-sources-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    color: var(--dws-soft);
+    background: #fff;
+    border: 1px solid var(--dws-line);
+    border-radius: 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus-within {
+      border-color: var(--dws-accent);
+      box-shadow: 0 0 0 3px rgba(22, 139, 196, 0.15);
+    }
+    & input {
+      flex: 1;
+      min-width: 0;
+      min-height: 42px;
+      font: inherit;
+      font-size: 15px;
+      color: var(--dws-text);
+      background: transparent;
+      border: 0;
+      outline: none;
+    }
+    & button {
+      display: inline-flex;
+      padding: 4px;
+      color: var(--dws-soft);
+      background: none;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    & button:hover {
+      color: var(--dws-text);
+      background: var(--dws-accent-soft);
+    }
+  }
+  & .dws-sources-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    & button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      padding: 0 12px;
+      font: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--dws-text);
+      background: #fff;
+      border: 1px solid var(--dws-line);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    & button:hover {
+      border-color: #9fcde6;
+      background: var(--dws-accent-soft);
+    }
+    & button.is-on {
+      color: #fff;
+      background: var(--dws-accent);
+      border-color: var(--dws-accent);
+    }
+    & small {
+      padding: 0 7px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      color: var(--dws-accent);
+      background: var(--dws-accent-soft);
+      border-radius: 999px;
+    }
+    & button.is-on small {
+      color: var(--dws-accent);
+      background: #fff;
+    }
+  }
+  & .dws-sources-found {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--dws-accent);
+  }
+
+  /* Each group has its own colour: the number, the bar of its cards. */
+  & .dws-sources-group {
+    --dws-group: #168bc4;
+    --dws-group-soft: #e8f4fb;
+  }
+  & .dws-sources-group--p2 {
+    --dws-group: #2e6fd8;
+    --dws-group-soft: #ebf1fd;
+  }
+  & .dws-sources-group--p3 {
+    --dws-group: #0f9488;
+    --dws-group-soft: #e6f6f4;
+  }
+  & .dws-sources-group--p4 {
+    --dws-group: #7a5af5;
+    --dws-group-soft: #f1edfe;
+  }
+  & .dws-sources-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 2px;
+    padding: 8px 10px;
+    list-style: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &:hover {
+      background: var(--dws-group-soft);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dws-group);
+      outline-offset: 2px;
+    }
+  }
+  & .dws-sources-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--dws-group);
+    border-radius: 8px;
+  }
+  & .dws-sources-name {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  & .dws-sources-count {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 2px 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--dws-group);
+    background: var(--dws-group-soft);
+    border-radius: 999px;
+  }
+  & .dws-sources-chevron {
+    margin-left: auto;
+    color: var(--dws-soft);
+    transition: transform 0.2s ease;
+  }
+  & details:not([open]) .dws-sources-chevron {
+    transform: rotate(-90deg);
+  }
+
+  & .dws-source {
+    position: relative;
+    border-left: 4px solid var(--dws-group);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      background 0.18s ease;
+  }
+  & .dws-source:hover,
+  & .dws-source:focus-within {
+    background: linear-gradient(90deg, var(--dws-group-soft) 0%, #fff 70%);
+    box-shadow: 0 8px 22px rgba(24, 49, 83, 0.1);
+    transform: translateX(3px);
+  }
+  & .dws-source:hover .dws-row-title {
+    color: var(--dws-group);
+  }
+  & .dws-source--confirmed {
+    border-left-color: #2e9d62;
+  }
+  & .dws-source--outdated {
+    border-left-color: #d92d20;
+  }
+  & .dws-source .dws-row-title {
+    white-space: normal;
+    font-size: 16.5px;
+    transition: color 0.18s ease;
+  }
+  & .dws-source-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  & .dws-source-tag {
+    padding: 3px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dws-text);
+    background: #f2f5f9;
+    border-radius: 999px;
+  }
+  & .dws-source-tag--number {
+    color: var(--dws-group);
+    background: var(--dws-group-soft);
+  }
+  & .dws-source-tag.is-empty {
+    font-weight: 500;
+    color: var(--dws-soft);
+  }
+  & .dws-source-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: start;
+    padding: 6px 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--dws-group);
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid var(--dws-line);
+    border-radius: 8px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  & .dws-source-link:hover,
+  & .dws-source-link:focus-visible {
+    background: var(--dws-group-soft);
+    border-color: var(--dws-group);
+  }
+  & .dws-source mark,
+  & .dws-source-tag mark {
+    padding: 0 2px;
+    color: inherit;
+    background: #fde68a;
+    border-radius: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dws-page--light .dws-source,
+  .dws-page--light .dws-sources-chevron {
+    transition: none;
+  }
+  .dws-page--light .dws-source:hover {
+    transform: none;
+  }
+}
+
+/* Narrow screens: nothing in a block may push it wider than the screen. */
+.dws-page--light .dws-block {
+  grid-template-columns: minmax(0, 1fr);
+}
+.dws-page--light .dws-sources-chips button {
+  max-width: 100%;
+  text-align: left;
+}

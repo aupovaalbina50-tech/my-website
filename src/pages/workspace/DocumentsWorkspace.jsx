@@ -12,6 +12,9 @@ import {
   RotateCcw,
   Scale,
   ExternalLink,
+  ChevronDown,
+  Search,
+  X,
 } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -208,14 +211,45 @@ function useSources() {
   return { ...state, retry: () => setAttempt((n) => n + 1) }
 }
 
+/** The query found in the text, wrapped in <mark>. */
+function Highlight({ text, query }) {
+  const q = query.trim().toLowerCase()
+  if (!q || !text) return text
+  const parts = []
+  let from = 0
+  const low = text.toLowerCase()
+  for (let at = low.indexOf(q); at !== -1; at = low.indexOf(q, from)) {
+    if (at > from) parts.push(text.slice(from, at))
+    parts.push(<mark key={at}>{text.slice(at, at + q.length)}</mark>)
+    from = at + q.length
+  }
+  parts.push(text.slice(from))
+  return parts
+}
+
+const hostOf = (url) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
 function SourcesBlock({ lang }) {
   const { t } = useLanguage()
   const w = t.workspace
   const h = w.history
   const r = w.expertise.refs
   const { loading, error, rows, retry } = useSources()
+  const [query, setQuery] = useState('')
+  const [priority, setPriority] = useState(0)
   const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null)
   const actuality = (s) => (s.status === 'outdated' ? 'outdated' : s.status === 'official' && s.verified_at ? 'confirmed' : 'needs_review')
+  const titleOf = (s) => (lang === 'kk' ? s.title_kk : s.title_ru) || s.title_ru || ''
+  const q = query.trim().toLowerCase()
+  const matched = rows.filter((s) => !q || `${titleOf(s)} ${s.doc_number ?? ''}`.toLowerCase().includes(q))
+  const shown = matched.filter((s) => !priority || s.priority === priority)
+  const groups = [1, 2, 3, 4].filter((p) => shown.some((s) => s.priority === p))
   return (
     <Block title={h.sourcesTitle} lead={h.sourcesLead} Icon={Scale}>
       {loading ? (
@@ -225,36 +259,76 @@ function SourcesBlock({ lang }) {
       ) : rows.length === 0 ? (
         <p className="dws-muted">{h.sourcesNone}</p>
       ) : (
-        [1, 2, 3, 4]
-          .filter((p) => rows.some((s) => s.priority === p))
-          .map((p) => (
-            <div key={p} className="dws-sources-group">
-              <h3 className="dws-sources-title">
-                {p}. {h.priority[p]}
-              </h3>
-              <ul className="dws-history">
-                {rows
-                  .filter((s) => s.priority === p)
-                  .map((s) => (
+        <>
+          <div className="dws-sources-tools">
+            <label className="dws-sources-search">
+              <Search size={17} aria-hidden="true" />
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={h.sourcesSearch} aria-label={h.sourcesSearch} />
+              {query && (
+                <button type="button" onClick={() => setQuery('')} aria-label="×">
+                  <X size={15} aria-hidden="true" />
+                </button>
+              )}
+            </label>
+            <div className="dws-sources-chips" role="group" aria-label={h.sourcesTitle}>
+              {[0, 1, 2, 3, 4]
+                .filter((p) => !p || rows.some((s) => s.priority === p))
+                .map((p) => (
+                  <button key={p} type="button" className={priority === p ? 'is-on' : undefined} aria-pressed={priority === p} onClick={() => setPriority(p)}>
+                    {p ? `${p}. ${h.priority[p]}` : h.sourcesAll}
+                    <small>{p ? matched.filter((s) => s.priority === p).length : matched.length}</small>
+                  </button>
+                ))}
+            </div>
+            {q && <p className="dws-sources-found" role="status">{h.sourcesFound(shown.length)}</p>}
+          </div>
+          {shown.length === 0 && <p className="dws-muted">{h.sourcesNoMatch}</p>}
+          {groups.map((p) => {
+            const items = shown.filter((s) => s.priority === p)
+            return (
+              <details key={p} className={`dws-sources-group dws-sources-group--p${p}`} open>
+                <summary className="dws-sources-title">
+                  <span className="dws-sources-num">{p}</span>
+                  <span className="dws-sources-name">{h.priority[p]}</span>
+                  <span className="dws-sources-count">{h.sourcesCount(items.length)}</span>
+                  <ChevronDown size={18} className="dws-sources-chevron" aria-hidden="true" />
+                </summary>
+                <ul className="dws-history">
+                  {items.map((s) => (
                     <li key={s.id} className={`dws-history-item dws-source dws-source--${actuality(s)}`}>
-                      <span className="dws-row-title">{(lang === 'kk' ? s.title_kk : s.title_ru) || s.title_ru}</span>
-                      <span className="dws-row-meta">
-                        {[s.doc_number, s.doc_date && r.dated(fmt(s.doc_date))].filter(Boolean).join(' · ') || r.noRequisites}
+                      <span className="dws-row-title">
+                        <Highlight text={titleOf(s)} query={query} />
+                      </span>
+                      <span className="dws-source-tags">
+                        {s.doc_number || s.doc_date ? (
+                          <>
+                            {s.doc_number && (
+                              <span className="dws-source-tag dws-source-tag--number">
+                                <Highlight text={s.doc_number} query={query} />
+                              </span>
+                            )}
+                            {s.doc_date && <span className="dws-source-tag">{r.dated(fmt(s.doc_date))}</span>}
+                          </>
+                        ) : (
+                          <span className="dws-source-tag is-empty">{r.noRequisites}</span>
+                        )}
                       </span>
                       <span className="dws-row-meta">
                         {r.statusLabel}: {r.registryStatus[s.status] ?? s.status} · {s.verified_at ? r.verifiedAt(fmt(s.verified_at)) : r.notVerified}
                       </span>
                       {actuality(s) !== 'needs_review' && <span className="dws-source-state">{r.actuality[actuality(s)]}</span>}
                       {s.url && (
-                        <a href={s.url} target="_blank" rel="noreferrer" className="dws-source-link">
-                          {s.url} <ExternalLink size={12} aria-hidden="true" />
+                        <a href={s.url} target="_blank" rel="noreferrer" className="dws-source-link" title={s.url}>
+                          {h.sourcesOpen(hostOf(s.url))} <ExternalLink size={13} aria-hidden="true" />
                         </a>
                       )}
                     </li>
                   ))}
-              </ul>
-            </div>
-          ))
+                </ul>
+              </details>
+            )
+          })}
+        </>
       )}
       <p className="dws-block-lead">{h.officialSites}:</p>
       <ul className="dws-sites">
