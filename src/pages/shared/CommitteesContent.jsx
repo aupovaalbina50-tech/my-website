@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { Building2, Info, Users, Link2, Target, ListChecks, Phone, Mail, ShieldCheck } from 'lucide-react'
+import { Building2, Info, Users, Link2, Target, ListChecks, Phone, Mail } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import {
   COMMITTEES,
   COMMITTEES_SOURCE_URL,
-  COMMITTEES_VERIFIED_AT,
   committeeSourceUrls,
 } from '../../data/committees'
 
@@ -35,10 +34,6 @@ function CommitteesContent() {
       <div className="section-kicker" aria-hidden="true"></div>
       <h1 className="section-title">{t.nav.committees}</h1>
       <p className="section-lead">{c.lead}</p>
-      <p className="org-verified-note">
-        <ShieldCheck size={15} aria-hidden="true" />
-        {c.verifiedNote(COMMITTEES_VERIFIED_AT)}
-      </p>
 
       <div className="committees-split">
         <nav className="committees-nav" aria-label={t.nav.committees}>

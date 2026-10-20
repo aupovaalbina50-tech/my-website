@@ -1027,7 +1027,6 @@ export const translations = {
       officeLabel: 'Кеңсе',
       infoPending: 'Ақпарат нақтылануда',
       sourceShort: 'Дереккөз: gov.kz ↗',
-      verifiedNote: (date) => `Деректер gov.kz ресми порталымен салыстырылды: ${date}`,
     },
     knowledgeBase: {
       title: 'ТЖМ білім базасы',
@@ -1633,7 +1632,6 @@ export const translations = {
       phoneLabel: 'Телефон',
       emailLabel: 'Электрондық пошта',
       noPersonalContacts: 'gov.kz сайтында жеке байланыс деректері көрсетілмеген — министрлік кеңсесіне хабарласыңыз.',
-      verifiedNote: (date) => `Деректер gov.kz ресми порталымен салыстырылды: ${date}`,
       structureTitle: 'Министрліктің құрылымы',
       territorialTitle: 'Аумақтық органдар',
       territorialRegionalTitle: 'Облыстардың төтенше жағдайлар департаменттері',
@@ -3166,7 +3164,6 @@ export const translations = {
       officeLabel: 'Канцелярия',
       infoPending: 'Информация уточняется',
       sourceShort: 'Источник: gov.kz ↗',
-      verifiedNote: (date) => `Данные сверены с официальным порталом gov.kz: ${date}`,
     },
     knowledgeBase: {
       title: 'База знаний МЧС',
@@ -3772,7 +3769,6 @@ export const translations = {
       phoneLabel: 'Телефон',
       emailLabel: 'Электронная почта',
       noPersonalContacts: 'Личные контактные данные на gov.kz не указаны — обращайтесь в канцелярию министерства.',
-      verifiedNote: (date) => `Данные сверены с официальным порталом gov.kz: ${date}`,
       structureTitle: 'Структура министерства',
       territorialTitle: 'Территориальные органы',
       territorialRegionalTitle: 'Региональные департаменты по чрезвычайным ситуациям',
