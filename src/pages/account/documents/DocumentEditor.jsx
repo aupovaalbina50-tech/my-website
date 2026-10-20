@@ -831,7 +831,7 @@ function DocumentEditor() {
         <div className="doc-editor-titlebar">
           <span className="doc-editor-kind">
             <FileText size={16} aria-hidden="true" />
-            {category?.title[lang]} · {template.title[lang]}
+            {[category?.title[lang], template.title[lang]].filter(Boolean).join(' · ')}
           </span>
           <span className={`doc-status doc-status--${status}`}>{s.docStatus[status]}</span>
           <span className={`doc-tpl-status doc-tpl-status--${template.status}`}>{s.templateStatus[template.status]}</span>

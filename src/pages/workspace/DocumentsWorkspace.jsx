@@ -1,26 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, NavLink, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
-  BookMarked,
   ClipboardCheck,
-  Clock3,
-  FilePenLine,
   FilePlus2,
   FileSearch,
-  FileText,
   FolderOpen,
   History,
-  LayoutDashboard,
   Library,
   Lock,
-  PlayCircle,
   RotateCcw,
   Scale,
-  Search,
   ExternalLink,
-  Upload,
-  Wand2,
 } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -31,30 +22,29 @@ import DocInspector from '../shared/docInspector/DocInspector.jsx'
 import MyDocuments from './MyDocuments.jsx'
 import { CatalogView, CreateView } from '../account/documents/DocumentBuilderPage.jsx'
 import { templateById } from '../account/documents/catalog/index.js'
-import { docStrings } from '../account/documents/strings.js'
-import { documentPath, expertisePath, loadContents, useWorkspaceActivity } from './documentModel.js'
+import { expertisePath, useWorkspaceActivity } from './documentModel.js'
 import { readExpertise } from './expertise/model.js'
 import { OFFICIAL_SITES } from './sources/registry.js'
 import './documentsWorkspace.css'
 
 // «Центр работы со служебными документами»: one working environment of
 // separate screens with one navigation —
-//   /account/workspace            Рабочая панель (real counters, recent work)
-//   /account/workspace/create     Создание документа (by the task / own choice)
+//   /account/workspace            → /account/workspace/create
+//   /account/workspace/create     Создание документа (умный рапорт, недавние документы)
 //   /account/workspace/catalog    Каталог документов и форм
 //   /account/workspace/documents  Мои документы
-//   /account/workspace/check      Комплексная проверка готового документа
+//   /account/workspace/check      Проверка готового документа (без пункта в навигации)
 //   /account/workspace/history    Нормативные источники и история изменений
 // The public /documents keeps the choice screen and the check without an account.
 
 export const CREATE_PATH = '/account/workspace/create'
 
+// The expertise (/check) has no item of its own: it opens from a document,
+// from «Создание документа» (a ready file) and from the history.
 const SECTIONS = [
-  { key: 'dashboard', to: '/account/workspace', Icon: LayoutDashboard, end: true },
   { key: 'create', to: CREATE_PATH, Icon: FilePlus2 },
   { key: 'catalog', to: '/account/workspace/catalog', Icon: Library },
   { key: 'documents', to: '/account/workspace/documents', Icon: FolderOpen },
-  { key: 'check', to: '/account/workspace/check', Icon: FileSearch },
   { key: 'history', to: '/account/workspace/history', Icon: History },
 ]
 
@@ -77,9 +67,9 @@ function WorkspaceNav() {
 function WorkspaceFrame({ section, children }) {
   const { t } = useLanguage()
   const w = t.workspace
-  const full = section === 'dashboard'
+  const full = section === 'create'
   return (
-    <div className="dws-page">
+    <div className="dws-page dws-page--light">
       <header className={`dws-hero${full ? '' : ' dws-hero--compact'}`}>
         <span className="dws-hero-icon" aria-hidden="true">
           <FolderOpen size={full ? 30 : 22} strokeWidth={1.75} />
@@ -96,44 +86,12 @@ function WorkspaceFrame({ section, children }) {
   )
 }
 
-const IN_PROGRESS = new Set(['draft', 'filling', 'issues', 'review'])
-// Counters of the dashboard: only statuses the documents really have.
-const COUNTERS = [
-  { key: 'draft', statuses: ['draft', 'filling'], filter: 'draft', Icon: FilePenLine },
-  { key: 'issues', statuses: ['review', 'issues'], filter: 'issues', Icon: ClipboardCheck },
-  { key: 'checked', statuses: ['checked'], filter: 'checked', Icon: FileSearch },
-  { key: 'ready', statuses: ['ready'], filter: 'ready', Icon: BookMarked },
-]
-
 function formatDate(iso, lang) {
   try {
     return new Date(iso).toLocaleString(lang === 'kk' ? 'kk-KZ' : 'ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
   }
-}
-
-function DocumentRow({ item, lang, a, statusLabels, stage = null }) {
-  const template = templateById(item.template_id)
-  const type = item.kind === 'report' ? a.report : template ? template.title[lang] : item.template_id
-  return (
-    <li>
-      <Link to={documentPath(item)} className="dws-row">
-        <span className="dws-row-icon" aria-hidden="true">
-          {item.source?.origin === 'upload' ? <Upload size={18} /> : <FileText size={18} />}
-        </span>
-        <span className="dws-row-main">
-          <span className="dws-row-title">{item.title || type}</span>
-          <span className="dws-row-meta">
-            {type}
-            {item.source?.origin === 'upload' ? ` · ${a.uploaded}` : ''} · {a.updated} {formatDate(item.updated_at, lang)}
-            {stage ? ` · ${stage}` : ''}
-          </span>
-        </span>
-        <span className={`doc-status doc-status--${item.status}`}>{statusLabels[item.status] ?? item.status}</span>
-      </Link>
-    </li>
-  )
 }
 
 function HistoryRow({ row, lang, a }) {
@@ -180,246 +138,6 @@ function LoadError({ text, retryLabel, onRetry }) {
       <button type="button" className="dws-retry" onClick={onRetry}>
         <RotateCcw size={15} aria-hidden="true" /> {retryLabel}
       </button>
-    </div>
-  )
-}
-
-const typeOf = (item, lang, a) => (item.kind === 'report' ? a.report : templateById(item.template_id)?.title[lang] ?? item.template_id)
-
-/**
- * «Поиск по моим документам» with a quick jump: names and types at once, the
- * text of the documents once it is loaded; Enter opens the full list.
- */
-function DashboardSearch({ documents, loading, lang }) {
-  const { t } = useLanguage()
-  const a = t.workspace.activity
-  const d = t.workspace.dashboard
-  const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [contents, setContents] = useState(null)
-  const q = query.trim().toLowerCase()
-  useEffect(() => {
-    if (q.length < 2 || contents) return
-    let alive = true
-    loadContents().then((c) => alive && setContents(c.map))
-    return () => {
-      alive = false
-    }
-  }, [q, contents])
-  const results = useMemo(() => {
-    if (q.length < 2) return []
-    return documents
-      .map((item) => {
-        const head = `${item.title ?? ''} ${typeOf(item, lang, a)}`.toLowerCase()
-        if (head.includes(q)) return { item, inText: false }
-        if (contents?.get(`${item.kind}-${item.id}`)?.includes(q)) return { item, inText: true }
-        return null
-      })
-      .filter(Boolean)
-      .slice(0, 6)
-  }, [q, documents, contents, lang, a])
-  const all = `/account/workspace/documents?q=${encodeURIComponent(query.trim())}`
-  return (
-    <form
-      className="dws-search"
-      role="search"
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (q.length >= 2) navigate(all)
-      }}
-    >
-      <label className="dws-search-field">
-        <Search size={18} aria-hidden="true" />
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={d.searchPlaceholder} aria-label={d.search} disabled={loading} />
-      </label>
-      {q.length >= 2 && (
-        <div className="dws-search-results" aria-live="polite">
-          {results.length ? (
-            <ul className="dws-list">
-              {results.map(({ item, inText }) => (
-                <li key={`${item.kind}-${item.id}`}>
-                  <Link to={documentPath(item)} className="dws-row">
-                    <span className="dws-row-icon" aria-hidden="true">
-                      <FileText size={18} />
-                    </span>
-                    <span className="dws-row-main">
-                      <span className="dws-row-title">{item.title || typeOf(item, lang, a)}</span>
-                      <span className="dws-row-meta">
-                        {typeOf(item, lang, a)} · {a.updated} {formatDate(item.updated_at, lang)}
-                        {inText ? ` · ${d.searchContent}` : ''}
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="dws-muted">{d.searchNone}</p>
-          )}
-          <Link to={all} className="dws-block-link">
-            {d.searchAll(query.trim())}
-          </Link>
-        </div>
-      )}
-    </form>
-  )
-}
-
-/** «Рабочая панель»: actions, the user's real counters, recent documents and checks. */
-function Dashboard() {
-  const { lang: uiLang, t } = useLanguage()
-  const lang = uiLang === 'kk' ? 'kk' : 'ru'
-  const w = t.workspace
-  const a = w.activity
-  const d = w.dashboard
-  const statusLabels = docStrings(lang).docStatus
-  const { signedIn, documents, documentsLoading, documentsError, history, historyLoading, historyError, retry } = useWorkspaceActivity({ historyLimit: 5 })
-
-  const active = documents.filter((doc) => doc.status !== 'archive')
-  const lastDraft = active.find((doc) => IN_PROGRESS.has(doc.status))
-  const actions = [
-    { key: 'create', to: CREATE_PATH, Icon: FilePlus2 },
-    { key: 'describe', to: `${CREATE_PATH}#finder`, Icon: Wand2 },
-    { key: 'check', to: '/account/workspace/check', Icon: FileSearch },
-    { key: 'documents', to: '/account/workspace/documents', Icon: FolderOpen },
-    { key: 'catalog', to: '/account/workspace/catalog', Icon: Library },
-    { key: 'continue', to: lastDraft ? documentPath(lastDraft) : null, Icon: PlayCircle },
-  ]
-  const pending = active.filter((doc) => IN_PROGRESS.has(doc.status)).slice(0, 5)
-
-  return (
-    <div className="dws-dashboard">
-      <nav className="dws-actions" aria-label={d.actionsAria}>
-        {actions.map(({ key, to, Icon }) => {
-          const locked = !signedIn && key !== 'check' && key !== 'catalog'
-          const body = (
-            <>
-              <Icon size={22} aria-hidden="true" />
-              <span className="dws-action-title">{d.actions[key].title}</span>
-              <span className="dws-action-text">
-                {key === 'continue' && signedIn && !documentsLoading ? (lastDraft ? lastDraft.title || d.actions.continue.untitled : d.actions.continue.none) : d.actions[key].text}
-              </span>
-              {locked && (
-                <span className="dws-card-note">
-                  <Lock size={13} aria-hidden="true" /> {w.create.note}
-                </span>
-              )}
-            </>
-          )
-          return to ? (
-            <Link key={key} to={to} className={`dws-action dws-action--${key}`}>
-              {body}
-            </Link>
-          ) : (
-            <span key={key} className={`dws-action dws-action--${key} is-disabled`} aria-disabled="true">
-              {body}
-            </span>
-          )
-        })}
-      </nav>
-
-      {signedIn && <DashboardSearch documents={active} loading={documentsLoading} lang={lang} />}
-
-      {!signedIn ? (
-        <div className="dws-empty">
-          <p>{a.signedOut}</p>
-          <Link to="/account" className="dws-card-cta">
-            {a.signIn}
-            <ArrowRight size={18} aria-hidden="true" />
-          </Link>
-        </div>
-      ) : (
-        <>
-          <section className="dws-counters" aria-label={d.countersAria}>
-            {documentsLoading ? (
-              <p className="dws-muted" role="status">
-                {a.loading}
-              </p>
-            ) : documentsError ? (
-              <LoadError text={a.loadError} retryLabel={d.retry} onRetry={retry} />
-            ) : (
-              COUNTERS.map(({ key, statuses, filter, Icon }) => (
-                <Link key={key} to={`/account/workspace/documents?status=${filter}`} className={`dws-counter dws-counter--${key}`}>
-                  <Icon size={20} aria-hidden="true" />
-                  <span className="dws-counter-value">{active.filter((doc) => statuses.includes(doc.status)).length}</span>
-                  <span className="dws-counter-label">{d.counters[key]}</span>
-                </Link>
-              ))
-            )}
-          </section>
-
-          <div className="dws-activity">
-            <Block title={d.pendingTitle} lead={d.pendingLead} Icon={PlayCircle}>
-              {documentsLoading ? (
-                <p className="dws-muted">{a.loading}</p>
-              ) : documentsError ? (
-                <LoadError text={a.loadError} retryLabel={d.retry} onRetry={retry} />
-              ) : pending.length ? (
-                <ul className="dws-list">
-                  {pending.map((item) => (
-                    <DocumentRow key={`${item.kind}-${item.id}`} item={item} lang={lang} a={a} statusLabels={statusLabels} stage={d.pendingStage[item.status]} />
-                  ))}
-                </ul>
-              ) : (
-                <p className="dws-muted">{d.pendingNone}</p>
-              )}
-            </Block>
-            <Block
-              title={a.recentTitle}
-              Icon={Clock3}
-              action={
-                <Link to="/account/workspace/documents" className="dws-block-link">
-                  {a.allDocuments}
-                </Link>
-              }
-            >
-              {documentsLoading ? (
-                <p className="dws-muted">{a.loading}</p>
-              ) : documentsError ? (
-                <LoadError text={a.loadError} retryLabel={d.retry} onRetry={retry} />
-              ) : active.length ? (
-                <ul className="dws-list">
-                  {active.slice(0, 6).map((item) => (
-                    <DocumentRow key={`${item.kind}-${item.id}`} item={item} lang={lang} a={a} statusLabels={statusLabels} />
-                  ))}
-                </ul>
-              ) : (
-                <div className="dws-empty dws-empty--inline">
-                  <p>{a.empty}</p>
-                  <Link to={CREATE_PATH} className="dws-card-cta">
-                    <FilePlus2 size={18} aria-hidden="true" />
-                    {a.createFirst}
-                  </Link>
-                </div>
-              )}
-            </Block>
-            <Block
-              title={a.historyTitle}
-              lead={a.historyLead}
-              Icon={History}
-              action={
-                <Link to="/account/workspace/history" className="dws-block-link">
-                  {d.allHistory}
-                </Link>
-              }
-            >
-              {historyLoading ? (
-                <p className="dws-muted">{a.loading}</p>
-              ) : historyError ? (
-                <LoadError text={a.loadError} retryLabel={d.retry} onRetry={retry} />
-              ) : history.length ? (
-                <ul className="dws-list">
-                  {history.map((row) => (
-                    <HistoryRow key={row.id} row={row} lang={lang} a={a} />
-                  ))}
-                </ul>
-              ) : (
-                <p className="dws-muted">{a.emptyHistory}</p>
-              )}
-            </Block>
-          </div>
-        </>
-      )}
     </div>
   )
 }
@@ -526,7 +244,7 @@ function SourcesBlock({ lang }) {
                       <span className="dws-row-meta">
                         {r.statusLabel}: {r.registryStatus[s.status] ?? s.status} · {s.verified_at ? r.verifiedAt(fmt(s.verified_at)) : r.notVerified}
                       </span>
-                      <span className="dws-source-state">{r.actuality[actuality(s)]}</span>
+                      {actuality(s) !== 'needs_review' && <span className="dws-source-state">{r.actuality[actuality(s)]}</span>}
                       {s.url && (
                         <a href={s.url} target="_blank" rel="noreferrer" className="dws-source-link">
                           {s.url} <ExternalLink size={12} aria-hidden="true" />
@@ -731,12 +449,9 @@ export function WorkspaceCheckPage() {
 
 // ---- personal account -------------------------------------------------------------
 
+// The former «Рабочая панель»: its link (/account/workspace) opens the creation screen.
 export function AccountWorkspacePage() {
-  return (
-    <WorkspaceFrame section="dashboard">
-      <Dashboard />
-    </WorkspaceFrame>
-  )
+  return <Navigate to={CREATE_PATH} replace />
 }
 
 export function AccountWorkspaceCreatePage() {

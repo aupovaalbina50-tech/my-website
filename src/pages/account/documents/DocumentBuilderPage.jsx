@@ -5,9 +5,8 @@ import {
   ChevronDown,
   ChevronUp,
   FilePenLine,
-  FileText,
+  FileSearch,
   HelpCircle,
-  Info,
   Library,
   ListChecks,
   Loader2,
@@ -20,10 +19,10 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../../../i18n/LanguageContext.jsx'
 import {
+  CATALOG,
   CATEGORIES,
   FREE_TEXT_ID,
   KINDS,
-  TEMPLATE_STATUSES,
   TEMPLATES,
   filterCatalog,
   kindOfTemplate,
@@ -31,13 +30,15 @@ import {
   templateById,
   templateLanguages,
 } from './catalog/index.js'
+import { documentPath, useWorkspaceActivity } from '../../workspace/documentModel.js'
 import { suggestDocumentType, useFavoriteTemplates } from './useDocuments.js'
 import { docStrings, errorText } from './strings.js'
 import { Modal } from './Dialogs.jsx'
 
-// «Создание документа» and «Каталог документов и форм» of «Работа со
-// служебными документами». The catalog is the client configuration
-// (catalog/templates.js); every type is a working template of the platform
+// «Создание документа» and «Каталог профессиональных форм» of «Центр работы
+// со служебными документами». Both open with «Умный рабочий рапорт», the
+// main tool. The catalog shows the main forms only (CATALOG_IDS in
+// catalog/templates.js); every type is a working template of the platform
 // unless a confirmed source says otherwise. Creating a type asks how to
 // fill it (form / own words) and opens the universal editor; «Рапорт» opens
 // the existing «Умный рабочий рапорт». Nothing is created before the user
@@ -47,19 +48,26 @@ function StatusBadge({ status, s }) {
   return <span className={`doc-tpl-status doc-tpl-status--${status}`}>{s.templateStatus[status]}</span>
 }
 
+const categoryOf = (template) => CATEGORIES.find((x) => template.categories.includes(x.key)) ?? null
 const kindTitle = (template, s, lang) => KINDS.find((k) => k.key === kindOfTemplate(template))?.title[lang] ?? s.catalog.otherKind
 const langsOf = (template, s) => templateLanguages(template).map((l) => s.catalog.languages[l]).join(', ')
 const fmtDate = (iso, lang) => (iso ? new Date(iso).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : 'ru-RU') : null)
 
-function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate, onDetails }) {
+/**
+ * One form of the catalog: category, name, purpose, languages and the status
+ * of the form, «Создать» and — on demand — its structure.
+ */
+function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate }) {
   const [open, setOpen] = useState(false)
-  const required = requiredFields(template)
+  const category = categoryOf(template)
   return (
     <li className="doc-card">
       <div className="doc-card-top">
-        <span className="doc-card-cat">
-          {template.categories.map((c) => CATEGORIES.find((x) => x.key === c)?.letter).join(' · ')} · {kindTitle(template, s, lang)}
-        </span>
+        {category && (
+          <span className="doc-card-cat">
+            {category.letter}. {category.title[lang]}
+          </span>
+        )}
         <button
           type="button"
           className={`doc-star${favorite ? ' is-on' : ''}`}
@@ -68,21 +76,14 @@ function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate, onDet
           aria-label={favorite ? s.favoriteRemove : s.favoriteAdd}
           title={favorite ? s.favoriteRemove : s.favoriteAdd}
         >
-          <Star size={18} aria-hidden="true" />
+          <Star size={16} aria-hidden="true" />
         </button>
       </div>
       <h3 className="doc-card-title">{template.title[lang]}</h3>
       <p className="doc-card-purpose">{template.purpose[lang]}</p>
-      <div className="doc-card-badges">
-        <StatusBadge status={template.status} s={s} />
-        <span className="doc-card-lang">{langsOf(template, s)}</span>
-        {template.engine === 'smart' && (
-          <span className="doc-smart-badge">
-            <Wand2 size={13} aria-hidden="true" />
-            {s.smartBadge}
-          </span>
-        )}
-      </div>
+      <p className="doc-card-meta">
+        {langsOf(template, s)} · <span className={`doc-card-status doc-card-status--${template.status}`}>{s.templateStatus[template.status]}</span>
+      </p>
       {open && (
         <ol className="doc-card-structure">
           {template.engine === 'smart' ? (
@@ -106,20 +107,43 @@ function TemplateCard({ template, s, lang, favorite, onFavorite, onCreate, onDet
       )}
       <div className="doc-card-actions">
         <button type="button" className="doc-btn doc-btn--primary" onClick={() => onCreate(template)}>
-          <Plus size={16} aria-hidden="true" />
           {s.create}
         </button>
-        <button type="button" className="doc-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          {open ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+        <button type="button" className="doc-link-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
           {open ? s.hideStructure : s.structure}
-        </button>
-        <button type="button" className="doc-btn" onClick={() => onDetails(template)}>
-          <Info size={16} aria-hidden="true" />
-          {s.catalog.openCard}
+          {open ? <ChevronUp size={15} aria-hidden="true" /> : <ChevronDown size={15} aria-hidden="true" />}
         </button>
       </div>
-      {template.engine !== 'smart' && <p className="doc-card-foot">{`${s.sectionsCount(template.sections.length)} · ${s.requiredCount(required.length)}`}</p>}
     </li>
+  )
+}
+
+/** «Умный рабочий рапорт» — the main tool of the section, first on both screens. */
+function SmartReportCard({ onCreate }) {
+  const { t } = useLanguage()
+  const sc = t.workspace.createPage.smart
+  return (
+    <section className="doc-smart" aria-labelledby="doc-smart-title">
+      <div className="doc-smart-body">
+        <p className="doc-smart-kicker">{sc.kicker}</p>
+        <h2 className="doc-smart-title" id="doc-smart-title">
+          {sc.title}
+        </h2>
+        <p className="doc-smart-text">{sc.text}</p>
+        <ol className="doc-smart-steps">
+          {sc.steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      </div>
+      <div className="doc-smart-side">
+        <button type="button" className="doc-btn doc-btn--primary doc-btn--large" onClick={() => onCreate(templateById('report'))}>
+          <Wand2 size={18} aria-hidden="true" />
+          {sc.cta}
+        </button>
+        <p className="doc-smart-note">{sc.note}</p>
+      </div>
+    </section>
   )
 }
 
@@ -195,7 +219,7 @@ function DetailsDialog({ template, s, lang, onCreate, onClose }) {
 }
 
 const catalogForAi = (lang) =>
-  TEMPLATES.map((t) => ({
+  CATALOG.map((t) => ({
     id: t.id,
     title: t.title[lang],
     purpose: `${t.purpose[lang]} (${t.categories.map((c) => CATEGORIES.find((x) => x.key === c)?.title[lang]).join('; ')})`,
@@ -351,107 +375,45 @@ function Finder({ s, lang, onCreate, onDetails, autoFocus = false }) {
   )
 }
 
-const DEFAULT_FILTERS = { query: '', category: 'all', kind: 'all', lang: 'all', status: 'all', favoritesOnly: false, sort: 'category' }
-
-function Catalog({ s, lang, onCreate, onDetails }) {
+/** The compact catalog: search, a few categories, simple cards. */
+function Catalog({ s, lang, onCreate }) {
   const c = s.catalog
-  const [filters, setFilters] = useState(DEFAULT_FILTERS)
-  const set = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('all')
   const { favorites, toggle } = useFavoriteTemplates()
-  const found = useMemo(() => filterCatalog({ ...filters, favorites, uiLang: lang }), [filters, favorites, lang])
-  const changed = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS)
-  // Grouped by category only when sorted by category and nothing is searched.
-  const grouped = filters.sort === 'category' && !filters.query.trim()
+  // The smart report has its own card above the catalog.
+  const forms = (cat) => filterCatalog({ query, category: cat, uiLang: lang }).filter((t) => t.id !== 'report')
+  const found = useMemo(() => forms(category), [query, category, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = useMemo(() => Object.fromEntries(['all', ...CATEGORIES.map((x) => x.key)].map((k) => [k, forms(k).length])), [query, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  const grouped = category === 'all' && !query.trim()
   const groups = grouped
     ? CATEGORIES.map((cat) => ({ category: cat, items: found.filter((t) => t.categories.includes(cat.key)) })).filter((g) => g.items.length)
     : [{ category: null, items: found }]
-  const usedKinds = useMemo(() => new Set(TEMPLATES.map(kindOfTemplate)), [])
-  const card = (t) => (
-    <TemplateCard key={t.id} template={t} s={s} lang={lang} favorite={favorites.has(t.id)} onFavorite={toggle} onCreate={onCreate} onDetails={onDetails} />
-  )
   return (
-    <section className="doc-catalog">
+    <section className="doc-catalog" aria-label={c.title}>
       <div className="doc-catalog-tools">
         <label className="doc-search">
           <Search size={17} aria-hidden="true" />
-          <input type="search" value={filters.query} onChange={set('query')} placeholder={c.searchPlaceholder} aria-label={c.searchPlaceholder} />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={c.searchPlaceholder} aria-label={c.searchPlaceholder} />
         </label>
-        <div className="doc-filter-row">
-          <label>
-            <span>{c.category}</span>
-            <select className="doc-input" value={filters.category} onChange={set('category')}>
-              <option value="all">{c.anyCategory}</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat.key} value={cat.key}>
-                  {cat.letter}. {cat.title[lang]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{c.kind}</span>
-            <select className="doc-input" value={filters.kind} onChange={set('kind')}>
-              <option value="all">{c.anyKind}</option>
-              {KINDS.filter((k) => usedKinds.has(k.key)).map((k) => (
-                <option key={k.key} value={k.key}>
-                  {k.title[lang]}
-                </option>
-              ))}
-              {usedKinds.has('other') && <option value="other">{c.otherKind}</option>}
-            </select>
-          </label>
-          <label>
-            <span>{c.language}</span>
-            <select className="doc-input" value={filters.lang} onChange={set('lang')}>
-              <option value="all">{c.anyLanguage}</option>
-              <option value="kk">{c.languages.kk}</option>
-              <option value="ru">{c.languages.ru}</option>
-            </select>
-          </label>
-          <label>
-            <span>{c.status}</span>
-            <select className="doc-input" value={filters.status} onChange={set('status')}>
-              <option value="all">{c.anyStatus}</option>
-              {TEMPLATE_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {s.templateStatus[st]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{c.sort}</span>
-            <select className="doc-input" value={filters.sort} onChange={set('sort')}>
-              {Object.entries(c.sortBy).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="doc-filter-foot">
-          <label className="doc-check">
-            <input type="checkbox" checked={filters.favoritesOnly} onChange={set('favoritesOnly')} />
-            <Star size={15} aria-hidden="true" /> {c.favoritesOnly}
-          </label>
-          <span className="doc-filter-count" aria-live="polite">
-            {c.found(found.length)}
-          </span>
-          {changed && (
-            <button type="button" className="exp-link" onClick={() => setFilters(DEFAULT_FILTERS)}>
-              {c.reset}
+        <div className="doc-chips" role="tablist" aria-label={c.category}>
+          {[{ key: 'all', title: { [lang]: c.anyCategory } }, ...CATEGORIES].map((cat) => (
+            <button
+              key={cat.key}
+              type="button"
+              role="tab"
+              aria-selected={category === cat.key}
+              className={category === cat.key ? 'is-on' : undefined}
+              onClick={() => setCategory(cat.key)}
+            >
+              {cat.letter ? `${cat.letter}. ` : ''}
+              {cat.title[lang]}
+              <small>{counts[cat.key]}</small>
             </button>
-          )}
-        </div>
-        <div className="doc-legend">
-          {TEMPLATE_STATUSES.map((st) => (
-            <StatusBadge key={st} status={st} s={s} />
           ))}
-          <p>{s.statusLegendNote}</p>
         </div>
       </div>
-      {found.length === 0 && <p className="doc-empty">{filters.favoritesOnly && !filters.query ? s.noFavorites : s.nothingFound}</p>}
+      {found.length === 0 && <p className="doc-empty">{s.nothingFound}</p>}
       {groups.map((g) => (
         <div key={g.category?.key ?? 'all'} className="doc-group">
           {g.category && (
@@ -460,9 +422,14 @@ function Catalog({ s, lang, onCreate, onDetails }) {
               {g.category.title[lang]}
             </h2>
           )}
-          <ul className="doc-cards">{g.items.map(card)}</ul>
+          <ul className="doc-cards">
+            {g.items.map((t) => (
+              <TemplateCard key={t.id} template={t} s={s} lang={lang} favorite={favorites.has(t.id)} onFavorite={toggle} onCreate={onCreate} />
+            ))}
+          </ul>
         </div>
       ))}
+      <p className="doc-legend-note">{s.statusLegendNote}</p>
     </section>
   )
 }
@@ -529,46 +496,92 @@ function useDocLang() {
   return uiLang === 'kk' ? 'kk' : 'ru'
 }
 
-/** «Каталог документов и официальных форм». */
+/** «Каталог профессиональных форм». */
 export function CatalogView() {
   const lang = useDocLang()
   const s = docStrings(lang)
   const flow = useCreateFlow(lang)
   return (
     <div className="doc-page">
-      <Catalog s={s} lang={lang} onCreate={flow.create} onDetails={flow.showDetails} />
+      <SmartReportCard onCreate={flow.create} />
+      <Catalog s={s} lang={lang} onCreate={flow.create} />
       {flow.dialogs}
     </div>
   )
 }
 
-/** «Создание документа»: by the description of the task, or the type chosen by the user. */
+/** The user's latest documents (from «Мои документы»), so work can be picked up again. */
+function RecentDocuments({ lang }) {
+  const { t } = useLanguage()
+  const w = t.workspace
+  const cp = w.createPage
+  const statusLabels = docStrings(lang).docStatus
+  const { signedIn, documents, documentsLoading } = useWorkspaceActivity({ historyLimit: 1 })
+  if (!signedIn) return null
+  const recent = documents.filter((d) => d.status !== 'archive').slice(0, 5)
+  const typeOf = (item) => (item.kind === 'report' ? w.activity.report : templateById(item.template_id)?.title[lang] ?? item.template_id)
+  return (
+    <section className="doc-recent" aria-labelledby="doc-recent-title">
+      <div className="doc-recent-head">
+        <h2 className="doc-self-title" id="doc-recent-title">
+          {cp.recentTitle}
+        </h2>
+        <Link to="/account/workspace/documents" className="doc-link-btn">
+          {cp.recentAll} →
+        </Link>
+      </div>
+      {documentsLoading ? (
+        <p className="doc-empty">{w.activity.loading}</p>
+      ) : recent.length === 0 ? (
+        <p className="doc-empty">{cp.recentNone}</p>
+      ) : (
+        <ul className="doc-recent-list">
+          {recent.map((item) => (
+            <li key={`${item.kind}-${item.id}`}>
+              <Link to={documentPath(item)} className="doc-recent-row">
+                <span className="doc-recent-title">{item.title || typeOf(item)}</span>
+                <span className="doc-recent-meta">
+                  {typeOf(item)} · {fmtDate(item.updated_at, lang)}
+                </span>
+                <span className={`doc-status doc-status--${item.status}`}>{statusLabels[item.status] ?? item.status}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/** «Создание документа»: the smart report first, then the other ways, then recent work. */
 export function CreateView() {
   const lang = useDocLang()
   const s = docStrings(lang)
   const { t } = useLanguage()
-  const w = t.workspace.createPage
+  const cp = t.workspace.createPage
   const flow = useCreateFlow(lang)
   const { favorites } = useFavoriteTemplates()
   const favoriteTemplates = TEMPLATES.filter((tpl) => favorites.has(tpl.id))
   const quick = [
+    { key: 'free', onClick: () => flow.create(templateById(FREE_TEXT_ID)), Icon: FilePenLine },
+    { key: 'check', to: '/account/workspace/check', Icon: FileSearch },
     { key: 'catalog', to: '/account/workspace/catalog', Icon: Library },
-    { key: 'free', onClick: () => flow.create(templateById(FREE_TEXT_ID)), Icon: FileText },
-    { key: 'smart', onClick: () => flow.create(templateById('report')), Icon: Wand2 },
   ]
   return (
     <div className="doc-page">
-      <Finder s={s} lang={lang} onCreate={flow.create} onDetails={flow.showDetails} autoFocus />
-      <section className="doc-self">
-        <h2 className="doc-self-title">{w.selfTitle}</h2>
-        <p className="doc-self-lead">{w.selfLead}</p>
+      <SmartReportCard onCreate={flow.create} />
+      <section className="doc-self" aria-labelledby="doc-other-title">
+        <h2 className="doc-self-title" id="doc-other-title">
+          {cp.otherTitle}
+        </h2>
         <div className="doc-self-options">
           {quick.map(({ key, to, onClick, Icon }) => {
+            const text = cp.quick[key].text
             const body = (
               <>
-                <Icon size={24} aria-hidden="true" />
-                <span className="doc-method-title">{w.quick[key].title}</span>
-                <span className="doc-method-text">{w.quick[key].text}</span>
+                <Icon size={22} aria-hidden="true" />
+                <span className="doc-method-title">{cp.quick[key].title}</span>
+                <span className="doc-method-text">{typeof text === 'function' ? text(CATALOG.length) : text}</span>
               </>
             )
             return to ? (
@@ -585,13 +598,13 @@ export function CreateView() {
         {favoriteTemplates.length > 0 && (
           <>
             <h3 className="doc-self-sub">
-              <Star size={16} aria-hidden="true" /> {w.favorites}
+              <Star size={16} aria-hidden="true" /> {cp.favorites}
             </h3>
             <ul className="doc-self-favorites">
               {favoriteTemplates.map((tpl) => (
                 <li key={tpl.id}>
                   <button type="button" className="doc-btn" onClick={() => flow.create(tpl)}>
-                    <Plus size={15} aria-hidden="true" /> {tpl.title[lang]}
+                    {tpl.title[lang]}
                   </button>
                 </li>
               ))}
@@ -599,6 +612,8 @@ export function CreateView() {
           </>
         )}
       </section>
+      <Finder s={s} lang={lang} onCreate={flow.create} onDetails={flow.showDetails} />
+      <RecentDocuments lang={lang} />
       {flow.dialogs}
     </div>
   )
