@@ -1443,3 +1443,47 @@
 .report-fact .report-quote {
   font-size: 14px;
 }
+
+/* ---- step 2: calm fields — only what needs attention is labelled ---- */
+.report-step-summary {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.report-fact--missing .report-input {
+  border-color: var(--red);
+  background: var(--surface);
+}
+.report-fact-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.report-fact-note--missing {
+  color: var(--red);
+  font-weight: 600;
+}
+.report-fact-note--assumption {
+  color: var(--yellow);
+
+  > span:first-child {
+    font-weight: 700;
+  }
+}
+.report-fact-source {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  color: var(--text-soft);
+}
+.report-fact-note .report-confirm {
+  padding: 1px 8px 1px 6px;
+}
