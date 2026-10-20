@@ -1493,3 +1493,119 @@
 .report-fact-note .report-confirm {
   padding: 1px 8px 1px 6px;
 }
+
+/* ---- step 3: readable sizes and a highlight under the pointer ---- */
+.report-step-hint {
+  font-size: 16.5px;
+}
+.report-kb-note {
+  padding: 8px 12px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.report-subtitle {
+  font-size: 18px;
+}
+.report-muted,
+.report-plain-list {
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+.report-term-list {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.report-phrasing {
+  gap: 12px;
+}
+.report-phrasing-item {
+  padding: 16px 20px;
+  background: #fff;
+  border-left: 4px solid transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    translate 0.18s ease;
+}
+.report-phrasing-label {
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
+.report-phrasing-original {
+  margin-top: 6px;
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: #5b6b7d;
+}
+.report-phrasing-pro {
+  margin-top: 6px;
+  font-size: 18px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+.report-phrasing-arrow {
+  transition: translate 0.18s ease;
+}
+.report-phrasing-item:hover,
+.report-phrasing-item:focus-within {
+  background: linear-gradient(90deg, #fff 0%, #eef6fc 100%);
+  border-color: #9fcde6;
+  border-left-color: #168bc4;
+  box-shadow: 0 8px 22px rgba(24, 49, 83, 0.1);
+  translate: 0 -2px;
+
+  .report-phrasing-label {
+    color: #168bc4;
+  }
+  .report-phrasing-original {
+    color: #34465e;
+  }
+  .report-phrasing-pro {
+    text-decoration-line: underline;
+    text-decoration-color: rgba(22, 139, 196, 0.55);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+  }
+  .report-phrasing-arrow {
+    color: #168bc4;
+    translate: 4px 0;
+  }
+}
+.report-term-name {
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.report-term-name:hover,
+.report-term:hover {
+  background: rgba(22, 139, 196, 0.18);
+}
+.report-plain-list li {
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+.report-plain-list li:hover {
+  background: #eef6fc;
+}
+@media (max-width: 700px) {
+  .report-phrasing-item {
+    padding: 14px 16px;
+  }
+  .report-phrasing-pro {
+    font-size: 17px;
+  }
+  .report-phrasing-item:hover .report-phrasing-arrow {
+    translate: 0 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-phrasing-item,
+  .report-phrasing-arrow {
+    transition: none;
+  }
+  .report-phrasing-item:hover {
+    translate: none;
+  }
+}
