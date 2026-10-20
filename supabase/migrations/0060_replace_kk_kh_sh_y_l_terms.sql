@@ -15,20 +15,28 @@
 -- cards on these letters are deleted (their user rows go with them, on delete
 -- cascade), the rest of the new terms are inserted.
 --
+-- One DO block, so it runs as a single statement in the Supabase SQL Editor
+-- (which does not keep temp tables between statements) and is all-or-nothing.
+-- Running it again is safe: the backup skips cards already copied.
+--
 -- Apply: Supabase → SQL Editor → paste this file → Run
 --   or:  npx supabase db query --linked -f supabase/migrations/0060_replace_kk_kh_sh_y_l_terms.sql
-
-begin;
 
 create table if not exists public.terms_backup_2026_10_20 as
 select * from public.terms where false;
 alter table public.terms_backup_2026_10_20 enable row level security;
 
-insert into public.terms_backup_2026_10_20
-select * from public.terms where upper(left(trim(kk), 1)) in ('Х', 'Ш', 'Ы', 'Л');
+do $$
+begin
+  insert into public.terms_backup_2026_10_20
+  select t.* from public.terms t
+  where upper(left(trim(t.kk), 1)) in ('Х', 'Ш', 'Ы', 'Л')
+    and not exists (select 1 from public.terms_backup_2026_10_20 b where b.id = t.id);
 
-create temp table new_t (n int, kk text, ru text, en text, category text) on commit drop;
-insert into new_t values
+  drop table if exists pg_temp.new_t, pg_temp.old_t, pg_temp.keep_map;
+
+  create temp table new_t (n int, kk text, ru text, en text, category text);
+  insert into new_t values
   (1, 'химиялық авария', 'химическая авария', 'chemical accident', 'emergencies'),
   (2, 'химиялық дабыл', 'химическая тревога', 'chemical alarm', 'civil_defense'),
   (3, 'химиялық бақылау', 'химический контроль', 'chemical control', 'civil_defense'),
@@ -277,31 +285,31 @@ insert into new_t values
   (246, 'ламинарлы жалын', 'пламя ламинарное', 'laminar flame', 'fire_safety'),
   (247, 'лүпілдеуіш жалын', 'пламя пульсирующее', 'pulsating flame', 'fire_safety');
 
-create temp table old_t on commit drop as
-select id, kk from public.terms where upper(left(trim(kk), 1)) in ('Х', 'Ш', 'Ы', 'Л');
+  create temp table old_t as
+  select id, kk from public.terms where upper(left(trim(kk), 1)) in ('Х', 'Ш', 'Ы', 'Л');
 
--- One old card per new term with the same Kazakh text (the first one).
-create temp table keep_map on commit drop as
-select distinct on (n.n) n.n, o.id
-from new_t n join old_t o on lower(trim(o.kk)) = lower(n.kk)
-order by n.n, o.id;
+  -- One old card per new term with the same Kazakh text (the first one).
+  create temp table keep_map as
+  select distinct on (n.n) n.n, o.id
+  from new_t n join old_t o on lower(trim(o.kk)) = lower(n.kk)
+  order by n.n, o.id;
 
-delete from keep_map k using keep_map k2 where k.id = k2.id and k.n > k2.n;
+  delete from keep_map k using keep_map k2 where k.id = k2.id and k.n > k2.n;
 
-update public.terms t set kk = n.kk, ru = n.ru, en = n.en, category = n.category
-from keep_map k join new_t n on n.n = k.n
-where t.id = k.id;
+  update public.terms t set kk = n.kk, ru = n.ru, en = n.en, category = n.category
+  from keep_map k join new_t n on n.n = k.n
+  where t.id = k.id;
 
-delete from public.terms t using old_t o
-where t.id = o.id and t.id not in (select id from keep_map);
+  delete from public.terms t using old_t o
+  where t.id = o.id and t.id not in (select id from keep_map);
 
-insert into public.terms (kk, ru, en, category)
-select kk, ru, en, category from new_t where n not in (select n from keep_map) order by n;
+  insert into public.terms (kk, ru, en, category)
+  select kk, ru, en, category from new_t where n not in (select n from keep_map) order by n;
+
+  drop table new_t, old_t, keep_map;
+end
+$$;
 
 select (select count(*) from public.terms_backup_2026_10_20) as old_cards_backed_up,
-       (select count(*) from keep_map) as updated_in_place,
-       (select count(*) from new_t) - (select count(*) from keep_map) as inserted,
        (select count(*) from public.terms where upper(left(trim(kk), 1)) in ('Х', 'Ш', 'Ы', 'Л')) as on_these_letters_now,
        (select count(*) from public.terms) as terms_now;
-
-commit;
