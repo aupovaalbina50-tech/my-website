@@ -1,1 +1,1 @@
-await import('./probe-more.mjs')
+await import('./gov.mjs')
