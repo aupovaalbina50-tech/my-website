@@ -1331,7 +1331,7 @@
   content: '';
   position: absolute;
   z-index: -1;
-  inset: -190px -6% -30px;
+  inset: -190px 0 -30px;
   pointer-events: none;
   background: radial-gradient(
     ellipse 62% 58% at 50% 48%,
