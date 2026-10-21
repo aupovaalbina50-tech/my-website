@@ -51,3 +51,20 @@ if (!token) {
 fs.mkdirSync('out', { recursive: true })
 fs.appendFileSync('out/report.md', out.join('\n') + '\n')
 console.log(out.join('\n'))
+
+// Until the new log table names are known: the relevant lines of Supabase's
+// own notes, fetched from the runner (the session that reads this has no
+// access to supabase.com).
+for (const url of [
+  'https://supabase.com/changelog/48235-migration-of-supabase-management-api-logs-all-endpoint',
+  'https://supabase.com/docs/guides/functions/limits',
+]) {
+  try {
+    const html = await (await fetch(url)).text()
+    const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ')
+    const hits = [...text.matchAll(/[^.]{0,160}(?:function_edge_logs|function_logs|endpoints\/logs|sql=|iso_timestamp|CPU|wall|546|memory|Memory)[^.]{0,200}\./g)].map((m) => '- ' + m[0].trim()).slice(0, 18)
+    fs.appendFileSync('out/report.md', `\n### ${url}\n${hits.join('\n') || text.slice(0, 600)}\n`)
+  } catch (e) {
+    fs.appendFileSync('out/report.md', `\n### ${url}\nне загрузилось: ${e.message}\n`)
+  }
+}
