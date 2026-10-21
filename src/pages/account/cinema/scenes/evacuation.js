@@ -3,8 +3,8 @@
 // leave the entrances → the route to the assembly point and the buses →
 // the danger zone. Correct answers move groups along the route; success:
 // the block is empty, everyone at the assembly point.
-import { building, glow, ground, lamp, person, ring, vehicle, zone } from '../fx.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { building, glow, ground, lamp, person, ring, vehicle, zone, mistBand } from '../fx.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 580
 const GROUND = 690
@@ -63,9 +63,11 @@ export default {
       building(ctx, { x: 120, y: HORIZON + 80, w: 240, h: 220, floors: 6, cols: 6, wall: '#2c384a', lit: 0.2 }, t)
       building(ctx, { x: 1340, y: HORIZON + 80, w: 220, h: 200, floors: 6, cols: 5, wall: '#2a3546', lit: 0.25 }, t)
     })
+    drawTrees(rd, [[90, HORIZON + 80, 150], [800, HORIZON + 80, 130], [1300, HORIZON + 82, 140]], 0.82, '#22402f')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 30, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND + 20, roadH: 100 })
-      building(ctx, { x: 380, y: GROUND - 40, w: 360, h: 300, depth: 30, floors: 5, cols: 6, wall: '#3a4659', lit: 0.5 }, t)
+      building(ctx, { x: 380, y: GROUND - 40, w: 360, h: 300, depth: 30, floors: 5, cols: 6, wall: '#3a4659', lit: 0.5, balconies: true }, t)
       // entrances
       ctx.fillStyle = 'rgba(255,220,160,0.65)'
       ctx.fillRect(470, GROUND - 92, 40, 52)
@@ -112,6 +114,7 @@ export default {
       if (pulseK(state) > 0) glow(ctx, 1270, GROUND + 20, 120, '96,200,255', 0.3 * pulseK(state))
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

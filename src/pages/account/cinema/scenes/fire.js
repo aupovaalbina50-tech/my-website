@@ -5,8 +5,8 @@
 // every correct answer sends a surge of water and the fire visibly loses
 // strength; the outcome either brings it under control (steam, zone turns
 // blue) or leaves it burning at a reduced level.
-import { building, glow, ground, lamp, person, pool, reflect, ring, vehicle, zone } from '../fx.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { building, glow, ground, lamp, person, pool, reflect, ring, vehicle, zone, mistBand, shafts } from '../fx.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 600
 const GROUND = 690
@@ -104,12 +104,14 @@ export default {
     })
 
     // near layer: the burning block, street, trucks, crews
+    drawTrees(rd, [[330, HORIZON + 40, 150], [1110, HORIZON + 40, 130], [1500, HORIZON + 42, 160]], 0.82, '#1c3428')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 30, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND, roadH: 110, wet: true })
       // sidewalk
       ctx.fillStyle = '#1f2836'
       ctx.fillRect(-400, GROUND - 40, 2400, 40)
-      building(ctx, { x: 640, y: GROUND - 40, w: 260, h: 360, depth: 34, floors: 5, cols: 4, wall: '#3a4658', side: '#232d3c', lit: 0.25, burning: BURNING }, t, fire)
+      building(ctx, { x: 640, y: GROUND - 40, w: 260, h: 360, depth: 34, floors: 5, cols: 4, wall: '#3a4658', side: '#232d3c', lit: 0.25, balconies: true, burning: BURNING }, t, fire)
       // balconies, parapet and the entrance
       ctx.fillStyle = 'rgba(14,20,30,0.55)'
       for (let f = 1; f < 5; f++) ctx.fillRect(640, GROUND - 400 + f * 72 - 4, 260, 5)
@@ -123,6 +125,8 @@ export default {
       const fl = fire * (0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 5.3))
       glow(ctx, 770, GROUND - 260, 380, '255,120,40', 0.55 * fl)
       pool(ctx, 770, GROUND + 50, 520, 70, '255,130,50', 0.45 * fl)
+      // light shafts from the fire through the smoke above the roof
+      shafts(ctx, 770, GROUND - 330, t, '255,150,80', 0.1 * fire, 5)
       reflect(ctx, 735, GROUND + 4, 90, '255,140,60', 0.35 * fl)
       reflect(ctx, 805, GROUND + 4, 80, '255,140,60', 0.3 * fl)
 
@@ -189,6 +193,7 @@ export default {
 
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.35 * oc : 0 })
   },
 }

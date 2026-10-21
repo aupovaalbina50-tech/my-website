@@ -1,6 +1,6 @@
 // Shared backdrop of the mission scenes: sky, mountains, distant city, the
 // colour grade. A scene picks a mood and adds its own mid and near layers.
-import { clouds, makeClouds, makeSkyline, makeStars, post, ridge, seeded, sky, skyline, stars } from '../fx.js'
+import { clouds, makeClouds, makeSkyline, makeStars, post, ridge, seeded, sky, skyline, stars, tree, fence } from '../fx.js'
 
 export const MOODS = {
   dusk: {
@@ -138,3 +138,56 @@ export function pulseK(state, kind = 'action') {
   for (const p of state.pulses) if (p.kind === kind) k = Math.max(k, Math.sin(Math.min(1, p.t / p.life) * Math.PI))
   return k
 }
+
+// Foreground silhouettes (bushes, a fence, a tree trunk) between the camera
+// and the scene, out of focus: drawn once, blurred, then moved with a
+// parallax above 1 so they slide faster than the scene and give depth.
+function bakeForeground(bd, kind) {
+  bd.baked ??= {}
+  const key = `fg:${kind}`
+  if (bd.baked[key]) return bd.baked[key]
+  const W = 2400
+  const H = 420
+  const c = document.createElement('canvas')
+  c.width = W / 2
+  c.height = H / 2
+  const g = c.getContext('2d')
+  g.scale(0.5, 0.5)
+  if ('filter' in g) g.filter = 'blur(6px)'
+  const r = seeded(kind.length * 97 + 5)
+  g.fillStyle = '#04070c'
+  // bushes along the bottom edge, with gaps so the scene stays readable
+  for (let x = 0; x < W; x += 60 + r() * 80) {
+    if (x > 700 && x < 1700) continue
+    const rr = 50 + r() * 70
+    g.beginPath()
+    g.arc(x, H - 20 + r() * 30, rr, 0, Math.PI * 2)
+    g.fill()
+  }
+  if (kind !== 'water') {
+    g.fillRect(140, 60, 26, H)
+    g.beginPath()
+    g.arc(150, 80, 120, 0, Math.PI * 2)
+    g.fill()
+  }
+  if ('filter' in g) g.filter = 'none'
+  bd.baked[key] = { c, W, H }
+  return bd.baked[key]
+}
+
+export function drawForeground(rd, bd, kind = 'street') {
+  if (rd.state.quality === 'lite') return
+  const fg = bakeForeground(bd, kind)
+  rd.layer(1.32, () => {
+    rd.ctx.globalAlpha = 0.92
+    rd.ctx.drawImage(fg.c, -400, 900 - fg.H + 40, fg.W, fg.H)
+    rd.ctx.globalAlpha = 1
+  })
+}
+
+/** Trees of a mid layer (parallax p), swaying. */
+export function drawTrees(rd, list, p = 0.75, color) {
+  rd.layer(p, () => list.forEach(([x, gy, h]) => tree(rd.ctx, x, gy, h, rd.state.t, { color })))
+}
+
+export { fence }
