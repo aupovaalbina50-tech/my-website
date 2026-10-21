@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Building2, ExternalLink, Link2, ListChecks, Mail, MapPin, Phone, Target, Users } from 'lucide-react'
+import SectionIntro from '../../components/SectionIntro.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import {
   COMMITTEES,
@@ -36,7 +37,14 @@ function CommitteesContent() {
     <section id="committees" className="section-committees">
       <div className="section-kicker" aria-hidden="true"></div>
       <h1 className="section-title">{t.nav.committees}</h1>
-      <p className="section-lead">{c.lead}</p>
+      <SectionIntro
+        lead={c.lead}
+        steps={[
+          { icon: Building2, ...c.introSteps[0], target: '.committees-nav' },
+          { icon: Target, ...c.introSteps[1], target: '.committees-detail' },
+          { icon: Phone, ...c.introSteps[2], target: '.committees-aside' },
+        ]}
+      />
 
       <div className="committees-split">
         <nav className="committees-nav" aria-label={t.nav.committees}>

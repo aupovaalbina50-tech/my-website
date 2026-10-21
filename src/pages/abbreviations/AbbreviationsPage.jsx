@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftRight, BadgeCheck, Check, CircleHelp, Copy, Database, ExternalLink, FileText, Search, X } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Check, CircleHelp, Copy, Database, ExternalLink, FileCheck2, FileText, Languages, Search, X } from 'lucide-react'
 import SiteSectionLayout from '../../components/SiteSectionLayout.jsx'
+import SectionIntro from '../../components/SectionIntro.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { categoryLucideIcon } from '../../constants/categoryIcons.js'
 import { ALPHABETS, CATEGORIES, STATUSES, compareAbbr, firstLetter, matches, useAbbreviations } from './model.js'
@@ -221,7 +222,14 @@ export default function AbbreviationsPage() {
       <section className="abbr-section" id="abbreviations">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{S.title[ui]}</h1>
-        <p className="section-lead">{S.lead[ui]}</p>
+        <SectionIntro
+          lead={S.introLead[ui]}
+          steps={[
+            { icon: Search, title: S.introSteps[0].title[ui], text: S.introSteps[0].text[ui], target: '.abbr-search', focus: '.abbr-search input' },
+            { icon: Languages, title: S.introSteps[1].title[ui], text: S.introSteps[1].text[ui], target: '.abbr-tabs' },
+            { icon: FileCheck2, title: S.introSteps[2].title[ui], text: S.introSteps[2].text[ui], target: '.abbr-list' },
+          ]}
+        />
 
         <div className="abbr-tabs" role="tablist" aria-label={S.tabsAria[ui]}>
           {['kk', 'ru'].map((l) => (

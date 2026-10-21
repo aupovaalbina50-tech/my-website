@@ -23,6 +23,7 @@ import {
   Warehouse,
 } from 'lucide-react'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
+import SectionIntro from '../components/SectionIntro.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import {
   MINISTRY_NAME,
@@ -253,7 +254,7 @@ function MinistryPage() {
       <section id="ministry" className="section-ministry">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{t.sections.ministryTitle}</h1>
-        <p className="section-lead">{m.lead}</p>
+        <SectionIntro lead={m.lead} />
 
         <div className="ministry-panel">
           <div className="ministry-panel-section ministry-facts-section">
