@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { Star } from 'lucide-react'
+import { BookmarkPlus, MousePointerClick, Star } from 'lucide-react'
+import SectionIntro from '../../components/SectionIntro.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { CATEGORIES } from '../../i18n/translations'
 import { useFavoriteTerms } from './useFavoriteTerms.js'
@@ -14,10 +15,18 @@ function MyDictionaryPage() {
 
   return (
     <div className="account-home">
-      <header className="my-dictionary-head">
-        <h1 className="account-title">{t.termFavorites.pageTitle}</h1>
-        <p className="my-dictionary-hint">{t.termFavorites.pageSubtitle}</p>
-      </header>
+      <div>
+        <div className="section-kicker" aria-hidden="true"></div>
+        <h1 className="section-title">{t.termFavorites.pageTitle}</h1>
+        <SectionIntro
+          lead={t.termFavorites.introLead}
+          steps={[
+            { icon: BookmarkPlus, ...t.termFavorites.introSteps[0], onClick: () => navigate('/account/terms') },
+            { icon: MousePointerClick, ...t.termFavorites.introSteps[1], target: '.terms-table' },
+            { icon: Star, ...t.termFavorites.introSteps[2], target: '.terms-table' },
+          ]}
+        />
+      </div>
 
       <div className="card">
         <div className="table-wrap">

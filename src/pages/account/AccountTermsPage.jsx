@@ -1,7 +1,8 @@
-import AllTermsContent from '../shared/AllTermsContent.jsx'
+import TermsHub from '../shared/TermsHub.jsx'
 
+// The same «Терминдер» screen as on the public site; terms open inside the account.
 function AccountTermsPage() {
-  return <AllTermsContent showBack={false} termBasePath="/account/terms" />
+  return <TermsHub termBasePath="/account/terms" />
 }
 
 export default AccountTermsPage

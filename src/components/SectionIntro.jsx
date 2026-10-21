@@ -14,7 +14,7 @@ function SectionIntro({ lead, steps = [] }) {
     <div className="section-intro">
       <p className="section-intro-lead">{lead}</p>
       {steps.length > 0 && (
-        <ol className="section-intro-steps">
+        <ol className={`section-intro-steps${steps.length === 4 ? ' section-intro-steps--4' : ''}`}>
           {steps.map(({ icon: Icon, title, text, target, focus, onClick, active }) => {
             const body = (
               <>
