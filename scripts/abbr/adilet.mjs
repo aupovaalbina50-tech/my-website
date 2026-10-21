@@ -6,14 +6,18 @@
 // API itself or the search. Seed: the acts the platform already cites; plus
 // civil-protection acts they link to, up to MAX_DOCS.
 // Output: out/adilet.json — per act: title, and every «(далее – X)» /
-// «(бұдан әрі – X)» with the words before it and the point it stands in.
+// «(бұдан әрі – X)» with the words before it and the point it stands in,
+// plus lines of abbreviation lists («X – full form»); out/texts/<id>.<lang>.txt.gz —
+// the act texts, to check where an abbreviation is used.
 import { chromium } from 'playwright'
 import fs from 'node:fs'
+import zlib from 'node:zlib'
 
 const SEED = ['Z1400000188', 'V1700015430', 'V2100024045', 'Z030000387_', 'V14C0010151']
-const MAX_DOCS = 30
-const TOPIC = /чрезвычайн|гражданск(ой|ая|ую) (защит|оборон)|пожар|спасат|аварийно|промышленн\S* безопасн|эвакуац|оповещен|государственн\S* материальн\S* резерв/i
-fs.mkdirSync('out', { recursive: true })
+const MAX_DOCS = Number(process.env.MAX_DOCS ?? 160)
+const TOPIC = /чрезвычайн|гражданск(ой|ая|ую) (защит|оборон)|пожар|спасат|аварийно|промышленн\S* безопасн|опасн\S* производствен|эвакуац|оповещен|государственн\S* материальн\S* резерв|медицин\S* катастроф|сейсм|паводк|наводнен|селе|лавин|радиац|химическ\S* опасн/i
+fs.mkdirSync('out/texts', { recursive: true })
+const save = (id, lang, text) => text && fs.writeFileSync(`out/texts/${id}.${lang}.txt.gz`, zlib.gzipSync(text))
 const browser = await chromium.launch()
 const page = await browser.newPage({ userAgent: 'termin-mchs-catalog-bot/1.0 (by a person\'s request; +https://termin-mchs.vercel.app)' })
 const sleep = (ms) => new Promise((s) => setTimeout(s, ms))
@@ -44,6 +48,8 @@ function placeOf(text, at) {
 
 const RU = /\(\s*(?:далее|далее по тексту)\s*[–—-]\s*([^()\n]{1,40}?)\s*\)/g
 const KK = /\(\s*бұдан\s+әрі\s*[–—-]\s*([^()\n]{1,40}?)\s*\)/g
+// A line of an abbreviation list: «ГПС – Государственная противопожарная служба;».
+const LIST = /^[ \t]*([A-ZА-ЯЁӘҒҚҢӨҰҮҺІ][A-ZА-ЯЁӘҒҚҢӨҰҮҺІа-яёәғқңөұүһі0-9\-/]{1,12})[ \t]+[–—-][ \t]+([а-яёәғқңөұүһіA-Za-zА-ЯЁ«"][^\n]{5,200})$/gm
 const isAbbr = (s) => /^[«"]?[A-ZА-ЯЁӘҒҚҢӨҰҮҺІ][A-ZА-ЯЁӘҒҚҢӨҰҮҺІа-яёәғқңөұүһі0-9\-–/ .]{0,16}[»"]?$/.test(s) && (s.match(/[A-ZА-ЯЁӘҒҚҢӨҰҮҺІ]/g) ?? []).length >= 2
 
 const docs = []
@@ -67,7 +73,13 @@ while (queue.length && docs.length < MAX_DOCS) {
       if (!isAbbr(abbr)) continue
       entries.push({ lang, abbr, before: d.text.slice(Math.max(0, m.index - 260), m.index).replace(/\s+/g, ' ').trim(), place: placeOf(d.text, m.index), url: d.url })
     }
+    for (const m of d.text.matchAll(LIST)) {
+      if (!isAbbr(m[1])) continue
+      entries.push({ lang, abbr: m[1], full: m[2].replace(/[;.,]\s*$/, '').trim(), kind: 'list', place: placeOf(d.text, m.index), url: d.url })
+    }
   }
+  save(id, 'ru', ru.text)
+  save(id, 'kk', kk.text)
   docs.push({ id, title_ru: ru.title, title_kk: kk.title, url_ru: ru.url, url_kk: kk.url, chars: ru.text.length, entries })
   for (const href of ru.links) {
     const m = /\/docs\/([VZKPU][0-9A-Za-z_]{6,14})/.exec(href ?? '')
