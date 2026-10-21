@@ -1325,6 +1325,28 @@
   margin: -8px auto var(--space-5);
 }
 
+/* A soft shade behind the title and intro: the moving dots and lines of
+   the background fade out where the text is, without drawing a box. */
+.section-intro::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -190px -6% -30px;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 62% 58% at 50% 48%,
+    rgba(14, 40, 76, 0.92) 0%,
+    rgba(14, 40, 76, 0.7) 45%,
+    rgba(14, 40, 76, 0) 100%
+  );
+}
+
+.section-kicker,
+.section-title {
+  position: relative;
+  z-index: 2;
+}
+
 .section-intro-lead {
   max-width: 720px;
   margin: 0 auto 22px;
@@ -1845,6 +1867,7 @@
 }
 
 .ministry-fact-value {
+  font-variant-numeric: tabular-nums;
   font-size: 26px;
   font-weight: 800;
   line-height: 1.1;
@@ -1855,8 +1878,7 @@
   font-size: 13.5px;
   line-height: 1.35;
   color: var(--text-soft);
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 @media (max-width: 640px) {
