@@ -1389,7 +1389,9 @@
 .section-intro-step {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
   column-gap: 12px;
+  row-gap: 2px;
   align-items: start;
   box-sizing: border-box;
   width: calc(100% - 12px);
@@ -1789,106 +1791,123 @@
   scroll-margin-top: 16px;
 }
 
-/* Key figures strip at the top of the ministry panel */
-.ministry-facts-section {
-  padding-block: var(--space-4);
-  background: linear-gradient(180deg, var(--bg-soft), var(--surface));
-}
-
+/* Key figures: a band of numbers on the canvas between the intro and the
+   ministry panel, no cards; each number leads to its part of the page. */
 .ministry-facts {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
+  margin: 0 0 var(--space-5);
+  padding: 18px 0;
   list-style: none;
+  border-top: 1px solid rgba(238, 244, 251, 0.16);
+  border-bottom: 1px solid rgba(238, 244, 251, 0.16);
 
-  @media (max-width: 1100px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  & > li + li {
+    border-left: 1px solid rgba(238, 244, 251, 0.16);
   }
-  @media (max-width: 640px) {
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 8px;
+
+    & > li:nth-child(4) {
+      border-left: 0;
+    }
+  }
+  @media (max-width: 560px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 
-    & li:last-child:nth-child(odd) {
+    & > li:nth-child(odd) {
+      border-left: 0;
+    }
+    & > li:nth-child(4) {
+      border-left: 1px solid rgba(238, 244, 251, 0.16);
+    }
+    & > li:last-child {
       grid-column: 1 / -1;
     }
   }
 }
 
+/* Same soft shade as behind the intro, so the background stays quiet. */
+.ministry-facts::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -24px 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(14, 40, 76, 0.88) 0%, rgba(14, 40, 76, 0.6) 55%, rgba(14, 40, 76, 0) 100%);
+}
+
 .ministry-fact {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 12px;
-  align-items: center;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
   width: 100%;
   height: 100%;
-  padding: 14px 16px;
+  padding: 6px 10px 8px;
   font: inherit;
-  text-align: left;
+  text-align: center;
   text-decoration: none;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  color: var(--canvas-text);
+  background: transparent;
+  border: 0;
   border-radius: 12px;
   cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+  transition: background-color 0.2s ease;
 
   &:hover {
-    border-color: var(--navy);
-    box-shadow: 0 8px 20px rgba(20, 45, 80, 0.12);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.07);
   }
   &:focus-visible {
-    outline: 2px solid var(--navy);
+    outline: 2px solid #8cc8ff;
     outline-offset: 2px;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-    &:hover {
-      transform: none;
-    }
   }
 }
 
 .ministry-fact-icon {
-  grid-row: 1 / 3;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  color: var(--navy);
-  background: var(--blue-light);
+  color: #9fd2ff;
 }
 
 .ministry-fact-value {
   font-variant-numeric: tabular-nums;
-  font-size: 26px;
+  font-size: 42px;
   font-weight: 800;
-  line-height: 1.1;
-  color: var(--navy);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(4, 16, 36, 0.55);
+  transition: color 0.2s ease;
+
+  @media (max-width: 560px) {
+    font-size: 34px;
+  }
+}
+
+.ministry-fact:hover .ministry-fact-value {
+  color: #9fd2ff;
 }
 
 .ministry-fact-label {
-  font-size: 13.5px;
+  max-width: 16ch;
+  font-size: 14.5px;
   line-height: 1.35;
-  color: var(--text-soft);
-  overflow-wrap: break-word;
+  color: rgba(238, 244, 251, 0.82);
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 
-@media (max-width: 640px) {
-  .ministry-fact {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 12px 14px;
-  }
-  .ministry-fact-icon {
-    display: none;
-  }
+.ministry-fact:hover .ministry-fact-label {
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: rgba(159, 210, 255, 0.6);
+  text-underline-offset: 3px;
 }
 
 .ministry-portrait {
