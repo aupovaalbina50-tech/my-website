@@ -20,6 +20,7 @@ import { supabase } from '../../supabaseClient'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import SiteSectionLayout from '../../components/SiteSectionLayout.jsx'
+import SectionIntro from '../../components/SectionIntro.jsx'
 import DocsContent from '../shared/DocsContent.jsx'
 import DocInspector from '../shared/docInspector/DocInspector.jsx'
 import MyDocuments from './MyDocuments.jsx'
@@ -456,16 +457,11 @@ function PublicHub() {
   ]
   return (
     <div className="dws-page dws-page--standalone">
-      <header className="dws-hero">
-        <span className="dws-hero-icon" aria-hidden="true">
-          <FolderOpen size={30} strokeWidth={1.75} />
-        </span>
-        <div>
-          <p className="dws-hero-kicker">{w.kicker}</p>
-          <h1 className="dws-hero-title">{w.title}</h1>
-          <p className="dws-hero-lead">{w.lead}</p>
-        </div>
-      </header>
+      <div>
+        <div className="section-kicker" aria-hidden="true"></div>
+        <h1 className="section-title">{w.title}</h1>
+        <SectionIntro lead={w.lead} />
+      </div>
       <nav className="dws-cards" aria-label={w.chooseAria}>
         {cards.map(({ key, to, Icon, note }) => (
           <Link key={key} to={to} className={`dws-card dws-card--${key}`}>

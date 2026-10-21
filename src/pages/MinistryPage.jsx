@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Siren,
   Trophy,
+  Users,
   Warehouse,
 } from 'lucide-react'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
@@ -254,7 +255,14 @@ function MinistryPage() {
       <section id="ministry" className="section-ministry">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{t.sections.ministryTitle}</h1>
-        <SectionIntro lead={m.lead} />
+        <SectionIntro
+          lead={m.lead}
+          steps={[
+            { icon: Users, ...m.introSteps[0], target: '#ministry-leadership' },
+            { icon: ShieldAlert, ...m.introSteps[1], target: '#ministry-directions' },
+            { icon: Network, ...m.introSteps[2], target: '#ministry-structure' },
+          ]}
+        />
 
         <div className="ministry-panel">
           <div className="ministry-panel-section ministry-facts-section">
@@ -273,7 +281,7 @@ function MinistryPage() {
             {minister && <MinisterPortrait person={minister} lang={lang} />}
           </div>
 
-          <div className="ministry-panel-section">
+          <div className="ministry-panel-section" id="ministry-leadership">
             <h2 className="ministry-subtitle">{m.leadershipTitle}</h2>
             <div className="org-person-grid">
               {MINISTRY_LEADERSHIP.map((person) => (

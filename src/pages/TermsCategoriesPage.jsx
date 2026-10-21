@@ -4,6 +4,7 @@ import { LayoutGrid, ALargeSmall, List } from 'lucide-react'
 import Header from '../components/Header.jsx'
 import HomeSidebar from '../components/HomeSidebar.jsx'
 import Footer from '../components/Footer.jsx'
+import SectionIntro from '../components/SectionIntro.jsx'
 import CategoryGrid from './shared/CategoryGrid.jsx'
 import AlphabetTerms from './shared/AlphabetTerms.jsx'
 import AllTermsContent from './shared/AllTermsContent.jsx'
@@ -30,41 +31,18 @@ function TermsCategoriesPage() {
       <div className="account-shell">
         <HomeSidebar activeSection="terms" onSectionClick={() => {}} />
         <div className="home-content">
-          <div className="terms-tabs">
-            <div className="tnm-view-switch" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === 'categories'}
-                className={`tnm-view-btn${view === 'categories' ? ' active' : ''}`}
-                onClick={() => setView('categories')}
-              >
-                <LayoutGrid size={19} aria-hidden="true" />
-                {t.termsMap.viewCategories}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === 'alphabet'}
-                className={`tnm-view-btn${view === 'alphabet' ? ' active' : ''}`}
-                onClick={() => setView('alphabet')}
-              >
-                <ALargeSmall size={19} aria-hidden="true" />
-                {t.termsMap.viewAlphabet}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === 'list'}
-                className={`tnm-view-btn${view === 'list' ? ' active' : ''}`}
-                onClick={() => setView('list')}
-              >
-                <List size={19} aria-hidden="true" />
-                {t.termsMap.viewList}
-              </button>
-            </div>
-          </div>
-
+          <section className="section-terms-intro">
+            <div className="section-kicker" aria-hidden="true"></div>
+            <h1 className="section-title">{t.nav.terms}</h1>
+            <SectionIntro
+              lead={t.termsMap.introLead}
+              steps={[
+                { icon: LayoutGrid, ...t.termsMap.introSteps[0], active: view === 'categories', onClick: () => setView('categories') },
+                { icon: ALargeSmall, ...t.termsMap.introSteps[1], active: view === 'alphabet', onClick: () => setView('alphabet') },
+                { icon: List, ...t.termsMap.introSteps[2], active: view === 'list', onClick: () => setView('list') },
+              ]}
+            />
+          </section>
           {view === 'categories' && (
             <CategoryGrid
               t={t}

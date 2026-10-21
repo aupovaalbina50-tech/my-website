@@ -1330,22 +1330,22 @@
   margin: 0 auto 22px;
   text-align: center;
   text-wrap: balance;
-  font-size: 18px;
+  font-size: 19.5px;
   font-weight: 500;
   line-height: 1.55;
   color: var(--canvas-text);
   text-shadow: 0 1px 14px rgba(4, 16, 36, 0.7);
 
   @media (max-width: 640px) {
-    font-size: 16.5px;
+    font-size: 17px;
   }
 }
 
 .section-intro-steps {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1080px;
+  margin: 0 auto;
   padding: 0;
   list-style: none;
 
@@ -1354,8 +1354,7 @@
   }
 
   @media (max-width: 900px) {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
 
     & > li + li {
       border-left: 0;
@@ -1370,9 +1369,11 @@
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 12px;
   align-items: start;
-  max-width: 330px;
+  box-sizing: border-box;
+  width: calc(100% - 12px);
+  height: 100%;
   margin: 0 6px;
-  padding: 10px 16px;
+  padding: 12px 18px;
   font: inherit;
   text-align: left;
   color: var(--canvas-text);
@@ -1384,8 +1385,9 @@
   &.is-action {
     cursor: pointer;
   }
-  &.is-action:hover {
-    background: rgba(255, 255, 255, 0.08);
+  &.is-action:hover,
+  &.is-active {
+    background: rgba(255, 255, 255, 0.09);
   }
   &.is-action:focus-visible {
     outline: 2px solid #8cc8ff;
@@ -1393,7 +1395,7 @@
   }
 
   @media (max-width: 900px) {
-    max-width: none;
+    width: 100%;
     margin: 0;
     padding: 12px 6px;
   }
@@ -1403,8 +1405,8 @@
   grid-row: 1 / 3;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   margin-top: 2px;
   color: #9fd2ff;
   border: 1px solid rgba(159, 210, 255, 0.45);
@@ -1415,14 +1417,15 @@
     border-color 0.2s ease;
 }
 
-.section-intro-step.is-action:hover .section-intro-step-icon {
+.section-intro-step.is-action:hover .section-intro-step-icon,
+.section-intro-step.is-active .section-intro-step-icon {
   color: #0b2a4f;
   background: #9fd2ff;
   border-color: #9fd2ff;
 }
 
 .section-intro-step-title {
-  font-size: 15.5px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.35;
   color: #fff;
@@ -1436,14 +1439,16 @@
 }
 
 .section-intro-step-text {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.5;
-  color: rgba(238, 244, 251, 0.82);
+  color: rgba(238, 244, 251, 0.88);
   text-shadow: 0 1px 10px rgba(4, 16, 36, 0.6);
 }
 
 .steps-section,
 .audience-section,
+.section-terms-intro,
+.section-quotes-intro,
 .section-committees,
 .section-ministry,
 .section-term-map {
@@ -1756,6 +1761,7 @@
   padding-top: 6px;
 }
 
+#ministry-leadership,
 #ministry-directions,
 #ministry-structure {
   scroll-margin-top: 16px;
@@ -10716,4 +10722,10 @@
   font-style: italic;
   font-weight: 500;
   color: var(--text-soft);
+}
+
+/* Terms and quotes: the intro sits right above the page's own controls. */
+.section-terms-intro,
+.section-quotes-intro {
+  margin-bottom: var(--space-4);
 }
