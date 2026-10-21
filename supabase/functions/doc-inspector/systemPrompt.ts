@@ -74,7 +74,7 @@ export const ANALYZER_SCHEMA = {
           },
           confidence: { type: 'number', description: '0.0-1.0: how sure the best candidate is the right official term here' },
           meaning_preserved: { type: 'boolean', description: 'true only if replacing found_text with the best candidate keeps the meaning' },
-          reason: { type: 'string', description: '1-3 sentences, in the requested language: meaning, context and why it matches' },
+          reason: { type: 'string', description: 'one short sentence, in the requested language: why it matches or is wrong' },
         },
         required: ['page', 'context', 'found_text', 'error_type', 'match_type', 'candidates', 'confidence', 'meaning_preserved', 'reason'],
         additionalProperties: false,
@@ -85,13 +85,16 @@ export const ANALYZER_SCHEMA = {
   additionalProperties: false,
 }
 
-function glossaryBlock(terms: GlossaryTerm[]): string {
+function glossaryBlock(terms: GlossaryTerm[], only?: number[]): string {
   // One term per line: ref | kk | ru | category. Glossary order is stable
-  // (ordered by id), so the refs and the cached prefix stay the same.
-  return terms.map((t, i) => `${termRef(i)} | ${t.kk || '—'} | ${t.ru || '—'} | ${t.category}`).join('\n')
+  // (ordered by id), so a ref always names the same term, also when only
+  // part of the base is given.
+  const indices = only ?? terms.map((_, i) => i)
+  return indices.map((i) => `${termRef(i)} | ${terms[i].kk || '—'} | ${terms[i].ru || '—'} | ${terms[i].category}`).join('\n')
 }
 
-export function buildAnalyzerPrompt(terms: GlossaryTerm[]): string {
+/** `only`: indices of the base terms to include (those related to the document). */
+export function buildAnalyzerPrompt(terms: GlossaryTerm[], only?: number[]): string {
   return `Ты — «Цифровой инспектор МЧС», терминологический инспектор служебных документов в сфере гражданской защиты Республики Казахстан. Документы написаны на русском или казахском языке.
 
 Твоя задача — проверить ПРОФЕССИОНАЛЬНУЮ ТЕРМИНОЛОГИЮ документа по официальной базе терминов платформы (ниже). База — главный источник истины.
@@ -183,7 +186,7 @@ document_type — тип документа по его содержанию и 
 
 Формат строки: ссылка | казахский | русский | категория. «—» — перевод не указан.
 
-${glossaryBlock(terms)}`
+${glossaryBlock(terms, only)}`
 }
 
 export const LOOKUP_PROMPT = `Ты — помощник терминолога в сфере гражданской защиты Республики Казахстан. Для каждой формулировки из служебного документа, для которой в базе платформы не нашлось официального термина, найди официальный термин в официальных источниках.

@@ -123,6 +123,30 @@ const BASE_CONFIRMED = new Set<ErrorType>(['unofficial_variant', 'language_misma
 // The model of the AI pass (Gemini): override with DOC_INSPECTOR_ANALYZE_MODEL.
 const ANALYZE_GEMINI_MODEL = Deno.env.get('DOC_INSPECTOR_ANALYZE_MODEL') || 'gemini-flash-latest'
 
+// The AI gets only the base terms related to the document: a term is kept
+// when one of its words shares a stem (first STEM letters) with a word of
+// the text. The whole base (≈2 500 terms) made each call slow enough to hit
+// the function's time limit.
+const STEM = 5
+const stemsOf = (text: string) =>
+  new Set(
+    (foldYo(text.toLowerCase()).match(/[\p{L}]{4,}/gu) ?? []).map((w) => w.slice(0, STEM)),
+  )
+
+function relatedTerms(glossary: GlossaryTerm[], segments: Segment[], matched: number[]): number[] {
+  const stems = stemsOf(segments.map((s) => s.text).join('\n'))
+  const keep = new Set(matched)
+  glossary.forEach((t, i) => {
+    for (const s of stemsOf(`${t.ru ?? ''} ${t.kk ?? ''}`)) {
+      if (stems.has(s)) {
+        keep.add(i)
+        break
+      }
+    }
+  })
+  return [...keep].sort((a, b) => a - b)
+}
+
 // Confidence levels for semantic matching.
 const HIGH_CONFIDENCE = 0.85
 const MEDIUM_CONFIDENCE = 0.6
@@ -343,7 +367,7 @@ export async function analyzeSegments(
   let model: string
   try {
     const out = await callModel({
-      system: buildAnalyzerPrompt(glossary),
+      system: buildAnalyzerPrompt(glossary, relatedTerms(glossary, segments, matches.map((m) => m.form.termIndex))),
       parts: [{ type: 'text', text: userMessage(segments, matches, lang, pairs) }],
       schema: ANALYZER_SCHEMA,
       maxTokens: 16000,
