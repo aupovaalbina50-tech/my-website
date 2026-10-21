@@ -37,6 +37,8 @@ export interface TermForm {
   regex: RegExp
   anchored: RegExp
   probe: string
+  /** The probe of every word: all must be in the text for the form to match. */
+  probes: string[]
   /** An unofficial wording from term_variants, not the official term. */
   unofficial: boolean
 }
@@ -183,15 +185,25 @@ function buildForm(term: GlossaryTerm, termIndex: number, lang: Lang, text: stri
     flags = 'giu'
   }
   const bounded = `(?<![\\p{L}\\p{N}])${source}(?![\\p{L}\\p{N}])`
+  // Compiled on first use: a check touches only the forms whose probe is in
+  // the text, while compiling all of them (≈6 000) cost more CPU than an
+  // Edge Function may spend on a request.
+  let regex: RegExp | null = null
+  let anchored: RegExp | null = null
   return {
     term,
     termIndex,
     lang,
     text,
     seps,
-    regex: new RegExp(bounded, flags),
-    anchored: new RegExp(`^${source}$`, flags.replace('g', '')),
+    get regex() {
+      return (regex ??= new RegExp(bounded, flags))
+    },
+    get anchored() {
+      return (anchored ??= new RegExp(`^${source}$`, flags.replace('g', '')))
+    },
     probe: foldYo(words[0].toLowerCase()).slice(0, Math.max(2, Math.min(4, words[0].length - 1))),
+    probes: words.map((w) => foldYo(w.toLowerCase()).slice(0, Math.max(2, Math.min(4, w.length - 1)))),
     unofficial,
   }
 }
@@ -323,8 +335,11 @@ export function findTerms(text: string, forms: TermForm[]): TermMatch[] {
   const folded = foldYo(text)
   const lower = folded.toLowerCase()
   const candidates: TermMatch[] = []
+  // Kazakh forms only ever count in Kazakh text (see below).
+  const kazakhText = KK_LETTERS.test(lower)
   for (const form of forms) {
-    if (!lower.includes(form.probe)) continue
+    if (form.lang === 'kk' && !kazakhText) continue
+    if (!form.probes.every((p) => lower.includes(p))) continue
     form.regex.lastIndex = 0
     for (const m of folded.matchAll(form.regex)) {
       const start = m.index!
