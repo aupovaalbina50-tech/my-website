@@ -11,6 +11,7 @@ const TermsCategoriesPage = lazy(() => import('./pages/TermsCategoriesPage.jsx')
 const TermsListPage = lazy(() => import('./pages/TermsListPage.jsx'))
 const TermDetailPage = lazy(() => import('./pages/TermDetailPage.jsx'))
 const ConfusableTermsPage = lazy(() => import('./pages/ConfusableTermsPage.jsx'))
+const AbbreviationsPage = lazy(() => import('./pages/abbreviations/AbbreviationsPage.jsx'))
 const TermMapPage = lazy(() => import('./pages/TermMapPage.jsx'))
 const MinistryPage = lazy(() => import('./pages/MinistryPage.jsx'))
 const CommitteesPage = lazy(() => import('./pages/CommitteesPage.jsx'))
@@ -74,6 +75,7 @@ function App() {
               <Route path="/category/:key" element={<TermsListPage />} />
               <Route path="/not-to-confuse" element={<ConfusableTermsPage />} />
               <Route path="/term-map" element={<TermMapPage />} />
+              <Route path="/abbreviations" element={<AbbreviationsPage />} />
               <Route path="/ministry" element={<MinistryPage />} />
               <Route path="/committees" element={<CommitteesPage />} />
               <Route path="/documents" element={<WorkspacePage />} />
