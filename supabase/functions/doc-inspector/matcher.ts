@@ -69,7 +69,11 @@ const RU_ENDINGS = [
 const RU_ENDING_RE = `(?:${RU_ENDINGS.join('|')})?`
 // Kazakh is agglutinative: the stem stays, suffixes pile up. Final к/қ/п
 // voice to г/ғ/б before a vowel suffix (көмек -> көмегі).
-const KK_SUFFIX_RE = '\\p{L}{0,12}'
+// Letters of the texts the platform checks (Russian, Kazakh, Latin). An
+// explicit class instead of \\p{L}: thousands of expressions with \\p{L}
+// cost more CPU to compile than an Edge Function may spend on a request.
+const LETTER = 'a-zA-Zа-яА-ЯёЁәғқңөұүһіӘҒҚҢӨҰҮҺІ'
+const KK_SUFFIX_RE = `[${LETTER}]{0,12}`
 const KK_LETTERS = /[әғқңөұүһі]/i
 // English: the base's en column. Plural / possessive endings only.
 const EN_SUFFIX_RE = "(?:s|es|'s)?"
@@ -184,7 +188,7 @@ function buildForm(term: GlossaryTerm, termIndex: number, lang: Lang, text: stri
     source = words.map((w, i) => `(${wordPattern(w, lang, seps[i] === 'hyphen')})`).join(SEP_RE)
     flags = 'giu'
   }
-  const bounded = `(?<![\\p{L}\\p{N}])${source}(?![\\p{L}\\p{N}])`
+  const bounded = `(?<![${LETTER}0-9])${source}(?![${LETTER}0-9])`
   // Compiled on first use: a check touches only the forms whose probe is in
   // the text, while compiling all of them (≈6 000) cost more CPU than an
   // Edge Function may spend on a request.
