@@ -168,7 +168,7 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
             </>
           )}
           <dt>{c.checked[ui]}</dt>
-          <dd>{row.checked_at ? new Date(row.checked_at).toLocaleDateString(ui === 'kk' ? 'kk-KZ' : 'ru-RU') : '—'}</dd>
+          <dd>{row.checked_at ? row.checked_at.slice(0, 10).split('-').reverse().join('.') : '—'}</dd>
         </dl>
       </section>
     </div>
