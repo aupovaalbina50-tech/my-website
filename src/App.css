@@ -1315,6 +1315,7 @@
 .section-committees,
 .section-ministry,
 .section-term-map {
+  box-sizing: border-box;
   max-width: 1120px;
   width: calc(100% - 64px);
   margin: var(--space-8) auto;
@@ -8052,6 +8053,7 @@
    ============================================================ */
 
 .alert {
+  box-sizing: border-box;
   max-width: 1120px;
   width: calc(100% - 64px);
   margin: var(--space-3) auto 0;
@@ -8070,6 +8072,7 @@
    ============================================================ */
 
 .card {
+  box-sizing: border-box;
   position: relative;
   margin: var(--space-4) auto 0;
   padding: var(--space-4) var(--space-4) var(--space-4);
@@ -8430,6 +8433,7 @@
 /* ---- stat tiles ---- */
 
 .quote-stats-grid {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-3);
@@ -8491,6 +8495,7 @@
 /* ---- quote of the day ---- */
 
 .quote-of-day-card {
+  box-sizing: border-box;
   position: relative;
   max-width: 1120px;
   width: calc(100% - 64px);
@@ -8549,6 +8554,7 @@
 /* ---- toolbar: search + sort ---- */
 
 .quote-toolbar {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -8635,6 +8641,7 @@
 }
 
 .quote-results-count {
+  box-sizing: border-box;
   max-width: 1120px;
   width: calc(100% - 64px);
   margin: 14px auto 0;
@@ -8650,6 +8657,7 @@
 /* ---- card grid ---- */
 
 .quote-grid {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--space-4);
@@ -8795,6 +8803,7 @@
 /* ---- detail page ---- */
 
 .quote-detail-nav {
+  box-sizing: border-box;
   max-width: 760px;
   width: calc(100% - 64px);
   margin: var(--space-5) auto 0;
@@ -8824,6 +8833,7 @@
 }
 
 .quote-detail-card {
+  box-sizing: border-box;
   position: relative;
   max-width: 760px;
   width: calc(100% - 64px);
@@ -8845,6 +8855,7 @@
 /* ---- terms list / category page ---- */
 
 .terms-list-section {
+  box-sizing: border-box;
   max-width: 1120px;
   width: calc(100% - 64px);
   margin: var(--space-5) auto var(--space-8);
@@ -8905,6 +8916,7 @@
 /* ---- term entries (readable list, replaces the old dense table) ---- */
 
 .term-entries {
+  box-sizing: border-box;
   list-style: none;
   margin: var(--space-4) auto 0;
   padding: 0;
@@ -9328,6 +9340,7 @@
 }
 
 .terms-tabs {
+  box-sizing: border-box;
   display: flex;
   max-width: 1120px;
   width: calc(100% - 64px);
@@ -9695,6 +9708,7 @@
 }
 
 .quote-detail-pager {
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   max-width: 760px;
