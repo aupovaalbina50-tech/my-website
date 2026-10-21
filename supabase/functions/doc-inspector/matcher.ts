@@ -384,8 +384,11 @@ export function findTerms(text: string, forms: TermForm[]): TermMatch[] {
  */
 export function officialFormOf(text: string, forms: TermForm[], term?: GlossaryTerm): TermForm | null {
   const folded = foldYo(text.trim())
+  const lower = folded.toLowerCase()
   for (const form of forms) {
     if (form.unofficial || (term && form.term.id !== term.id)) continue
+    // Cheap test first: compiling every form's expression is too much CPU.
+    if (!form.probes.every((p) => lower.includes(p))) continue
     const m = form.anchored.exec(folded)
     if (m && classify(form, m.slice(1)).status === 'ok') return form
   }
