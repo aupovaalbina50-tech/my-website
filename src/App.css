@@ -1342,49 +1342,50 @@
 }
 
 .section-intro-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
   margin: 0;
   padding: 0;
   list-style: none;
-  counter-reset: none;
+
+  & > li + li {
+    border-left: 1px solid rgba(238, 244, 251, 0.2);
+  }
 
   @media (max-width: 900px) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+
+    & > li + li {
+      border-left: 0;
+      border-top: 1px solid rgba(238, 244, 251, 0.16);
+    }
   }
 }
 
+/* A step is text on the canvas, not a card: icon, title, one line. */
 .section-intro-step {
-  position: relative;
-  box-sizing: border-box;
   display: grid;
-  align-content: start;
-  gap: 6px;
-  width: 100%;
-  height: 100%;
-  padding: 16px 18px 18px;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
+  max-width: 330px;
+  margin: 0 6px;
+  padding: 10px 16px;
   font: inherit;
   text-align: left;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(4, 16, 36, 0.16);
-  transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    background-color 0.25s ease,
-    box-shadow 0.25s ease;
+  color: var(--canvas-text);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
 
   &.is-action {
     cursor: pointer;
   }
   &.is-action:hover {
-    transform: translateY(-3px);
-    border-color: #2f80d0;
-    box-shadow: 0 16px 32px rgba(4, 16, 36, 0.24);
+    background: rgba(255, 255, 255, 0.08);
   }
   &.is-action:focus-visible {
     outline: 2px solid #8cc8ff;
@@ -1392,88 +1393,53 @@
   }
 
   @media (max-width: 900px) {
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 14px;
-    padding: 14px 40px 14px 14px;
-
-    .section-intro-step-top {
-      grid-row: 1 / 3;
-    }
-    .section-intro-step-number {
-      display: none;
-    }
+    max-width: none;
+    margin: 0;
+    padding: 12px 6px;
   }
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-    &.is-action:hover {
-      transform: none;
-    }
-  }
-}
-
-.section-intro-step-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
 }
 
 .section-intro-step-icon {
+  grid-row: 1 / 3;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  color: #fff;
-  background: linear-gradient(145deg, #2f80d0, #1a4f8f);
-  border-radius: 11px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: transform 0.25s ease;
+  width: 36px;
+  height: 36px;
+  margin-top: 2px;
+  color: #9fd2ff;
+  border: 1px solid rgba(159, 210, 255, 0.45);
+  border-radius: 50%;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .section-intro-step.is-action:hover .section-intro-step-icon {
-  transform: scale(1.06);
-}
-
-.section-intro-step-number {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #9aabbf;
+  color: #0b2a4f;
+  background: #9fd2ff;
+  border-color: #9fd2ff;
 }
 
 .section-intro-step-title {
-  font-size: 16.5px;
+  font-size: 15.5px;
   font-weight: 700;
-  line-height: 1.3;
-  color: var(--navy);
+  line-height: 1.35;
+  color: #fff;
+  text-shadow: 0 1px 10px rgba(4, 16, 36, 0.6);
+}
+
+.section-intro-step.is-action:hover .section-intro-step-title {
+  text-decoration: underline;
+  text-decoration-color: rgba(159, 210, 255, 0.7);
+  text-underline-offset: 4px;
 }
 
 .section-intro-step-text {
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.5;
-  color: var(--text-soft);
-}
-
-.section-intro-step-arrow {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  color: #2f80d0;
-  opacity: 0.5;
-  transition:
-    opacity 0.25s ease,
-    transform 0.25s ease;
-
-  @media (max-width: 900px) {
-    top: 50%;
-    bottom: auto;
-    margin-top: -8px;
-  }
-}
-
-.section-intro-step.is-action:hover .section-intro-step-arrow {
-  opacity: 1;
-  transform: translateX(3px);
+  color: rgba(238, 244, 251, 0.82);
+  text-shadow: 0 1px 10px rgba(4, 16, 36, 0.6);
 }
 
 .steps-section,
