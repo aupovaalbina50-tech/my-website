@@ -101,7 +101,9 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
                   ? equivalents.map((eq) => (
                       <button key={eq.id} type="button" className="abbr-equivalent" onClick={() => onOpen(eq)}>
                         <ArrowLeftRight size={15} aria-hidden="true" />
-                        <strong lang={eq.lang}>{eq.abbr}</strong> — <span lang={eq.lang}>{eq.full_form}</span>
+                        <span>
+                          <strong lang={eq.lang}>{eq.abbr}</strong> — <span lang={eq.lang}>{eq.full_form}</span>
+                        </span>
                       </button>
                     ))
                   : row.equivalent_full}
@@ -149,10 +151,14 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
           </dd>
           {row.official_url && (
             <>
-              <dt>{c.official[ui]}</dt>
-              <dd>
-                <SourceLink url={row.official_url} title={row.official_title || row.official_url} />
-              </dd>
+              {row.official_url !== row.source_url && (
+                <>
+                  <dt>{c.official[ui]}</dt>
+                  <dd>
+                    <SourceLink url={row.official_url} title={row.official_title || row.official_url} />
+                  </dd>
+                </>
+              )}
               {row.source_section && (
                 <>
                   <dt>{c.section[ui]}</dt>
@@ -327,7 +333,7 @@ export default function AbbreviationsPage() {
           </ul>
         )}
       </section>
-      {open && <AbbrCard row={open} rows={rows} ui={ui} onOpen={(r) => set({ id: r.id, lang: r.lang })} onClose={() => set({ id: '' })} />}
+      {open && <AbbrCard row={open} rows={rows} ui={ui} onOpen={(r) => set({ id: r.id, lang: r.lang, q: r.lang === tab ? query : '', letter: r.lang === tab ? letter : '' })} onClose={() => set({ id: '' })} />}
     </SiteSectionLayout>
   )
 }
