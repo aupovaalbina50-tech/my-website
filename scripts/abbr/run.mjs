@@ -1,1 +1,1 @@
-await import('./usage.mjs')
+await import('./adilet.mjs')
