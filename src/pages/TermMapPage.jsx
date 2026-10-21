@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronRight, LayoutGrid, Link2, Network, Search, Siren, Waypoints, X, Layers } from 'lucide-react'
+import { ArrowLeft, ChevronRight, LayoutGrid, Link2, Network, Search, Siren, Waypoints, X, Layers, MousePointerClick } from 'lucide-react'
+import SectionIntro from '../components/SectionIntro.jsx'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { EMERGENCY_HAZARDS } from '../data/emergencyHazards'
@@ -472,7 +473,14 @@ function TermMapPage() {
       <section id="term-map" className="section-term-map">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{t.termMap.title}</h1>
-        <p className="section-lead">{t.termMap.lead}</p>
+        <SectionIntro
+          lead={t.termMap.introLead}
+          steps={[
+            { icon: Layers, ...t.termMap.introSteps[0], target: '.term-map-layer-switch' },
+            { icon: MousePointerClick, ...t.termMap.introSteps[1], target: '.term-map-network' },
+            { icon: Search, ...t.termMap.introSteps[2], target: '.term-map-search', focus: '.term-map-search-input' },
+          ]}
+        />
 
         <div className="term-map-canvas">
           <div className="term-map-search" ref={searchWrapRef}>

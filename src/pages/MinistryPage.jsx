@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
+  Building2,
   ChevronDown,
   Factory,
   Flame,
@@ -22,6 +23,7 @@ import {
   Warehouse,
 } from 'lucide-react'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
+import SectionIntro from '../components/SectionIntro.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import {
   MINISTRY_NAME,
@@ -36,6 +38,7 @@ import {
   MINISTRY_TERRITORIAL_BODIES,
   MINISTRY_SUBORDINATE_ORGANIZATIONS,
 } from '../data/ministryStructure'
+import { COMMITTEES } from '../data/committees'
 
 function SourceLink({ href, children }) {
   return (
@@ -186,6 +189,46 @@ function StructureList({ title, items, sourceUrl, sourceText }) {
   )
 }
 
+// Key figures at the top of the panel; each leads to its part of the page.
+function MinistryFacts({ m, lang, territorialCount, onOpen }) {
+  const facts = [
+    { id: 'directions', icon: ShieldAlert, value: MINISTRY_DIRECTIONS[lang].length, label: m.factDirections },
+    { id: 'central', icon: Landmark, value: MINISTRY_CENTRAL_DEPARTMENTS[lang].length, label: m.factCentral },
+    { id: 'territorial', icon: MapPin, value: territorialCount, label: m.factTerritorial },
+    { id: 'organizations', icon: Network, value: MINISTRY_SUBORDINATE_ORGANIZATIONS[lang].length, label: m.factOrganizations },
+    { id: 'committees', icon: Building2, value: COMMITTEES.length, label: m.factCommittees, to: '/committees' },
+  ]
+
+  return (
+    <ul className="ministry-facts" aria-label={m.factsAria}>
+      {facts.map(({ id, icon: Icon, value, label, to }) => {
+        const body = (
+          <>
+            <span className="ministry-fact-icon">
+              <Icon size={18} aria-hidden="true" />
+            </span>
+            <strong className="ministry-fact-value">{value}</strong>
+            <span className="ministry-fact-label">{label}</span>
+          </>
+        )
+        return (
+          <li key={id}>
+            {to ? (
+              <Link className="ministry-fact" to={to}>
+                {body}
+              </Link>
+            ) : (
+              <button type="button" className="ministry-fact" onClick={() => onOpen(id)}>
+                {body}
+              </button>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 function MinistryPage() {
   const { lang, t } = useLanguage()
   const m = t.ministry
@@ -197,15 +240,27 @@ function MinistryPage() {
   }
 
   const territorial = MINISTRY_TERRITORIAL_BODIES[lang]
+  const territorialCount = territorial.regional.length + territorial.cities.length + territorial.industrialSafety.length
   const minister = MINISTRY_LEADERSHIP.find((person) => person.id === 'minister')
+
+  const openFact = (id) => {
+    if (id !== 'directions') setOpenSection(id)
+    const target = document.getElementById(id === 'directions' ? 'ministry-directions' : 'ministry-structure')
+    requestAnimationFrame(() => target?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   return (
     <SiteSectionLayout activeSection="ministry">
       <section id="ministry" className="section-ministry">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{t.sections.ministryTitle}</h1>
+        <SectionIntro lead={m.lead} />
 
         <div className="ministry-panel">
+          <div className="ministry-panel-section ministry-facts-section">
+            <MinistryFacts m={m} lang={lang} territorialCount={territorialCount} onOpen={openFact} />
+          </div>
+
           <div className="ministry-panel-section ministry-mission-block">
             <div className="ministry-mission-text">
               <h2 className="ministry-subtitle">{m.missionTitle}</h2>
@@ -255,13 +310,13 @@ function MinistryPage() {
             <SourceLink href={MINISTRY_SOURCES.leadership[lang]}>{m.structureSourceText}</SourceLink>
           </div>
 
-          <div className="ministry-panel-section">
+          <div className="ministry-panel-section" id="ministry-directions">
             <h2 className="ministry-subtitle">{m.directionsTitle}</h2>
             <DirectionsExplorer lang={lang} m={m} />
             <SourceLink href={MINISTRY_SOURCES.gov[lang]}>{m.structureSourceText}</SourceLink>
           </div>
 
-          <div className="ministry-panel-section">
+          <div className="ministry-panel-section" id="ministry-structure">
             <h2 className="ministry-subtitle">{m.structureTitle}</h2>
 
             <div className="ministry-accordion">
@@ -282,7 +337,7 @@ function MinistryPage() {
               <AccordionSection
                 icon={MapPin}
                 title={m.territorialTitle}
-                count={territorial.regional.length + territorial.cities.length + territorial.industrialSafety.length}
+                count={territorialCount}
                 isOpen={openSection === 'territorial'}
                 onToggle={() => toggleSection('territorial')}
               >

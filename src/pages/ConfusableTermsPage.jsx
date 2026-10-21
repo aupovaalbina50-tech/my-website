@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ShieldAlert, ExternalLink } from 'lucide-react'
+import { ShieldAlert, ExternalLink, ListChecks, Columns2, Lightbulb } from 'lucide-react'
+import SectionIntro from '../components/SectionIntro.jsx'
 import SiteSectionLayout from '../components/SiteSectionLayout.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { CONFUSABLE_TERMS } from '../data/confusableTerms'
@@ -15,7 +16,14 @@ function ConfusableTermsPage() {
       <section id="confusable" className="section-confusable">
         <div className="section-kicker" aria-hidden="true"></div>
         <h1 className="section-title">{t.nav.confusable}</h1>
-        <p className="section-lead">{t.confusable.lead}</p>
+        <SectionIntro
+          lead={t.confusable.introLead}
+          steps={[
+            { icon: ListChecks, ...t.confusable.introSteps[0], target: '.confusable-nav' },
+            { icon: Columns2, ...t.confusable.introSteps[1], target: '.confusable-pair' },
+            { icon: Lightbulb, ...t.confusable.introSteps[2], target: '.confusable-difference' },
+          ]}
+        />
 
         <div className="committees-split confusable-split">
           <nav className="committees-nav confusable-nav" aria-label={t.nav.confusable}>
