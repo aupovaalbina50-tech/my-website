@@ -60,7 +60,7 @@
      full Kazakh Cyrillic set (Ә Ғ Қ Ң Ө Ұ Ү Һ І), so kk/ru/en look identical.
      --heading and --mono are kept as aliases so existing rules stay valid;
      labels and counters use tabular figures instead of a monospace face. */
-  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  --sans: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
   --heading: var(--sans);
   --mono: var(--sans);
 
