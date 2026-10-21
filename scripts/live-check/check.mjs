@@ -1,4 +1,4 @@
-// Run after each deploy: push to this PR or Actions → «Live site check» (v2).
+// Run after each deploy: push to this PR or Actions → «Live site check» (v3).
 // Checks the LIVE site in a real browser (run by .github/workflows/live-check.yml):
 // every public page at desktop and phone width, the document check with the
 // real AI on a test report, and — when TEST_EMAIL / TEST_PASSWORD secrets are
