@@ -6,7 +6,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
-const SITE = process.env.SITE_URL || 'https://my-website-nu-eight-78.vercel.app'
+const SITE = process.env.SITE_URL || 'https://termin-mchs.vercel.app'
 const OUT = 'out'
 fs.mkdirSync(`${OUT}/shots`, { recursive: true })
 const lines = []
