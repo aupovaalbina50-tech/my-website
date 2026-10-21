@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, Users, Link2, Target, ListChecks, Phone, Mail } from 'lucide-react'
+import { Building2, ExternalLink, Link2, ListChecks, Mail, MapPin, Phone, Target, Users } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import {
   COMMITTEES,
@@ -11,11 +11,14 @@ import {
 const pick = (value, lang) => (value && typeof value === 'object' ? value[lang] : value)
 const telHref = (phone) => `tel:${phone.split(',')[0].replace(/[^\d+]/g, '')}`
 
-function SourceLink({ href, children }) {
+function SourceItem({ href, children }) {
   return (
-    <a className="modal-source-link committees-source-link" href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
+    <li>
+      <a href={href} target="_blank" rel="noreferrer">
+        <span>{children}</span>
+        <ExternalLink size={14} aria-hidden="true" />
+      </a>
+    </li>
   )
 }
 
@@ -59,33 +62,34 @@ function CommitteesContent() {
           <h2 className="committees-detail-title">{selected.name[lang]}</h2>
           <p className="committees-detail-lead">{selected.description[lang]}</p>
 
-          <div className="committees-pair">
-            <section className="committees-block" aria-labelledby="committee-tasks">
-              <h3 className="committees-detail-heading" id="committee-tasks">
-                <Target size={18} aria-hidden="true" />
-                {c.sectionTasks}
-              </h3>
-              <ul className="committees-tasks">
-                {selected.tasks[lang].map((task) => (
-                  <li key={task}>{task}</li>
-                ))}
-              </ul>
-              <SourceLink href={selected.regulationUrl ?? sources.about}>{selected.regulationUrl ? c.regulationLink : c.sourceShort}</SourceLink>
-            </section>
+          <section className="committees-detail-section" aria-labelledby="committee-directions">
+            <h3 className="committees-detail-heading" id="committee-directions">
+              <ListChecks size={18} aria-hidden="true" />
+              {c.sectionDirections}
+            </h3>
+            <ul className="committees-directions">
+              {selected.directions[lang].map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
 
-            <section className="committees-block" aria-labelledby="committee-directions">
-              <h3 className="committees-detail-heading" id="committee-directions">
-                <ListChecks size={18} aria-hidden="true" />
-                {c.sectionDirections}
-              </h3>
-              <ul className="org-tag-list">
-                {selected.directions[lang].map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <SourceLink href={sources.about}>{c.sourceShort}</SourceLink>
-            </section>
-          </div>
+          <section className="committees-detail-section" aria-labelledby="committee-tasks">
+            <h3 className="committees-detail-heading" id="committee-tasks">
+              <Target size={18} aria-hidden="true" />
+              {c.sectionTasks}
+            </h3>
+            <ol className="committees-tasks">
+              {selected.tasks[lang].map((task, index) => (
+                <li key={task}>
+                  <span className="committees-task-number" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span>{task}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
 
           <section className="committees-detail-section" aria-labelledby="committee-leadership">
             <h3 className="committees-detail-heading" id="committee-leadership">
@@ -95,8 +99,8 @@ function CommitteesContent() {
             <ul className="committees-people">
               {selected.leadership[lang].map((person) => (
                 <li key={person.name} className={person.chair ? 'is-chair' : undefined}>
-                  <span className="committees-people-name">{person.name}</span>
                   <span className="committees-people-role">{person.role}</span>
+                  <span className="committees-people-name">{person.name}</span>
                   {person.chair && (chairPhone || selected.chairEmail) && (
                     <span className="committees-people-contacts">
                       {chairPhone && (
@@ -116,25 +120,35 @@ function CommitteesContent() {
                 </li>
               ))}
             </ul>
-            <SourceLink href={sources.structure}>{c.sourceShort}</SourceLink>
           </section>
+        </div>
 
-          <section className="committees-detail-section" aria-labelledby="committee-contacts">
-            <h3 className="committees-detail-heading" id="committee-contacts">
-              <Phone size={18} aria-hidden="true" />
+        <aside className="committees-aside" aria-labelledby="committee-contacts">
+          <section className="committees-aside-card">
+            <h3 className="committees-aside-heading" id="committee-contacts">
+              <Phone size={16} aria-hidden="true" />
               {c.sectionContacts}
             </h3>
             <dl className="committees-contacts">
               <div>
-                <dt>{c.addressLabel}</dt>
+                <dt>
+                  <MapPin size={14} aria-hidden="true" />
+                  {c.addressLabel}
+                </dt>
                 <dd>{pick(contacts.address, lang) || c.infoPending}</dd>
               </div>
               <div>
-                <dt>{c.officeLabel}</dt>
+                <dt>
+                  <Phone size={14} aria-hidden="true" />
+                  {c.officeLabel}
+                </dt>
                 <dd>{pick(contacts.office, lang) || c.infoPending}</dd>
               </div>
               <div>
-                <dt>{c.emailLabel}</dt>
+                <dt>
+                  <Mail size={14} aria-hidden="true" />
+                  {c.emailLabel}
+                </dt>
                 <dd>{contactEmail ? <a href={`mailto:${contactEmail}`}>{contactEmail}</a> : c.infoPending}</dd>
               </div>
               {contacts.extra &&
@@ -142,23 +156,31 @@ function CommitteesContent() {
                   const [label, value] = line.split(' — ')
                   return (
                     <div key={line}>
-                      <dt>{label}</dt>
+                      <dt>
+                        <Phone size={14} aria-hidden="true" />
+                        {label}
+                      </dt>
                       <dd>{value ?? ''}</dd>
                     </div>
                   )
                 })}
             </dl>
-            <p className="committees-links">
-              <Link2 size={15} aria-hidden="true" />
-              <a className="modal-source-link" href={sources.contacts} target="_blank" rel="noreferrer">
-                {c.sourceShort}
-              </a>
-              <a className="modal-source-link" href={COMMITTEES_SOURCE_URL[lang]} target="_blank" rel="noreferrer">
-                {c.sourceLabel}: {c.sourceLinkText} ↗
-              </a>
-            </p>
           </section>
-        </div>
+
+          <section className="committees-aside-card">
+            <h3 className="committees-aside-heading">
+              <Link2 size={16} aria-hidden="true" />
+              {c.sourcesTitle}
+            </h3>
+            <ul className="committees-sources">
+              {selected.regulationUrl && <SourceItem href={selected.regulationUrl}>{c.srcRegulation}</SourceItem>}
+              <SourceItem href={sources.about}>{c.srcAbout}</SourceItem>
+              <SourceItem href={sources.structure}>{c.srcStructure}</SourceItem>
+              <SourceItem href={sources.contacts}>{c.srcContacts}</SourceItem>
+              <SourceItem href={COMMITTEES_SOURCE_URL[lang]}>{c.srcAll}</SourceItem>
+            </ul>
+          </section>
+        </aside>
       </div>
     </section>
   )
