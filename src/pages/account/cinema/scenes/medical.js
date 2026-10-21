@@ -3,9 +3,9 @@
 // scene → injured waiting → medics with stretchers, the field medical post
 // lit up → ambulances. Correct answers move stretcher teams to the tent and
 // raise the «вital signs» line; success: all in the tent, ambulances leave.
-import { glow, ground, lamp, person, ring, vehicle, zone } from '../fx.js'
+import { glow, ground, lamp, person, ring, vehicle, zone, mistBand } from '../fx.js'
 import { stretcher, tent } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 590
 const GROUND = 690
@@ -57,6 +57,8 @@ export default {
     const threat = data.threat ?? state.threat
     const oc = outcomeK(state, 5)
     drawBackdrop(rd, data.bd, MOOD, { starA: 0.9 })
+    drawTrees(rd, [[150, GROUND - 40, 130], [870, GROUND - 40, 120], [1520, GROUND - 40, 150]], 0.82, '#15291f')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 20, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND, roadH: 110, wet: true, color: '#121a26' })
       lamp(ctx, 620, GROUND - 40)
@@ -113,6 +115,7 @@ export default {
       if (pulseK(state) > 0) glow(ctx, 1155, GROUND - 60, 260, '110,240,170', 0.25 * pulseK(state))
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

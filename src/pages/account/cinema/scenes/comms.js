@@ -3,9 +3,9 @@
 // dark houses without signal → the mobile communications unit raising its
 // mast → coverage zone. Correct answers restore links one by one (waves
 // reach the houses, windows light up); success: full coverage.
-import { glow, ground, lattice, makeRain, person, rain, ring, vehicle, zone } from '../fx.js'
+import { glow, ground, lattice, makeRain, person, rain, ring, vehicle, zone, mistBand } from '../fx.js'
 import { house, waves } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 570
 const GROUND = 690
@@ -64,6 +64,8 @@ export default {
       ctx.fillStyle = `rgba(200,220,255,${data.flash * 0.28})`
       ctx.fillRect(0, 0, rd.vw, rd.vh)
     })
+    drawTrees(rd, [[560, GROUND - 40, 120], [920, GROUND - 40, 110], [1580, GROUND - 40, 140]], 0.82, '#1b3226')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 20, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND + 20, roadH: 90, wet: true, color: '#18212d' })
       lattice(ctx, 720, GROUND - 40, 380, 70, '#6a7888', threat * 0.5)
@@ -102,6 +104,7 @@ export default {
       P.draw(ctx, 'near')
     })
     rd.screen(() => rain(ctx, data.rain, state.paused ? 0 : 1 / 60, rd.vw, rd.vh, 0.32 * (0.4 + threat * 0.6) * (state.outcome === 'success' ? 1 - oc * 0.7 : 1)))
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

@@ -2,9 +2,9 @@
 // the valley → water rising between the houses → people waiting on a roof →
 // the rescue boat and the sandbag line → hazard zone. Correct answers raise
 // the barrier and lower the water; success: rain eases, water recedes.
-import { glow, ground, makeRain, person, pool, rain, ring, vehicle, water, zone } from '../fx.js'
+import { glow, ground, makeRain, person, pool, rain, ring, vehicle, water, zone, mistBand } from '../fx.js'
 import { boat, house, sandbags } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 560
 const GROUND = 660
@@ -67,6 +67,8 @@ export default {
       house(ctx, 1300, HORIZON + 60, 160, 90, { wall: '#364152', lit: false })
       P.draw(ctx, 'mid')
     })
+    drawTrees(rd, [[90, HORIZON + 60, 140], [690, HORIZON + 60, 120], [1530, HORIZON + 62, 150]], 0.82, '#1b3226')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 10, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 60, { road: false, color: '#1a2330' })
       house(ctx, 470, GROUND - 40, 190, 120, { wall: '#465265', lit: false })
@@ -108,6 +110,7 @@ export default {
     // rain in screen space
     const rainA = state.outcome === 'success' ? 0.38 * (1 - oc * 0.8) : 0.38
     rd.screen(() => rain(ctx, data.rain, state.paused ? 0 : 1 / 60, rd.vw, rd.vh, rainA * (0.5 + threat * 0.6)))
+    drawForeground(rd, data.bd, 'water')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

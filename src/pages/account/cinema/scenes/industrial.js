@@ -3,9 +3,9 @@
 // cloud → workers leaving → hazmat crew and a water-curtain monitor → the
 // danger zone. Correct answers strengthen the water curtain and shrink the
 // cloud; success: the leak is shut off, the zone turns to «controlled».
-import { glow, ground, lamp, person, pipe, ring, tank, vehicle, zone } from '../fx.js'
+import { glow, ground, lamp, person, pipe, ring, tank, vehicle, zone, mistBand } from '../fx.js'
 import { shed, stack } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 580
 const GROUND = 680
@@ -73,6 +73,8 @@ export default {
       shed(ctx, 1380, HORIZON + 60, 300, 100, '#36414f')
       P.draw(ctx, 'mid')
     })
+    drawTrees(rd, [[1160, HORIZON + 60, 110], [40, HORIZON + 60, 130]], 0.82, '#1f3428')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 30, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND + 10, roadH: 90, color: '#1b2230' })
       // pipe rack
@@ -109,6 +111,7 @@ export default {
       for (const p of state.pulses) ring(ctx, 760, GROUND + 30, p.t / p.life, p.kind === 'action' ? '110,200,255' : '255,150,70')
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

@@ -3,9 +3,9 @@
 // dust settling → rescuers on the rubble, cutting sparks → the crane and
 // the safety perimeter. Correct answers clear the rubble and raise the
 // shored section; success: dust gone, structure secured.
-import { building, ground, lamp, person, ring, seeded, vehicle, zone } from '../fx.js'
+import { building, ground, lamp, person, ring, seeded, vehicle, zone, mistBand } from '../fx.js'
 import { crane, rubble } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 580
 const GROUND = 690
@@ -58,6 +58,8 @@ export default {
     const oc = outcomeK(state, 5)
     const cleared = 1 - threat
     drawBackdrop(rd, data.bd, MOOD, { starA: 0 })
+    drawTrees(rd, [[200, GROUND - 40, 120], [1500, GROUND - 40, 140]], 0.82, '#22392c')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 30, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND + 20, roadH: 90, color: '#1d2430' })
       // the damaged building: right part stands, left section collapsed
@@ -97,6 +99,7 @@ export default {
       for (const p of state.pulses) ring(ctx, 640, GROUND - 20, p.t / p.life, p.kind === 'action' ? '110,200,255' : '255,150,70')
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

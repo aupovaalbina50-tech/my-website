@@ -4,9 +4,9 @@
 // protective structure, a rescuer at the entrance → the threat zone.
 // Correct answers bring groups inside; success: the door closes, the zone
 // around the town is marked protected.
-import { ground, person, ring, vehicle, zone } from '../fx.js'
+import { ground, person, ring, vehicle, zone, mistBand } from '../fx.js'
 import { house, shelter, siren, stack } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK } from './common.js'
 
 const HORIZON = 570
 const GROUND = 690
@@ -63,6 +63,8 @@ export default {
       stack(ctx, 250, HORIZON + 30, 120, 14)
       P.draw(ctx, 'mid')
     })
+    drawTrees(rd, [[560, GROUND - 40, 130], [760, GROUND - 40, 110], [1260, GROUND - 40, 140]], 0.82, '#22392c')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 20, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND + 20, roadH: 90, color: '#1c2531' })
       house(ctx, 120, GROUND - 40, 170, 100, { wall: '#465265' })
@@ -89,6 +91,7 @@ export default {
       for (const p of state.pulses) ring(ctx, 940, GROUND, p.t / p.life, p.kind === 'action' ? '110,200,255' : '255,150,70')
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

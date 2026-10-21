@@ -3,9 +3,9 @@
 // (command vehicle, tent, mast lights) → a convoy of forces on the access
 // road → sectors on the scheme. Correct answers send units to their sectors
 // (beam to the sector, unit moves); success: all sectors manned, fire down.
-import { beam, glow, ground, person, ring, vehicle, zone } from '../fx.js'
+import { beam, glow, ground, person, ring, vehicle, zone, mistBand } from '../fx.js'
 import { shed, tent } from '../props.js'
-import { drawBackdrop, drawPost, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
+import { drawBackdrop, drawForeground, drawPost, drawTrees, introLerp, makeBackdrop, outcomeK, pulseK } from './common.js'
 
 const HORIZON = 590
 const GROUND = 690
@@ -60,6 +60,8 @@ export default {
     const threat = data.threat ?? state.threat
     const oc = outcomeK(state, 5)
     drawBackdrop(rd, data.bd, MOOD, { glowRgb: '255,120,50', glowA: threat * 0.8, starA: 0.5, cloudLight: threat * 0.4 })
+    drawTrees(rd, [[200, GROUND - 40, 120], [880, GROUND - 40, 110], [1480, GROUND - 40, 140]], 0.82, '#1c3428')
+    rd.layer(0.9, () => mistBand(ctx, 1600, GROUND - 30, 70))
     rd.layer(1, () => {
       ground(ctx, 1600, GROUND - 40, { roadY: GROUND + 30, roadH: 90, color: '#18202c' })
       shed(ctx, 300, GROUND - 40, 420, 130, '#3c4757')
@@ -90,6 +92,7 @@ export default {
       if (pulseK(state) > 0) beam(ctx, 1020, GROUND - 60, Math.PI + 0.05, 500, 0.06, '110,200,255', 0.35 * pulseK(state))
       P.draw(ctx, 'near')
     })
+    drawForeground(rd, data.bd, 'street')
     drawPost(rd, MOOD, { desaturate: state.outcome === 'fail' ? 0.3 * oc : 0 })
   },
 }

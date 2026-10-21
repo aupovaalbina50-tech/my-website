@@ -370,10 +370,44 @@ export function ground(ctx, W, y, { color = '#141c27', road = true, roadY = y + 
   rg.addColorStop(1, wet ? '#121a26' : '#171e28')
   ctx.fillStyle = rg
   ctx.fillRect(-W, roadY, W * 3, roadH)
-  ctx.fillStyle = 'rgba(210,220,232,0.35)'
+  // asphalt patches and cracks
+  ctx.fillStyle = 'rgba(0,0,0,0.12)'
+  for (let i = 0; i < 40; i++) {
+    const px = -W + ((i * 377) % (W * 3))
+    ctx.fillRect(px, roadY + 8 + ((i * 53) % (roadH - 16)), 30 + (i % 5) * 18, 3 + (i % 3))
+  }
+  // lane marking, slightly worn
+  ctx.fillStyle = 'rgba(210,220,232,0.38)'
   for (let x = -W; x < W * 2; x += 90) ctx.fillRect(x, roadY + roadH / 2 - 2, 46, 4)
-  ctx.fillStyle = 'rgba(160,170,184,0.25)'
-  ctx.fillRect(-W, roadY, W * 3, 3)
+  ctx.fillStyle = 'rgba(210,220,232,0.16)'
+  ctx.fillRect(-W, roadY + roadH - 8, W * 3, 2)
+  // kerb with a lit top edge and the sidewalk slabs above it
+  ctx.fillStyle = '#2f3846'
+  ctx.fillRect(-W, roadY - 5, W * 3, 6)
+  ctx.fillStyle = 'rgba(190,204,220,0.22)'
+  ctx.fillRect(-W, roadY - 5, W * 3, 1.5)
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (let x = -W; x < W * 2; x += 46) {
+    ctx.moveTo(x, roadY - 40)
+    ctx.lineTo(x - 10, roadY - 5)
+  }
+  ctx.stroke()
+  if (wet) {
+    // puddles: darker ellipses with a light rim that catch reflections
+    for (let i = 0; i < 9; i++) {
+      const px = -200 + ((i * 431) % 2000)
+      const py = roadY + 14 + ((i * 29) % (roadH - 24))
+      const pw = 50 + (i % 4) * 30
+      ctx.fillStyle = 'rgba(6,10,18,0.35)'
+      ctx.beginPath()
+      ctx.ellipse(px, py, pw, 6 + (i % 3) * 2, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(160,190,230,0.12)'
+      ctx.stroke()
+    }
+  }
 }
 
 /** Mirrored, blurred-looking reflection of lights on wet ground. */
@@ -414,12 +448,25 @@ export function building(ctx, b, t = 0, fire = 0) {
   ctx.lineTo(x + w, top)
   ctx.closePath()
   ctx.fill()
-  // front
+  // front, with panel joints and a lit left edge
   const fg = ctx.createLinearGradient(x, top, x, y)
   fg.addColorStop(0, wall)
   fg.addColorStop(1, shade(wall, -0.35))
   ctx.fillStyle = fg
   ctx.fillRect(x, top, w, h)
+  ctx.fillStyle = 'rgba(255,255,255,0.05)'
+  ctx.fillRect(x, top, 3, h)
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'
+  ctx.fillRect(x + w - 3, top, 3, h)
+  // rooftop: parapet, vents, an antenna
+  ctx.fillStyle = shade(wall, -0.2)
+  ctx.fillRect(x - 2, top - 6, w + 4, 6)
+  ctx.fillStyle = '#3c4a5c'
+  ctx.fillRect(x + w * 0.18, top - 16, 18, 10)
+  ctx.fillRect(x + w * 0.62, top - 12, 26, 6)
+  ctx.fillStyle = '#56657a'
+  ctx.fillRect(x + w * 0.82, top - 34, 2, 28)
+  ctx.fillRect(x + w * 0.82 - 8, top - 30, 18, 1.5)
   // floors and windows
   const fh = h / floors
   const cw = w / cols
@@ -437,9 +484,45 @@ export function building(ctx, b, t = 0, fire = 0) {
         ctx.fillRect(wx, wy, ww, wh)
         glow(ctx, wx + ww / 2, wy + wh / 2, ww * 2.4, '255,120,40', 0.5 * burn * fl)
       } else {
-        const on = ((idx * 7919) % 100) / 100 < lit
-        ctx.fillStyle = on ? 'rgba(255,214,150,0.55)' : 'rgba(120,150,180,0.18)'
-        ctx.fillRect(wx, wy, ww, wh)
+        const r = ((idx * 7919) % 100) / 100
+        const on = r < lit
+        if (on) {
+          // warm or cool interior light, with a curtain on some windows
+          const warm = r < lit * 0.7
+          const wg = ctx.createLinearGradient(0, wy, 0, wy + wh)
+          wg.addColorStop(0, warm ? 'rgba(255,214,150,0.75)' : 'rgba(190,220,255,0.6)')
+          wg.addColorStop(1, warm ? 'rgba(220,150,80,0.55)' : 'rgba(120,160,210,0.45)')
+          ctx.fillStyle = wg
+          ctx.fillRect(wx, wy, ww, wh)
+          if (idx % 3 === 0) {
+            ctx.fillStyle = 'rgba(120,60,40,0.35)'
+            ctx.fillRect(wx, wy, ww * 0.3, wh)
+          }
+        } else {
+          const dg = ctx.createLinearGradient(wx, wy, wx + ww, wy + wh)
+          dg.addColorStop(0, 'rgba(120,150,180,0.22)')
+          dg.addColorStop(1, 'rgba(40,56,76,0.3)')
+          ctx.fillStyle = dg
+          ctx.fillRect(wx, wy, ww, wh)
+        }
+      }
+      // frame: mullion, sill
+      ctx.fillStyle = 'rgba(10,16,24,0.55)'
+      ctx.fillRect(wx + ww / 2 - 0.75, wy, 1.5, wh)
+      ctx.fillRect(wx, wy + wh * 0.38, ww, 1.2)
+      ctx.fillStyle = 'rgba(200,214,230,0.22)'
+      ctx.fillRect(wx - 2, wy + wh, ww + 4, 2.5)
+      // balconies on every other column, AC units on some
+      if (b.balconies && c % 2 === 1 && f > 0) {
+        ctx.fillStyle = 'rgba(30,40,54,0.85)'
+        ctx.fillRect(wx - 4, wy + wh * 0.62, ww + 8, wh * 0.48)
+        ctx.strokeStyle = 'rgba(170,186,204,0.35)'
+        ctx.lineWidth = 1
+        ctx.strokeRect(wx - 4, wy + wh * 0.62, ww + 8, wh * 0.48)
+      }
+      if ((idx * 31) % 7 === 0) {
+        ctx.fillStyle = '#9aa6b4'
+        ctx.fillRect(wx + ww + 3, wy + wh * 0.5, 8, 7)
       }
     }
   }
@@ -648,6 +731,27 @@ export function vehicle(ctx, type, x, gy, { flip = false, t = 0, beacons = true,
       ctx.fillStyle = 'rgba(52,78,112,0.85)'
       for (let i = 0; i < 6; i++) ctx.fillRect(left + 10 + i * 24, bodyY + 10, 18, 16)
     }
+    // door seams, handles, mirror, number and reflective chevrons at the back
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(w / 2 - cab + 2, bodyY + 8)
+    ctx.lineTo(w / 2 - cab + 2, bodyY + h)
+    ctx.stroke()
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'
+    ctx.fillRect(w / 2 - cab + 6, bodyY + 30, 6, 2)
+    ctx.fillStyle = '#20262f'
+    ctx.fillRect(w / 2 - 3, bodyY + 12, 5, 8)
+    if (v.ladder || v.tank) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'
+      ctx.font = 'bold 11px Montserrat, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('101', left + (w - cab) / 2, bodyY + h * 0.85)
+    }
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 ? '#f2d24a' : '#d12a33'
+      ctx.fillRect(left, bodyY + h * 0.7 + i * 3, 4, 3)
+    }
     if (v.cross) {
       ctx.fillStyle = '#d12a33'
       ctx.fillRect(left + 30, bodyY + 14, 8, 22)
@@ -685,8 +789,18 @@ export function vehicle(ctx, type, x, gy, { flip = false, t = 0, beacons = true,
     ctx.fill()
     ctx.fillStyle = '#8b96a3'
     ctx.beginPath()
-    ctx.arc(wx, -wheelR, wheelR * 0.42, 0, Math.PI * 2)
+    ctx.arc(wx, -wheelR, wheelR * 0.48, 0, Math.PI * 2)
     ctx.fill()
+    ctx.fillStyle = '#5e6875'
+    ctx.beginPath()
+    ctx.arc(wx, -wheelR, wheelR * 0.2, 0, Math.PI * 2)
+    ctx.fill()
+    // wheel arch
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(wx, -wheelR, wheelR + 2, Math.PI * 1.05, Math.PI * 1.95)
+    ctx.stroke()
     if (moving) {
       ctx.strokeStyle = 'rgba(20,24,30,0.9)'
       ctx.lineWidth = 1.5
@@ -748,22 +862,40 @@ export function person(ctx, x, gy, { kind = 'civil', t = 0, walking = false, fli
   ctx.beginPath()
   ctx.ellipse(0, 0, 9, 2.4, 0, 0, Math.PI * 2)
   ctx.fill()
-  ctx.strokeStyle = '#1a1f27'
+  const uniform = kind === 'firefighter' || kind === 'rescuer' || kind === 'hazmat'
+  // legs: trousers in the outfit colour for crews, boots
+  ctx.strokeStyle = uniform ? shade(o.coat, -0.2) : '#1a1f27'
   ctx.lineWidth = 3.2
   ctx.lineCap = 'round'
   ctx.beginPath()
   ctx.moveTo(-1.5, -14)
-  ctx.lineTo(-1.5 + ph * 5, 0)
+  ctx.lineTo(-1.5 + ph * 5, -1)
   ctx.moveTo(1.5, -14)
-  ctx.lineTo(1.5 - ph * 5, 0)
+  ctx.lineTo(1.5 - ph * 5, -1)
   ctx.stroke()
-  ctx.fillStyle = o.coat
+  ctx.fillStyle = '#0d1016'
+  ctx.fillRect(-3.2 + ph * 5, -2.4, 4, 2.4)
+  ctx.fillRect(-0.2 - ph * 5, -2.4, 4, 2.4)
+  // breathing apparatus cylinder on firefighters' backs
+  if (kind === 'firefighter') {
+    ctx.fillStyle = '#c4ccd6'
+    ctx.beginPath()
+    ctx.roundRect(-8, -27, 4, 12, 2)
+    ctx.fill()
+  }
+  // torso with shading
+  const cg = ctx.createLinearGradient(-5, 0, 5, 0)
+  cg.addColorStop(0, shade(o.coat, 0.12))
+  cg.addColorStop(1, shade(o.coat, -0.3))
+  ctx.fillStyle = cg
   ctx.beginPath()
   ctx.roundRect(-5, -27, 10, 15, 3)
   ctx.fill()
   if (o.band) {
+    // reflective stripes (two on uniforms) that catch the light
     ctx.fillStyle = o.band
-    ctx.fillRect(-5, -18, 10, 2)
+    ctx.fillRect(-5, -18, 10, 1.8)
+    if (uniform) ctx.fillRect(-5, -23, 10, 1.4)
   }
   ctx.strokeStyle = o.coat
   ctx.lineWidth = 2.6
@@ -791,7 +923,17 @@ export function person(ctx, x, gy, { kind = 'civil', t = 0, walking = false, fli
   if (o.helmet) {
     ctx.fillStyle = o.helmet
     ctx.beginPath()
-    ctx.arc(0, -32, 4, Math.PI, 0)
+    ctx.arc(0, -32, 4.2, Math.PI, 0)
+    ctx.fill()
+    ctx.fillRect(-5, -32.4, 10, 1.2)
+    if (kind === 'firefighter' || kind === 'hazmat') {
+      ctx.fillStyle = 'rgba(120,170,220,0.7)'
+      ctx.fillRect(1, -31.5, 3, 2.4)
+    }
+  } else {
+    ctx.fillStyle = '#2a2420'
+    ctx.beginPath()
+    ctx.arc(0, -32.2, 3.7, Math.PI * 1.05, Math.PI * 1.95)
     ctx.fill()
   }
   ctx.restore()
@@ -930,4 +1072,70 @@ export function post(ctx, vw, vh, { tint = 'rgba(10,30,70,0.18)', vignette = 0.6
     ctx.fillStyle = `rgba(2,6,14,${fade})`
     ctx.fillRect(0, 0, vw, vh)
   }
+}
+
+// ---- vegetation and depth ----------------------------------------------------
+
+/** Deciduous tree with a crown of overlapping blobs swaying in the wind. */
+export function tree(ctx, x, gy, h = 120, t = 0, { color = '#1f3a2c', wind = 1 } = {}) {
+  const sway = Math.sin(t * 0.9 + x * 0.01) * 3 * wind
+  ctx.strokeStyle = '#2a211a'
+  ctx.lineWidth = Math.max(3, h * 0.05)
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(x, gy)
+  ctx.quadraticCurveTo(x + sway * 0.3, gy - h * 0.5, x + sway * 0.6, gy - h * 0.62)
+  ctx.stroke()
+  const r = h * 0.3
+  const blobs = [[0, -0.78, 1], [-0.45, -0.66, 0.78], [0.45, -0.68, 0.8], [-0.2, -0.95, 0.72], [0.28, -0.92, 0.7]]
+  for (const [bx, by, k] of blobs) {
+    const cx = x + bx * h * 0.42 + sway * (1 + by)
+    const cy = gy + by * h
+    const g = ctx.createRadialGradient(cx - r * k * 0.3, cy - r * k * 0.3, r * k * 0.1, cx, cy, r * k)
+    g.addColorStop(0, shade(color, 0.18))
+    g.addColorStop(1, shade(color, -0.35))
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(cx, cy, r * k, 0, Math.PI * 2)
+    ctx.fill()
+  }
+}
+
+/** Low fence of posts and two rails. */
+export function fence(ctx, x1, x2, gy, h = 30, color = '#26303d') {
+  ctx.fillStyle = color
+  for (let x = x1; x <= x2; x += 26) ctx.fillRect(x, gy - h, 4, h)
+  ctx.fillRect(x1, gy - h * 0.8, x2 - x1, 3)
+  ctx.fillRect(x1, gy - h * 0.35, x2 - x1, 3)
+}
+
+/** A ground-hugging band of mist between two depths. */
+export function mistBand(ctx, W, y, h, rgb = '170,190,214', a = 0.18) {
+  const g = ctx.createLinearGradient(0, y - h, 0, y + h * 0.3)
+  g.addColorStop(0, `rgba(${rgb},0)`)
+  g.addColorStop(0.7, `rgba(${rgb},${a})`)
+  g.addColorStop(1, `rgba(${rgb},0)`)
+  ctx.fillStyle = g
+  ctx.fillRect(-W, y - h, W * 3, h * 1.3)
+}
+
+/** Light shafts through smoke from a light source (searchlight, fire). */
+export function shafts(ctx, x, y, t, rgb = '255,200,140', a = 0.12, n = 4) {
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (i - (n - 1) / 2) * 0.22 + Math.sin(t * 0.3 + i) * 0.04
+    const len = 380 + i * 40
+    const g = ctx.createLinearGradient(x, y, x + Math.cos(ang) * len, y + Math.sin(ang) * len)
+    g.addColorStop(0, `rgba(${rgb},${a})`)
+    g.addColorStop(1, `rgba(${rgb},0)`)
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + Math.cos(ang - 0.05) * len, y + Math.sin(ang - 0.05) * len)
+    ctx.lineTo(x + Math.cos(ang + 0.05) * len, y + Math.sin(ang + 0.05) * len)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
 }
