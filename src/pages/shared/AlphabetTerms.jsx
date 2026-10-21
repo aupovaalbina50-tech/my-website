@@ -5,7 +5,7 @@ import { toSentenceCase } from '../../utils/textCase.js'
 import { useAllTerms } from './useAllTerms.js'
 import AllTermsContent from './AllTermsContent.jsx'
 
-function AlphabetTerms() {
+function AlphabetTerms({ termBasePath = '/terms' }) {
   const { lang, t } = useLanguage()
   const { terms, loading } = useAllTerms()
   const [selectedLetter, setSelectedLetter] = useState(null)
@@ -43,6 +43,7 @@ function AlphabetTerms() {
           showSearch={false}
           letterFilter={selectedLetter}
           titleOverride={selectedLetter}
+          termBasePath={termBasePath}
         />
       </>
     )
