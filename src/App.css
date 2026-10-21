@@ -1367,12 +1367,11 @@
   padding: 16px 18px 18px;
   font: inherit;
   text-align: left;
-  color: var(--canvas-text);
-  background: rgba(10, 32, 64, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(4, 16, 36, 0.16);
   transition:
     transform 0.25s ease,
     border-color 0.25s ease,
@@ -1384,9 +1383,8 @@
   }
   &.is-action:hover {
     transform: translateY(-3px);
-    background: rgba(18, 52, 98, 0.78);
-    border-color: rgba(120, 190, 255, 0.6);
-    box-shadow: 0 14px 30px rgba(4, 16, 36, 0.35);
+    border-color: #2f80d0;
+    box-shadow: 0 16px 32px rgba(4, 16, 36, 0.24);
   }
   &.is-action:focus-visible {
     outline: 2px solid #8cc8ff;
@@ -1440,28 +1438,28 @@
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: rgba(238, 244, 251, 0.45);
+  color: #9aabbf;
 }
 
 .section-intro-step-title {
   font-size: 16.5px;
   font-weight: 700;
   line-height: 1.3;
-  color: #fff;
+  color: var(--navy);
 }
 
 .section-intro-step-text {
   font-size: 14.5px;
   line-height: 1.5;
-  color: rgba(238, 244, 251, 0.86);
+  color: var(--text-soft);
 }
 
 .section-intro-step-arrow {
   position: absolute;
   right: 16px;
   bottom: 16px;
-  color: #8cc8ff;
-  opacity: 0.55;
+  color: #2f80d0;
+  opacity: 0.5;
   transition:
     opacity 0.25s ease,
     transform 0.25s ease;
