@@ -14,7 +14,7 @@ if (!token) {
   const end = new Date()
   const start = new Date(end.getTime() - 30 * 60 * 1000)
   const query = async (sql) => {
-    const u = new URL(`https://api.supabase.com/v1/projects/${REF}/analytics/endpoints/logs.all`)
+    const u = new URL(`https://api.supabase.com/v1/projects/${REF}/analytics/endpoints/logs`)
     u.searchParams.set('sql', sql)
     u.searchParams.set('iso_timestamp_start', start.toISOString())
     u.searchParams.set('iso_timestamp_end', end.toISOString())
