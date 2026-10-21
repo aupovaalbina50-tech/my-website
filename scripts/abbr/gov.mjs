@@ -25,13 +25,13 @@ const found = []
 for (const lang of ['ru', 'kk']) {
   const seenArticles = new Set()
   for (let page = 0; page < 12 && seenArticles.size < 160; page++) {
-    const listUrl = `https://www.gov.kz/memleket/entities/emer/press/news?lang=${lang}&page=${page}`
+    const listUrl = `https://www.gov.kz/org/emer/press/news?lang=${lang}&page=${page}`
     const html = await get(listUrl)
     if (!html) {
       log.push(`${listUrl}: нет ответа`)
       break
     }
-    const links = [...new Set([...html.matchAll(/\/memleket\/entities\/emer\/press\/news\/details\/(\d+)/g)].map((m) => m[1]))]
+    const links = [...new Set([...html.matchAll(/\/(?:org|memleket\/entities)\/emer\/press\/news\/details\/(\d+)/g)].map((m) => m[1]))]
     log.push(`${listUrl}: ${links.length} статей, ${html.length} байт`)
     if (page === 0) fs.writeFileSync(`out/gov-list-${lang}.html`, html)
     let fresh = 0
@@ -39,7 +39,7 @@ for (const lang of ['ru', 'kk']) {
       if (seenArticles.has(id)) continue
       seenArticles.add(id)
       fresh++
-      const url = `https://www.gov.kz/memleket/entities/emer/press/news/details/${id}?lang=${lang}`
+      const url = `https://www.gov.kz/org/emer/press/news/details/${id}?lang=${lang}`
       const a = await get(url)
       if (!a) continue
       const t = text(a)
