@@ -7,9 +7,9 @@
 //
 // Columns (CSV header or JSON keys): lang (kk|ru), abbr, full_form, category,
 // source_title — required; equivalent_full, equivalent_en, explanation,
-// example, ambiguity_note, concept, status (confirmed|base|needs_review,
+// example, ambiguity_note, concept, status (defined|used|base|needs_review,
 // default needs_review), source_url, official_title, official_url,
-// checked_at (YYYY-MM-DD). Errors stop the import with the row numbers;
+// source_section, checked_at (YYYY-MM-DD). Errors stop the import with the row numbers;
 // duplicates inside the file are reported and kept once. Re-importing is
 // safe: an existing meaning (same lang, abbr, full form) is updated, never
 // doubled; the same abbreviation with another full form is a new meaning.
@@ -17,8 +17,8 @@ import fs from 'node:fs'
 
 const LANGS = ['kk', 'ru']
 const CATEGORIES = ['emergencies', 'civil_defense', 'fire_safety', 'rescue_ops', 'industrial_safety', 'disaster_medicine', 'evacuation', 'alerting_comms', 'coordination']
-const STATUSES = ['confirmed', 'base', 'needs_review']
-const COLUMNS = ['lang', 'abbr', 'full_form', 'equivalent_full', 'equivalent_en', 'category', 'explanation', 'example', 'ambiguity_note', 'concept', 'status', 'source_title', 'source_url', 'official_title', 'official_url', 'checked_at']
+const STATUSES = ['defined', 'used', 'base', 'needs_review']
+const COLUMNS = ['lang', 'abbr', 'full_form', 'equivalent_full', 'equivalent_en', 'category', 'explanation', 'example', 'ambiguity_note', 'concept', 'status', 'source_title', 'source_url', 'official_title', 'official_url', 'source_section', 'checked_at']
 const REQUIRED = ['lang', 'abbr', 'full_form', 'category', 'source_title']
 
 /** RFC 4180 CSV: quoted fields, doubled quotes, commas or semicolons. */
@@ -69,7 +69,7 @@ export function checkRecords(records) {
     if (r.category && !CATEGORIES.includes(r.category)) errors.push(`строка ${n}: неизвестная категория ${r.category}`)
     r.status ||= 'needs_review'
     if (!STATUSES.includes(r.status)) errors.push(`строка ${n}: неизвестный статус ${r.status}`)
-    if (r.status === 'confirmed' && !r.official_url) errors.push(`строка ${n}: статус confirmed без official_url`)
+    if ((r.status === 'defined' || r.status === 'used') && !r.official_url) errors.push(`строка ${n}: статус ${r.status} без official_url`)
     for (const c of ['source_url', 'official_url']) if (r[c] && !/^https:\/\/\S+$/.test(r[c])) errors.push(`строка ${n}: ${c} — не https-ссылка`)
     if (r.checked_at && !/^\d{4}-\d{2}-\d{2}$/.test(r.checked_at)) errors.push(`строка ${n}: checked_at в формате ГГГГ-ММ-ДД`)
     if (r.lang === 'ru' && /[әғқңөұүһі]/i.test(r.abbr + r.full_form)) errors.push(`строка ${n}: казахские буквы в русской записи`)

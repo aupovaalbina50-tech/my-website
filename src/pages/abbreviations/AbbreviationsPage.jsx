@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftRight, BadgeCheck, Check, CircleHelp, Copy, Database, ExternalLink, Search, X } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Check, CircleHelp, Copy, Database, ExternalLink, FileText, Search, X } from 'lucide-react'
 import SiteSectionLayout from '../../components/SiteSectionLayout.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { categoryLucideIcon } from '../../constants/categoryIcons.js'
@@ -8,7 +8,7 @@ import { ALPHABETS, CATEGORIES, STATUSES, compareAbbr, firstLetter, matches, use
 import { S } from './strings.js'
 import './abbreviations.css'
 
-const STATUS_ICONS = { confirmed: BadgeCheck, base: Database, needs_review: CircleHelp }
+const STATUS_ICONS = { defined: BadgeCheck, used: FileText, base: Database, needs_review: CircleHelp }
 
 function StatusBadge({ status, ui, long = false }) {
   // Unchecked rows carry no badge: nothing is claimed about them.
@@ -153,6 +153,12 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
               <dd>
                 <SourceLink url={row.official_url} title={row.official_title || row.official_url} />
               </dd>
+              {row.source_section && (
+                <>
+                  <dt>{c.section[ui]}</dt>
+                  <dd>{row.source_section}</dd>
+                </>
+              )}
             </>
           )}
           <dt>{c.checked[ui]}</dt>

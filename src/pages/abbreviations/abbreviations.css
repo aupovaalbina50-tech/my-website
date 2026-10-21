@@ -210,7 +210,7 @@
     gap: 6px;
   }
 }
-.abbr-row--confirmed {
+.abbr-row--defined {
   border-left-color: #2e9d62;
 }
 .abbr-row--base {
@@ -270,7 +270,7 @@
     justify-self: start;
   }
 }
-.abbr-status--confirmed {
+.abbr-status--defined {
   color: #1d6b45;
   background: #e8f6ee;
 }
@@ -565,4 +565,12 @@
   .abbr-row:active {
     transform: none;
   }
+}
+
+.abbr-status--used {
+  color: #1e4f9c;
+  background: #eaf1fd;
+}
+.abbr-row--used {
+  border-left-color: #2e6fd8;
 }

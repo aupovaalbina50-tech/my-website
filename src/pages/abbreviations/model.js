@@ -15,10 +15,10 @@ export const ALPHABETS = {
 }
 
 export const CATEGORIES = ['emergencies', 'civil_defense', 'fire_safety', 'rescue_ops', 'industrial_safety', 'disaster_medicine', 'evacuation', 'alerting_comms', 'coordination']
-export const STATUSES = ['confirmed', 'base', 'needs_review']
+export const STATUSES = ['defined', 'used', 'base', 'needs_review']
 
 const COLUMNS =
-  'id, lang, abbr, full_form, equivalent_full, equivalent_en, category, explanation, example, ambiguity_note, concept, status, source_title, source_url, official_title, official_url, checked_at'
+  'id, lang, abbr, full_form, equivalent_full, equivalent_en, category, explanation, example, ambiguity_note, concept, status, source_title, source_url, official_title, official_url, source_section, checked_at'
 
 const withIds = (rows) => rows.map((r, i) => ({ id: r.id ?? `b${i}`, ...r }))
 

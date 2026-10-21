@@ -9,9 +9,14 @@
 -- nothing is ever translated automatically.
 --
 -- status:
---   confirmed    — found in an official source (official_url);
+--   defined      — a normative act establishes it: «… (далее – X)» in the act
+--                  (official_url, source_section = article / point);
+--   used         — used in an official text (an act, an MChS publication)
+--                  without a definition of its own;
 --   base         — the full form is a term of the platform's base;
 --   needs_review — taken from a linguistic source only, not yet confirmed.
+-- Being in an official text does not make an abbreviation legally fixed:
+-- only «defined» says the act itself introduces it.
 --
 -- Anyone can read published rows; only admins (profiles.role = 'admin')
 -- add, change or confirm them. New rows come through
@@ -37,11 +42,13 @@ create table if not exists public.abbreviations (
   example text,
   ambiguity_note text,
   concept text,
-  status text not null default 'needs_review' check (status in ('confirmed', 'base', 'needs_review')),
+  status text not null default 'needs_review' check (status in ('defined', 'used', 'base', 'needs_review')),
   source_title text not null,
   source_url text,
   official_title text,
   official_url text,
+  -- Article, point or annex of the official source.
+  source_section text,
   checked_at date not null default current_date,
   published boolean not null default true,
   created_at timestamptz not null default now(),
