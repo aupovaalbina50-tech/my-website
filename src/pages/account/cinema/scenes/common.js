@@ -53,6 +53,26 @@ export function makeBackdrop(seed, { horizon = 560, starsN = 90, cloudsN = 9, sk
   }
 }
 
+// Static far layers (ridges, distant city) are drawn once into an offscreen
+// canvas and then only blitted: hundreds of windows per frame were the main
+// cost of a frame.
+const BAKE_X = -320
+const BAKE_W = 2240
+function bake(bd, key, top, bottom, draw) {
+  bd.baked ??= {}
+  if (bd.baked[key]) return bd.baked[key]
+  const res = 1
+  const c = document.createElement('canvas')
+  c.width = Math.ceil(BAKE_W * res)
+  c.height = Math.ceil((bottom - top) * res)
+  const g = c.getContext('2d')
+  g.setTransform(res, 0, 0, res, -BAKE_X * res, -top * res)
+  draw(g)
+  bd.baked[key] = { c, top, h: bottom - top }
+  return bd.baked[key]
+}
+const blit = (ctx, b) => ctx.drawImage(b.c, BAKE_X, b.top, BAKE_W, b.h)
+
 /** Sky, stars, clouds (p 0–0.1), ridges (0.15–0.2), distant city (0.35). */
 export function drawBackdrop(rd, bd, mood, { glowRgb = null, glowA = 0, starA = 1, cloudLight = 0, city = true } = {}) {
   const m = MOODS[mood]
@@ -62,9 +82,14 @@ export function drawBackdrop(rd, bd, mood, { glowRgb = null, glowA = 0, starA = 
     if (starA > 0) stars(ctx, bd.stars, state.t, starA)
   })
   rd.layer(0.08, () => clouds(ctx, bd.clouds, state.t, 1600, m.cloud, cloudLight))
-  rd.layer(0.16, () => ridge(ctx, seeded(bd.ridgeSeedA), 1600, bd.horizon - 40, 170, m.ridge[0], true))
-  rd.layer(0.22, () => ridge(ctx, seeded(bd.ridgeSeedB), 1600, bd.horizon - 10, 90, m.ridge[1]))
-  if (city) rd.layer(0.36, () => skyline(ctx, bd.skyline, m.city))
+  const ridgeA = bake(bd, `ra:${mood}`, bd.horizon - 260, bd.horizon + 2, (g) => ridge(g, seeded(bd.ridgeSeedA), 1600, bd.horizon - 40, 170, m.ridge[0], true))
+  const ridgeB = bake(bd, `rb:${mood}`, bd.horizon - 140, bd.horizon + 2, (g) => ridge(g, seeded(bd.ridgeSeedB), 1600, bd.horizon - 10, 90, m.ridge[1]))
+  rd.layer(0.16, () => blit(ctx, ridgeA))
+  rd.layer(0.22, () => blit(ctx, ridgeB))
+  if (city) {
+    const sk = bake(bd, `city:${mood}`, bd.horizon - 300, bd.horizon + 2, (g) => skyline(g, bd.skyline, m.city))
+    rd.layer(0.36, () => blit(ctx, sk))
+  }
   // A glow over the horizon from the incident (fire, flashes).
   if (glowRgb && glowA > 0) {
     rd.layer(0.36, () => {

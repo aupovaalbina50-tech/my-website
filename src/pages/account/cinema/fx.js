@@ -71,7 +71,7 @@ const KINDS = {
   smoke: { life: [4.5, 7.5], size: [16, 34], grow: 30, vy: [-70, -42], vx: [-4, 8], drag: 0.12, alpha: 0.55, rgb: '38,40,46', puff: true },
   smokeLight: { life: [4, 7], size: [20, 44], grow: 24, vy: [-40, -22], vx: [-4, 6], drag: 0.15, alpha: 0.4, rgb: '120,126,136', puff: true },
   steam: { life: [2.5, 4.5], size: [20, 40], grow: 30, vy: [-34, -20], vx: [-4, 6], drag: 0.2, alpha: 0.42, rgb: '226,234,242', puff: true },
-  gas: { life: [5, 9], size: [40, 80], grow: 18, vy: [-6, 2], vx: [6, 16], drag: 0.1, alpha: 0.3, rgb: '196,214,96', puff: true },
+  gas: { life: [6, 10], size: [34, 60], grow: 16, vy: [-6, 2], vx: [6, 16], drag: 0.1, alpha: 0.4, rgb: '196,214,96', puff: true },
   dust: { life: [3, 6], size: [24, 50], grow: 20, vy: [-12, -4], vx: [-8, 10], drag: 0.3, alpha: 0.45, rgb: '150,128,104', puff: true },
   mist: { life: [3, 5], size: [30, 60], grow: 16, vy: [-6, 0], vx: [-6, 6], drag: 0.3, alpha: 0.22, rgb: '205,222,238', puff: true },
   fire: { life: [0.35, 0.85], size: [8, 18], grow: -8, vy: [-110, -55], vx: [-12, 12], drag: 0.6, alpha: 0.62, additive: true, fire: true },

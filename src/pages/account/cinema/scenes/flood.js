@@ -35,7 +35,7 @@ export default {
   focusPoint: { x: 560, y: 560 },
   hotspots: [
     { id: 'roof', x: 560, y: GROUND - 150, z: 2.1 },
-    { id: 'barrier', x: 1050, y: GROUND + 10, z: 2.0 },
+    { id: 'barrier', x: 1040, y: GROUND + 30, z: 2.0 },
     { id: 'boat', x: 760, y: GROUND + 60, z: 2.0 },
     { id: 'zone', x: 700, y: GROUND + 40, z: 1.5 },
   ],
@@ -48,7 +48,7 @@ export default {
     data.threat = threat
     data.flash = Math.max(0, data.flash - dt * 3)
     if (Math.random() < dt * 0.12 * threat && state.quality !== 'lite') data.flash = 1
-    if (pulseK(state) > 0.2) P.stream('splash', 40, dt, 1050, GROUND - 4, { spreadX: 60 })
+    if (pulseK(state) > 0.2) P.stream('splash', 40, dt, 1040, GROUND + 30, { spreadX: 60 })
     P.stream('mist', 3 * threat, dt, 800, GROUND + 20, { spreadX: 700, layer: 'near', scale: 1.4 })
   },
   draw(rd) {
@@ -78,21 +78,30 @@ export default {
         person(ctx, 545, GROUND - 205, { kind: 'civil', t, pose: 'wave' })
         person(ctx, 570, GROUND - 200, { kind: 'civil2', t, scale: 0.85 })
       }
-      // barrier of sandbags, raised by correct answers
-      const built = Math.min(1, 0.35 + (1 - threat) * 0.8 + pulseK(state) * 0.1)
-      sandbags(ctx, 960, GROUND + 6, 8, 3, built)
-      person(ctx, 940, GROUND + 4, { kind: 'rescuer', t, walking: state.phase !== 'intro' })
-      person(ctx, 1180, GROUND + 4, { kind: 'rescuer', t, flip: true })
-      vehicle(ctx, 'rescue', 1380, GROUND + 6, { t, flip: true, lights: false })
       // water
       water(ctx, 1600, level, t, { lights: [{ x: 1350, rgb: '255,60,60', a: 0.3 }, { x: 1366, rgb: '70,140,255', a: 0.3 }] })
+      // the near bank in front of the water: barrier of sandbags (raised by
+      // correct answers), crews and their vehicle
+      ctx.fillStyle = '#1e2633'
+      ctx.beginPath()
+      ctx.moveTo(880, GROUND + 160)
+      ctx.lineTo(920, GROUND + 40)
+      ctx.lineTo(1700, GROUND + 30)
+      ctx.lineTo(1700, GROUND + 160)
+      ctx.closePath()
+      ctx.fill()
+      const built = Math.min(1, 0.35 + (1 - threat) * 0.8 + pulseK(state) * 0.1)
+      sandbags(ctx, 930, GROUND + 52, 9, 3, built)
+      person(ctx, 1000, GROUND + 70, { kind: 'rescuer', t, walking: state.phase !== 'intro' })
+      person(ctx, 1200, GROUND + 66, { kind: 'rescuer', t, flip: true })
+      vehicle(ctx, 'rescue', 1400, GROUND + 90, { t, flip: true, lights: false })
       const bx = introLerp(state, 7, 11, 200, 760) + Math.sin(t * 0.3) * 20
       boat(ctx, bx, level + 8, t)
       person(ctx, bx - 10, level - 4, { kind: 'rescuer', t, scale: 0.9 })
       if (rescued >= 0.6) person(ctx, bx + 20, level - 4, { kind: 'civil', t, scale: 0.85 })
       glow(ctx, bx + 50, level - 10, 40, '255,240,210', 0.4)
       zone(ctx, 700, GROUND + 40, 420, 60, t, { rgb: state.outcome === 'success' ? '96,200,255' : '255,110,64', a: Math.min(1, introLerp(state, 10, 11.5, 0, 1)) * (1 - 0.4 * oc) })
-      for (const p of state.pulses) ring(ctx, 1050, GROUND, p.t / p.life, p.kind === 'action' ? '110,200,255' : '255,150,70')
+      for (const p of state.pulses) ring(ctx, 1040, GROUND + 50, p.t / p.life, p.kind === 'action' ? '110,200,255' : '255,150,70')
       pool(ctx, 800, GROUND + 40, 600, 60, '120,160,210', 0.1)
       P.draw(ctx, 'near')
     })

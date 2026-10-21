@@ -48,14 +48,14 @@ export default {
     const threat = state.phase === 'intro' && !state.reducedMotion ? Math.max(state.threat, introLerp(state, 1, 7, 0.2, 0.9)) : state.threat
     data.threat = threat
     // gas leaking from the tank flange, drifting downwind
-    P.stream('gas', 9 * threat, dt, 708, GROUND - 120, { spreadX: 6, spreadY: 6, scale: 0.7 + threat * 0.8 })
+    P.stream('gas', 4.5 * threat, dt, 708, GROUND - 120, { spreadX: 6, spreadY: 6, scale: 0.7 + threat * 0.8 })
     // hissing jet at the flange
     if (threat > 0.15) P.stream('mist', 14 * threat, dt, 712, GROUND - 120, { vx: 90, vy: -10, scale: 0.4 })
     // water curtain from the monitor
     const curtain = state.phase === 'intro' ? (state.phaseT > 9.5 ? 0.5 : 0) : 0.4 + pulseK(state) * 0.6 + (state.outcome === 'success' ? 0.4 : 0)
     data.curtain = curtain
     if (curtain > 0) {
-      for (let i = 0; i < 3; i++) P.stream('water', 45 * curtain, dt, 1000, GROUND - 40, { vx: -160 - i * 50 + (Math.random() - 0.5) * 40, vy: -330 - Math.random() * 60, scale: 1.1 })
+      for (let i = 0; i < 3; i++) P.stream('water', 32 * curtain, dt, 1000, GROUND - 40, { vx: -160 - i * 50 + (Math.random() - 0.5) * 40, vy: -330 - Math.random() * 60, scale: 1.1 })
       P.stream('mist', 6 * curtain, dt, 860, GROUND - 120, { spreadX: 60, spreadY: 50 })
     }
     P.stream('smokeLight', 1.2, dt, 1260, GROUND - 330, { layer: 'mid', scale: 0.8 })
