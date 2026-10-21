@@ -1,5 +1,3 @@
-import { ArrowRight } from 'lucide-react'
-
 // Intro under a section title: one short sentence and up to three steps
 // («what is here / how to use it»). A step with `target` (a CSS selector)
 // scrolls to that part of the page; with `focus`, it also puts the cursor
@@ -17,20 +15,14 @@ function SectionIntro({ lead, steps = [] }) {
       <p className="section-intro-lead">{lead}</p>
       {steps.length > 0 && (
         <ol className="section-intro-steps">
-          {steps.map(({ icon: Icon, title, text, target, focus }, index) => {
+          {steps.map(({ icon: Icon, title, text, target, focus }) => {
             const body = (
               <>
-                <span className="section-intro-step-top">
-                  <span className="section-intro-step-icon">
-                    <Icon size={20} aria-hidden="true" />
-                  </span>
-                  <span className="section-intro-step-number" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
+                <span className="section-intro-step-icon">
+                  <Icon size={17} aria-hidden="true" />
                 </span>
                 <strong className="section-intro-step-title">{title}</strong>
                 <span className="section-intro-step-text">{text}</span>
-                {target && <ArrowRight size={16} className="section-intro-step-arrow" aria-hidden="true" />}
               </>
             )
             return (

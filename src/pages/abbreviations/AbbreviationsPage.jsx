@@ -231,23 +231,22 @@ export default function AbbreviationsPage() {
           ]}
         />
 
-        <div className="abbr-tabs" role="tablist" aria-label={S.tabsAria[ui]}>
-          {['kk', 'ru'].map((l) => (
-            <button
-              key={l}
-              type="button"
-              role="tab"
-              aria-selected={tab === l}
-              className={`abbr-tab${tab === l ? ' is-on' : ''}`}
-              onClick={() => set({ lang: l, letter: '', q: '' })}
-            >
-              <span className="abbr-tab-name">{S.tabs[l][ui]}</span>
-              <span className="abbr-tab-note">{S.tabNote[l][ui]}</span>
-            </button>
-          ))}
-        </div>
-
         <div className="abbr-panel">
+          <div className="abbr-tabs" role="tablist" aria-label={S.tabsAria[ui]}>
+            {['kk', 'ru'].map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="tab"
+                aria-selected={tab === l}
+                title={S.tabNote[l][ui]}
+                className={`abbr-tab${tab === l ? ' is-on' : ''}`}
+                onClick={() => set({ lang: l, letter: '', q: '' })}
+              >
+                {S.tabs[l][ui]}
+              </button>
+            ))}
+          </div>
           <label className="abbr-search">
             <Search size={18} aria-hidden="true" />
             <input type="search" value={query} onChange={(e) => set({ q: e.target.value })} placeholder={S.search[ui]} aria-label={S.search[ui]} lang={tab} />

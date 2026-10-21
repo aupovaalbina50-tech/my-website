@@ -13,48 +13,39 @@
   }
 }
 
-/* ---- language tabs ---- */
+/* ---- language switch (inside the panel) ---- */
 .abbr-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
+  display: inline-flex;
+  justify-self: start;
+  gap: 4px;
+  padding: 4px;
+  background: #eef2f6;
+  border-radius: 999px;
 }
 .abbr-tab {
-  display: grid;
-  gap: 2px;
-  padding: 14px 18px;
-  text-align: left;
-  color: #e6f1fb;
+  padding: 8px 22px;
   font: inherit;
-  background: rgba(10, 33, 63, 0.7);
-  border: 1px solid rgba(148, 197, 227, 0.3);
-  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #52637a;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
-    border-color: rgba(125, 211, 252, 0.7);
-    transform: translateY(-1px);
+    color: #15803d;
   }
   &:focus-visible {
-    outline: 3px solid #7dd3fc;
-    outline-offset: 2px;
+    outline: 3px solid #86efac;
+    outline-offset: 1px;
   }
   &.is-on {
-    color: #0a213f;
-    background: #fff;
-    border-color: #fff;
-    box-shadow: inset 0 -4px 0 #168bc4, 0 10px 28px rgba(4, 14, 30, 0.3);
+    color: #fff;
+    background: #16a34a;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
   }
-}
-.abbr-tab-name {
-  font-size: 19px;
-  font-weight: 700;
-}
-.abbr-tab-note {
-  font-size: 13.5px;
-  opacity: 0.8;
 }
 
 /* ---- search, alphabet, filters ---- */
@@ -178,10 +169,17 @@
 /* ---- list ---- */
 .abbr-list {
   display: grid;
-  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(4, 14, 30, 0.25);
+
+  & > li + li {
+    border-top: 1px solid #e6edf4;
+  }
 }
 .abbr-row {
   display: grid;
@@ -194,9 +192,8 @@
   font: inherit;
   color: #183153;
   background: #fff;
-  border: 1px solid #dbe4ee;
-  border-left: 4px solid #9fb3c8;
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 
@@ -211,15 +208,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 6px;
   }
-}
-.abbr-row--defined {
-  border-left-color: #2e9d62;
-}
-.abbr-row--base {
-  border-left-color: #168bc4;
-}
-.abbr-row--needs_review {
-  border-left-color: #e0a100;
 }
 .abbr-row-abbr {
   font-size: 24px;
@@ -493,24 +481,15 @@
 
 /* ---- green highlight and interactivity ---- */
 .abbr-row {
-  border-left-color: #22c55e;
   /* No transition on the background: white -> gradient has no in-between
      frame and flashed dark. */
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease;
-}
-.abbr-row--needs_review {
-  border-left-color: #86efac;
+  transition: box-shadow 0.18s ease;
 }
 .abbr-row:hover,
 .abbr-row:focus-visible {
   background: linear-gradient(90deg, #ecfdf3 0%, #ffffff 75%);
-  border-color: #86efac;
-  border-left-color: #16a34a;
-  box-shadow: 0 10px 26px rgba(22, 163, 74, 0.18);
-  transform: translateX(4px);
+  box-shadow: inset 4px 0 0 #16a34a;
+  transform: none;
 
   .abbr-row-abbr {
     color: #15803d;
@@ -526,7 +505,7 @@
   transition: color 0.18s ease;
 }
 .abbr-row:active {
-  transform: translateX(2px) scale(0.995);
+  background: #dcfce7;
 }
 .abbr-alphabet button:hover:not(:disabled) {
   color: #15803d;
@@ -539,12 +518,6 @@
 .abbr-search:focus-within {
   border-color: #16a34a;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
-}
-.abbr-tab.is-on {
-  box-shadow: inset 0 -4px 0 #16a34a, 0 10px 28px rgba(4, 14, 30, 0.3);
-}
-.abbr-tab:hover {
-  border-color: rgba(134, 239, 172, 0.8);
 }
 .abbr-count {
   color: #15803d;
@@ -573,6 +546,10 @@
   color: #1e4f9c;
   background: #eaf1fd;
 }
-.abbr-row--used {
-  border-left-color: #2e6fd8;
+
+/* In list rows the status is a quiet label, not a pill. */
+.abbr-row .abbr-status {
+  padding: 0;
+  font-weight: 600;
+  background: transparent;
 }
