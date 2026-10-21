@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, Trophy, X, XCircle } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionOperation } from './useMissionOperation.js'
-import MissionScene from './MissionScene.jsx'
+import MissionCinema from './cinema/MissionCinema.jsx'
+import { missionScoreTier } from '../../utils/missionScoreTier.js'
 
 const STAGE_KEYS = ['assess', 'identify', 'action', 'control']
 
@@ -18,6 +19,13 @@ function MissionExecutePage() {
   const mission = MISSIONS.find((item) => item.id === missionId)
   const op = useMissionOperation(mission)
   const [toastDismissed, setToastDismissed] = useState(false)
+  const sm = t.account.missions.summary
+  const c2 = t.account.missions.cinema
+  const pulse = useMemo(
+    () => (op.feedback ? { kind: op.feedback === 'correct' ? 'action' : 'error', id: `${op.stageIndex}-${op.feedback}-${op.pendingOptionId}` } : null),
+    [op.feedback, op.stageIndex, op.pendingOptionId],
+  )
+  const sceneThreat = op.totalStages ? 0.1 + 0.6 * (1 - op.completedStages.size / op.totalStages) : 0.7
 
   const goToMission = () => navigate(`/account/missions/mission/${missionId}`)
   const goToMissionsList = () => navigate('/account/missions', { state: { stage: 'list' } })
@@ -70,16 +78,33 @@ function MissionExecutePage() {
           </div>
         )}
 
-        <div className="mission-complete-op-card">
-          <div className="mission-op-hero mission-op-hero--final">
-            <MissionScene missionId={mission.id} reached={4} />
-            <span className="mission-op-final-label">
-              <CheckCircle2 size={16} aria-hidden="true" /> {e.stabilizedLabel}
-            </span>
-          </div>
+        <MissionCinema mission={mission} threat={0} outcome="success" />
 
-          <h1 className="mission-complete-title">{c.title}</h1>
+        <div className="mission-complete-op-card">
+          <h1 className="mission-complete-title">{sm.successTitle}</h1>
           <p className="mission-goal-mission">&laquo;{mission.title[lang]}&raquo;</p>
+
+          <dl className="mission-summary-metrics">
+            <div>
+              <dt>{sm.points}</dt>
+              <dd>{op.correct !== null ? `${op.correct} / ${op.total}` : '—'}</dd>
+            </div>
+            <div>
+              <dt>{sm.correct}</dt>
+              <dd>{op.correct ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>{sm.percent}</dt>
+              <dd>{op.percent}%</dd>
+            </div>
+            <div>
+              <dt>{sm.terms}</dt>
+              <dd>{mission.requiredTerms}</dd>
+            </div>
+          </dl>
+          <p className="mission-summary-assessment">
+            <b>{sm.assessment}:</b> {t.account.missions.test.results.tiers[missionScoreTier(op.percent)].title}
+          </p>
 
           <ul className="mission-complete-checklist">
             <li>
@@ -106,10 +131,13 @@ function MissionExecutePage() {
           </div>
 
           <div className="quiz-result-actions">
-            <button type="button" className="btn-auth-secondary" onClick={goToMissionsList}>
-              {c.toMissionsCta}
+            <button type="button" className="btn-auth-secondary" onClick={goToMission}>
+              {sm.retry}
             </button>
-            <button type="button" className="btn-auth-primary" onClick={goHome}>
+            <button type="button" className="btn-auth-primary" onClick={goToMissionsList}>
+              {sm.toMissions}
+            </button>
+            <button type="button" className="btn-auth-secondary" onClick={goHome}>
               {c.toHomeCta}
             </button>
           </div>
@@ -145,8 +173,15 @@ function MissionExecutePage() {
         </div>
       </div>
 
-      <div className="mission-brief-hero mission-op-hero">
-        <MissionScene missionId={mission.id} reached={op.completedStages.size} caption={stageCaption} />
+      <div className="mission-op-hero mission-op-hero--cinema">
+        <MissionCinema
+          mission={mission}
+          compact
+          threat={sceneThreat}
+          pulse={pulse}
+          feedback={pulse}
+          stageLabel={stageCaption ?? c2.stage(op.stageIndex + 1, op.totalStages)}
+        />
         <div className="mission-op-readout">
           <span className="mission-op-readout-label">{e.readinessLabel}</span>
           <span className="mission-op-readout-value">{op.percent}%</span>

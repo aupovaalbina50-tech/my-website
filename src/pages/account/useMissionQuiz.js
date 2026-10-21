@@ -51,7 +51,17 @@ export function useMissionQuiz(mission) {
     if (pendingOptionId === null || confirmed || !currentQuestion) return
     const correct = pendingOptionId === currentQuestion.correctId
     setConfirmed({ optionId: pendingOptionId, correct })
-    setAnswers((current) => [...current, { term: currentQuestion.term, correct }])
+    const textOf = (id) => currentQuestion.options.find((o) => o.id === id)?.text ?? ''
+    setAnswers((current) => [
+      ...current,
+      {
+        term: currentQuestion.term,
+        correct,
+        prompt: currentQuestion.prompt,
+        chosen: textOf(pendingOptionId),
+        right: textOf(currentQuestion.correctId),
+      },
+    ])
   }, [pendingOptionId, confirmed, currentQuestion])
 
   const score = useMemo(() => answers.filter((a) => a.correct).length, [answers])
@@ -112,5 +122,6 @@ export function useMissionQuiz(mission) {
     status,
     saving,
     retry,
+    answers,
   }
 }
