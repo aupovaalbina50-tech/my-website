@@ -1,12 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Sparkles } from 'lucide-react'
+import { ArrowDownUp, Search, Sparkles } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { useQuotes } from './useQuotes.js'
 import QuoteCard from './QuoteCard.jsx'
 import Header from '../../components/Header.jsx'
 import HomeSidebar from '../../components/HomeSidebar.jsx'
 import Footer from '../../components/Footer.jsx'
+import SectionIntro from '../../components/SectionIntro.jsx'
 
 const noop = () => {}
 
@@ -69,11 +70,17 @@ function QuotesPage() {
       <div className="account-shell">
         <HomeSidebar activeSection="quotes" onSectionClick={noop} />
         <div className="home-content">
-          <section className="quote-hero">
-            <div className="hero-glow" aria-hidden="true"></div>
-            <p className="hero-kicker">{t.quotes.hero.kicker}</p>
-            <h1 className="quote-hero-title">{t.quotes.hero.title}</h1>
-            <p className="quote-hero-desc">{t.quotes.hero.description}</p>
+          <section className="section-quotes-intro">
+            <div className="section-kicker" aria-hidden="true"></div>
+            <h1 className="section-title">{t.quotes.hero.title}</h1>
+            <SectionIntro
+              lead={t.quotes.hero.introLead}
+              steps={[
+                { icon: Sparkles, ...t.quotes.hero.introSteps[0], target: '.quote-of-day-card' },
+                { icon: Search, ...t.quotes.hero.introSteps[1], target: '.quote-search-wrap', focus: '.quote-search-input' },
+                { icon: ArrowDownUp, ...t.quotes.hero.introSteps[2], target: '.quote-sort-group' },
+              ]}
+            />
           </section>
 
           <div className="quote-stats-grid">
