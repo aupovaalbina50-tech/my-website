@@ -1534,51 +1534,55 @@
   }
 }
 
+/* Same card as «Кому пригодится словарь»: icon tile, title, text in the
+   same sizes; the chosen step is lifted and outlined, the others stay
+   fully readable. */
 .step-card {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
   width: 100%;
-  padding: 22px;
+  height: 100%;
+  padding: 24px 26px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  background: rgba(10, 40, 75, 0.42);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 40, 75, 0.62);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  opacity: 0.8;
-  transform: translateY(0) scale(1);
   transition:
-    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.32s ease,
-    border-color 0.32s ease,
-    background-color 0.32s ease,
-    box-shadow 0.4s ease;
+    transform 0.28s ease,
+    border-color 0.28s ease,
+    background-color 0.28s ease,
+    box-shadow 0.28s ease;
 
   &:hover {
-    opacity: 0.95;
-    border-color: rgba(126, 184, 255, 0.32);
+    border-color: rgba(126, 184, 255, 0.45);
+    background-color: rgba(16, 54, 96, 0.7);
   }
   &:focus-visible {
     outline: 2px solid rgba(126, 184, 255, 0.6);
     outline-offset: 3px;
   }
-
   &.active {
-    opacity: 1;
-    transform: translateY(-6px) scale(1.04);
-    border-color: rgba(126, 184, 255, 0.55);
-    background-color: rgba(18, 58, 102, 0.75);
-    box-shadow:
-      0 20px 44px rgba(4, 16, 36, 0.38),
-      0 0 0 1px rgba(126, 184, 255, 0.18),
-      0 0 32px rgba(96, 170, 255, 0.2);
+    transform: translateY(-2px);
+    border-color: rgba(126, 184, 255, 0.6);
+    background-color: rgba(16, 54, 96, 0.78);
+    box-shadow: 0 12px 32px rgba(4, 16, 36, 0.28), 0 0 0 1px rgba(126, 184, 255, 0.15);
   }
 
   @media (max-width: 560px) {
-    padding: 18px 20px;
+    padding: 18px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &.active {
+      transform: none;
+    }
   }
 }
 
@@ -1586,62 +1590,39 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .step-card-icon {
-  width: 24px;
-  height: 24px;
-  color: rgba(126, 184, 255, 0.7);
-  transition: color 0.32s ease;
-}
-
-.step-card.active .step-card-icon {
-  color: #bcdcff;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  padding: 11px;
+  color: #cfe6ff;
+  background: linear-gradient(145deg, #2f80d0, #1a4f8f);
+  border-radius: 13px;
 }
 
 .step-card h3 {
   margin: 0 0 8px;
-  font-size: var(--fs-card-title);
-  font-weight: var(--fw-card-title);
-  letter-spacing: 0.04em;
-  color: var(--canvas-text-soft);
-  transition: color 0.32s ease;
-}
-
-.step-card.active h3 {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.35;
   color: #fff;
 }
 
 .step-card p {
   margin: 0;
-  font-size: 15px;
-  color: var(--canvas-text-soft);
-  line-height: 1.55;
-  opacity: 0.7;
-  transform: translateY(4px) scale(0.98);
-  transform-origin: left top;
-  transition:
-    opacity 0.4s ease,
-    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.step-card.active p {
-  opacity: 1;
-  transform: translateY(0) scale(1);
+  font-size: 16.5px;
+  line-height: 1.6;
+  color: rgba(238, 244, 251, 0.88);
 }
 
 .step-n {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: var(--ls-label);
-  color: var(--red);
-  transition: text-shadow 0.32s ease;
-}
-
-.step-card.active .step-n {
-  text-shadow: 0 0 14px rgba(200, 31, 46, 0.55);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ff8f8f;
 }
 
 /* ============================================================
@@ -1651,9 +1632,7 @@
 .audience-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  max-width: 1000px;
-  margin: 0 auto;
+  gap: 16px;
 
   @media (max-width: 720px) {
     grid-template-columns: minmax(0, 1fr);
@@ -1689,8 +1668,14 @@
   }
 
   @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
     padding: 18px;
-    column-gap: 14px;
+
+    .audience-card-icon {
+      grid-row: auto;
+      margin-bottom: 14px;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     transition: none;
