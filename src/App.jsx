@@ -303,14 +303,6 @@ function App() {
                   }
                 />
                 <Route
-                  path="achievements"
-                  element={
-                    <RequireAuth>
-                      <PlaceholderPage titleKey="achievements" />
-                    </RequireAuth>
-                  }
-                />
-                <Route
                   path="settings"
                   element={
                     <RequireAuth>

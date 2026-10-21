@@ -14,16 +14,12 @@ import {
   Eye,
   Wrench,
   Library,
-  Flame,
   Target,
   BarChart3,
   Flag,
-  Award,
-  Layers,
   ShieldCheck,
   CheckCircle2,
   Mountain,
-  Trophy,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
@@ -33,13 +29,10 @@ import AuthCard from './auth/AuthCard.jsx'
 import { useRecentTerms } from './useRecentTerms.js'
 import { useDashboardStats } from './useDashboardStats.js'
 import { useMastery } from './useMastery.js'
-import { useAllTermCategories } from './useAllTermCategories.js'
-import { useActivityStreak } from './useActivityStreak.js'
 import { useMissionsProgress } from './useMissionsProgress.js'
 import DashboardTermSearch from '../shared/DashboardTermSearch.jsx'
 import ProgressRing from './ProgressRing.jsx'
 import { toSentenceCase } from '../../utils/textCase.js'
-import { computeStreak, computeWeekDots } from '../../utils/activityStreak.js'
 
 function formatCompletedDate(iso, lang) {
   try {
@@ -67,7 +60,6 @@ const MATERIAL_LINKS = [
 ]
 
 const GOAL_STEP = 5
-const ACHIEVEMENT_ICON = { firstTerm: Flag, tenTerms: Award, streak3: Flame, categoryDone: Layers }
 
 function StatCard({ to, label, value, error, caption, errorLabel, Icon, accent }) {
   return (
@@ -101,46 +93,13 @@ function AccountHomePage() {
   }, [])
 
   const { terms: recentTerms, loading: recentLoading } = useRecentTerms()
-  const { totalTerms, historyCount } = useDashboardStats()
+  const { totalTerms } = useDashboardStats()
   const { masteredIds } = useMastery()
-  const { rows: categoryRows } = useAllTermCategories()
-  const { activeDays, loading: streakLoading } = useActivityStreak()
   const { missionState, completedCount: missionsCompletedCount, loading: missionsLoading } = useMissionsProgress()
 
   const masteredCount = masteredIds.size
   const ringPercent = totalTerms ? Math.round((masteredCount / totalTerms) * 100) : 0
 
-  const categoryProgress = useMemo(() => {
-    const totals = {}
-    const mastered = {}
-    CATEGORIES.forEach((c) => {
-      totals[c.key] = 0
-      mastered[c.key] = 0
-    })
-    categoryRows.forEach((row) => {
-      if (!(row.category in totals)) return
-      totals[row.category] += 1
-      if (masteredIds.has(row.id)) mastered[row.category] += 1
-    })
-    return CATEGORIES.map((c) => ({
-      key: c.key,
-      label: c[lang],
-      total: totals[c.key],
-      mastered: mastered[c.key],
-      percent: totals[c.key] > 0 ? Math.round((mastered[c.key] / totals[c.key]) * 100) : 0,
-    })).sort((a, b) => b.percent - a.percent)
-  }, [categoryRows, masteredIds, lang])
-
-  const streak = useMemo(() => computeStreak(activeDays), [activeDays])
-  const weekDots = useMemo(() => computeWeekDots(activeDays), [activeDays])
-
-  const categoryCompleted = categoryProgress.some((c) => c.total > 0 && c.mastered === c.total)
-  const achievements = [
-    { key: 'firstTerm', unlocked: (historyCount ?? 0) >= 1 },
-    { key: 'tenTerms', unlocked: masteredCount >= 10 },
-    { key: 'streak3', unlocked: streak >= 3 },
-    { key: 'categoryDone', unlocked: categoryCompleted },
-  ]
 
   const missionTermsTotal = useMemo(() => MISSIONS.reduce((sum, mission) => sum + mission.requiredTerms, 0), [])
   const missionTermsStudied = useMemo(
@@ -251,15 +210,6 @@ function AccountHomePage() {
               Icon={BarChart3}
               accent="yellow"
             />
-            <StatCard
-              to="/account/missions"
-              label={mp.statAchievements}
-              value={missionsLoading ? null : missionsCompletedCount}
-              error={false}
-              caption={mp.statAchievementsCaption}
-              Icon={Trophy}
-              accent="red"
-            />
           </div>
         </div>
 
@@ -326,61 +276,6 @@ function AccountHomePage() {
           <Link to="/account/terms" className="btn-auth-primary quiz-start-btn">
             {m.goalButton}
           </Link>
-        </div>
-      </section>
-
-      <section className="dash-section">
-        <h2 className="dash-section-title">
-          <Flame size={20} aria-hidden="true" />
-          {m.streakTitle}
-        </h2>
-        {streakLoading ? (
-          <p className="dash-empty-text">{t.table.loading}</p>
-        ) : streak === 0 ? (
-          <p className="dash-empty-text">{m.streakEmpty}</p>
-        ) : (
-          <p className="streak-summary">
-            <Flame className="streak-summary-icon" size={20} aria-hidden="true" />
-            {m.streakText(streak)}
-          </p>
-        )}
-        <div className="streak-week">
-          {m.weekdays.map((day, i) => (
-            <div className="streak-day" key={day + i}>
-              <span className="streak-day-label">{day}</span>
-              <span
-                className={`streak-day-dot${weekDots[i]?.active ? ' streak-day-dot--active' : ''}${
-                  weekDots[i]?.isFuture ? ' streak-day-dot--future' : ''
-                }`}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="dash-section" id="achievements">
-        <h2 className="dash-section-title">
-          <Award size={20} aria-hidden="true" />
-          {m.achievementsTitle}
-        </h2>
-        <div className="achievements-grid">
-          {achievements.map((a) => {
-            const AchievementIcon = ACHIEVEMENT_ICON[a.key]
-            return (
-              <div
-                key={a.key}
-                className={`achievement-badge${a.unlocked ? ' achievement-badge--unlocked' : ''}`}
-              >
-                <span className="achievement-badge-icon" aria-hidden="true">
-                  <AchievementIcon size={19} strokeWidth={1.75} />
-                </span>
-                <span>
-                  <span className="achievement-badge-title">{m.achievements[a.key].title}</span>
-                  <span className="achievement-badge-desc">{m.achievements[a.key].desc}</span>
-                </span>
-              </div>
-            )
-          })}
         </div>
       </section>
 

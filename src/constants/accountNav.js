@@ -12,7 +12,6 @@ import {
   User,
   ClipboardList,
   BarChart3,
-  Trophy,
   Settings,
   Siren,
   Quote,
@@ -40,6 +39,5 @@ export const SECONDARY_ACCOUNT_NAV_ITEMS = [
   { key: 'committees', to: '/account/committees', Icon: Landmark },
   { key: 'tests', to: '/account/tests', Icon: ClipboardList },
   { key: 'statistics', to: '/account/statistics', Icon: BarChart3 },
-  { key: 'achievements', to: '/account/achievements', Icon: Trophy },
   { key: 'settings', to: '/account/settings', Icon: Settings },
 ]
