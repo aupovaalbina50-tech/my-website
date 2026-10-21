@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -190,6 +190,50 @@ function StructureList({ title, items, sourceUrl, sourceText }) {
   )
 }
 
+// Counts up from 1 to `value` once the number is on screen (a quick
+// ease-out run); with reduced motion it shows the value at once.
+function CountUp({ value, delay = 0, duration = 900 }) {
+  const ref = useRef(null)
+  const [shown, setShown] = useState(value)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || value < 2 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+    let frame = 0
+    let timer = 0
+    setShown(1)
+    const run = () => {
+      const start = performance.now()
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / duration)
+        setShown(Math.max(1, Math.round(1 + (value - 1) * (1 - (1 - p) ** 3))))
+        if (p < 1) frame = requestAnimationFrame(tick)
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        observer.disconnect()
+        timer = window.setTimeout(run, delay)
+      },
+      { threshold: 0.4 },
+    )
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      window.clearTimeout(timer)
+      cancelAnimationFrame(frame)
+    }
+  }, [value, delay, duration])
+
+  return (
+    <strong ref={ref} className="ministry-fact-value" aria-label={String(value)}>
+      {shown}
+    </strong>
+  )
+}
+
 // Key figures at the top of the panel; each leads to its part of the page.
 function MinistryFacts({ m, lang, territorialCount, onOpen }) {
   const facts = [
@@ -202,13 +246,13 @@ function MinistryFacts({ m, lang, territorialCount, onOpen }) {
 
   return (
     <ul className="ministry-facts" aria-label={m.factsAria}>
-      {facts.map(({ id, icon: Icon, value, label, to }) => {
+      {facts.map(({ id, icon: Icon, value, label, to }, index) => {
         const body = (
           <>
             <span className="ministry-fact-icon">
               <Icon size={18} aria-hidden="true" />
             </span>
-            <strong className="ministry-fact-value">{value}</strong>
+            <CountUp value={value} delay={index * 90} />
             <span className="ministry-fact-label">{label}</span>
           </>
         )
