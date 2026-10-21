@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   BookOpen,
@@ -17,7 +17,7 @@ import { MISSIONS } from '../../data/missions.js'
 import { useMissionsProgress } from './useMissionsProgress.js'
 import { useMissionAttemptStats } from './useMissionAttemptStats.js'
 import { useMissionStageStatus } from './useMissionStageStatus.js'
-import MissionScene from './MissionScene.jsx'
+import MissionCinema from './cinema/MissionCinema.jsx'
 
 const STAGE_ICONS = { study: BookOpen, test: ClipboardCheck, result: Target, finish: ShieldCheck }
 
@@ -32,6 +32,21 @@ function MissionDetailPage() {
   const { missionState } = useMissionsProgress()
   const attemptStats = useMissionAttemptStats(missionId)
   const run = useMissionStageStatus(mission)
+  const location = useLocation()
+  // The opening sequence plays when the mission is opened from the list, and
+  // on the first visit of the session; coming back from a step of the
+  // mission shows the brief straight away (the intro can be replayed).
+  const [autoplay] = useState(() => {
+    const key = `mission_intro_seen:${missionId}`
+    let seen = false
+    try {
+      seen = sessionStorage.getItem(key) === '1'
+      sessionStorage.setItem(key, '1')
+    } catch {
+      /* storage unavailable */
+    }
+    return location.state?.from === 'list' || !seen
+  })
 
   const goToList = () => navigate('/account/missions', { state: { stage: 'list' } })
   const goToStudy = () => navigate(`/account/missions/mission/${missionId}/study`)
@@ -77,6 +92,12 @@ function MissionDetailPage() {
     return d.stageStatus.available
   }
   const runStarted = run.studied > 0
+  // «Приступить к выполнению задания» opens the current step of the run.
+  const startTask = () => {
+    if (run.testPassed) goToStage('finish')
+    else if (run.studyDone) goToStage('test')
+    else goToStudy()
+  }
 
   return (
     <div className="mission-page mission-brief-page">
@@ -106,9 +127,7 @@ function MissionDetailPage() {
         </div>
       </div>
 
-      <div className="mission-brief-hero">
-        <MissionScene missionId={mission.id} reached={0} />
-      </div>
+      <MissionCinema mission={mission} mode="intro" autoplay={autoplay} onStart={run.loading ? undefined : startTask} />
 
       {state.status === 'completed' && (
         <div className="mission-completed-banner">

@@ -16,7 +16,7 @@ export function useMissionOperation(mission) {
   const { user } = useAuth()
   const { terms, runStartedAt, loading: termsLoading } = useMissionTermStudy(mission)
 
-  const [scoreState, setScoreState] = useState({ loading: true, percent: null, cleared: false })
+  const [scoreState, setScoreState] = useState({ loading: true, percent: null, cleared: false, correct: null, total: null })
   const [checks, setChecks] = useState([])
   const [stageIndex, setStageIndex] = useState(0)
   const [pendingOptionId, setPendingOptionId] = useState(null)
@@ -34,12 +34,12 @@ export function useMissionOperation(mission) {
     // keep the clearance that was granted for this screen.
     if (termsLoading || phase === 'complete') return undefined
     if (!user || !mission) {
-      setScoreState({ loading: false, percent: null, cleared: false })
+      setScoreState({ loading: false, percent: null, cleared: false, correct: null, total: null })
       return
     }
     let query = supabase
       .from('mission_test_attempts')
-      .select('score_percent')
+      .select('score_percent, correct_answers, total_questions')
       .eq('user_id', user.id)
       .eq('mission_id', mission.id)
     if (runStartedAt) query = query.gt('created_at', runStartedAt)
@@ -48,8 +48,15 @@ export function useMissionOperation(mission) {
       .limit(1)
       .then(({ data, error }) => {
         if (cancelled) return
-        const best = !error && data && data.length > 0 ? data[0].score_percent : null
-        setScoreState({ loading: false, percent: best, cleared: best !== null && isMissionScorePassing(best) })
+        const row = !error && data && data.length > 0 ? data[0] : null
+        const best = row ? row.score_percent : null
+        setScoreState({
+          loading: false,
+          percent: best,
+          cleared: best !== null && isMissionScorePassing(best),
+          correct: row?.correct_answers ?? null,
+          total: row?.total_questions ?? null,
+        })
       })
     return () => {
       cancelled = true
@@ -120,6 +127,8 @@ export function useMissionOperation(mission) {
   return {
     scoreLoading: scoreState.loading,
     percent: scoreState.percent,
+    correct: scoreState.correct,
+    total: scoreState.total,
     cleared: scoreState.cleared,
     termsLoading,
     ready: checks.length > 0,

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -14,6 +14,8 @@ import { CATEGORIES } from '../../i18n/translations.js'
 import { MISSIONS } from '../../data/missions.js'
 import { useMissionQuiz } from './useMissionQuiz.js'
 import MissionLanguagePicker from './MissionLanguagePicker.jsx'
+import MissionCinema from './cinema/MissionCinema.jsx'
+import { MISSION_PASSING_SCORE } from '../../utils/missionScoreTier.js'
 import { MISSION_LANG_NAMES, MISSION_QUIZ_UI, useMissionLanguage } from './missionLanguage.js'
 
 const LANG_TAG = { kk: 'KZ', ru: 'RU', en: 'EN' }
@@ -94,6 +96,16 @@ function MissionTestPage() {
     quiz.termsLoading,
   )
   const l = t.account.missions.language
+  const c = t.account.missions.cinema
+  const sm = t.account.missions.summary
+
+  // The scene follows the test: every correct answer lowers the threat; a
+  // confirmed answer sends a reaction to the scene.
+  const sceneThreat = quiz.totalQuestions ? 0.85 - 0.65 * (quiz.score / quiz.totalQuestions) : 0.85
+  const pulse = useMemo(
+    () => (quiz.confirmed ? { kind: quiz.confirmed.correct ? 'action' : 'error', id: quiz.currentIndex } : null),
+    [quiz.confirmed, quiz.currentIndex],
+  )
 
   const goToMission = () => navigate(`/account/missions/mission/${missionId}`)
   const goToStudy = () => navigate(`/account/missions/mission/${missionId}/study`)
@@ -123,7 +135,16 @@ function MissionTestPage() {
           {s.back}
         </button>
 
-        <div className="card quiz-card">
+        <MissionCinema
+          mission={mission}
+          compact
+          threat={sceneThreat}
+          pulse={pulse}
+          feedback={pulse}
+          stageLabel={c.stage(questionNumber, quiz.totalQuestions)}
+        />
+
+        <div className="card quiz-card mission-quiz-panel">
           <div className="quiz-progress-row">
             <span className="quiz-progress-badge">{ui.questionLabel(questionNumber, quiz.totalQuestions)}</span>
             <span className="mission-quiz-score">{ui.correctCount(quiz.score)}</span>
@@ -217,9 +238,12 @@ function MissionTestPage() {
           {s.back}
         </button>
 
+        <MissionCinema mission={mission} compact threat={sceneThreat} outcome={passed ? 'cleared' : 'fail'} />
+
         <div className="account-home">
           <div className="account-card mission-results-card">
-            <h1 className="account-title">{r.title}</h1>
+            <h1 className="account-title">{passed ? sm.clearedTitle : r.title}</h1>
+            <p className="mission-results-threshold">{sm.threshold(MISSION_PASSING_SCORE)}</p>
 
             <ScoreRing percent={quiz.percent} scoreClass={SCORE_CLASS[quiz.status]} />
 
@@ -242,6 +266,28 @@ function MissionTestPage() {
             <span className={`mission-results-status mission-results-status--${SCORE_CLASS[quiz.status]}`}>
               <TierIcon size={14} aria-hidden="true" /> {r.statusLabels[quiz.status]}
             </span>
+
+            {quiz.answers.some((a) => !a.correct) && (
+              <div className="mission-review">
+                <h2 className="mission-review-title">{sm.review}</h2>
+                <p className="mission-review-hint">{sm.reviewHint}</p>
+                <ul className="mission-review-list">
+                  {quiz.answers
+                    .filter((a) => !a.correct)
+                    .map((a) => (
+                      <li key={a.term.id}>
+                        <strong>{a.prompt}</strong>
+                        <span className="mission-review-wrong">
+                          {sm.yourAnswer}: {a.chosen}
+                        </span>
+                        <span className="mission-review-right">
+                          {sm.rightAnswer}: {a.right}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
 
             <div className="mission-readiness-block">
               <p className="mission-readiness-intro">{r.readinessIntro}</p>
@@ -297,6 +343,13 @@ function MissionTestPage() {
                   {r.backToStudyCta}
                 </button>
               )}
+              <button
+                type="button"
+                className="btn-auth-secondary"
+                onClick={() => navigate('/account/missions', { state: { stage: 'list' } })}
+              >
+                {sm.toMissions}
+              </button>
             </div>
           </div>
         </div>
