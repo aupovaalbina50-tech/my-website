@@ -11,6 +11,8 @@ import './abbreviations.css'
 const STATUS_ICONS = { confirmed: BadgeCheck, base: Database, needs_review: CircleHelp }
 
 function StatusBadge({ status, ui, long = false }) {
+  // Unchecked rows carry no badge: nothing is claimed about them.
+  if (status === 'needs_review') return null
   const Icon = STATUS_ICONS[status]
   return (
     <span className={`abbr-status abbr-status--${status}`}>
@@ -82,10 +84,12 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
           <CopyButton text={`${row.abbr} — ${row.full_form}`} label={c.copyFull[ui]} ui={ui} />
         </div>
 
-        <div className={`abbr-modal-status abbr-modal-status--${row.status}`}>
-          <StatusBadge status={row.status} ui={ui} long />
-          <p>{S.statusHelp[row.status][ui]}</p>
-        </div>
+        {row.status !== 'needs_review' && (
+          <div className={`abbr-modal-status abbr-modal-status--${row.status}`}>
+            <StatusBadge status={row.status} ui={ui} long />
+            <p>{S.statusHelp[row.status][ui]}</p>
+          </div>
+        )}
 
         <dl className="abbr-fields">
           {/* Only what is known: empty «not confirmed» rows are not shown. */}
@@ -261,7 +265,7 @@ export default function AbbreviationsPage() {
               <span>{S.status[ui]}</span>
               <select value={status} onChange={(e) => set({ status: e.target.value })}>
                 <option value="">{S.allStatuses[ui]}</option>
-                {STATUSES.map((k) => (
+                {STATUSES.filter((k) => k !== 'needs_review').map((k) => (
                   <option key={k} value={k}>
                     {S.statusShort[k][ui]}
                   </option>
