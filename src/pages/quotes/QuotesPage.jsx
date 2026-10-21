@@ -1,5 +1,4 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { ArrowDownUp, Search, Sparkles } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { useQuotes } from './useQuotes.js'
@@ -21,6 +20,9 @@ function shuffle(list, seed) {
   }
   return arr
 }
+
+// «№5», «5», «#5», «No 5» — a search by the quote's number.
+const NUMBER_QUERY = /^(?:№|#|n|no\.?)?\s*(\d{1,4})$/i
 
 function QuotesPage() {
   const { t } = useLanguage()
@@ -46,9 +48,12 @@ function QuotesPage() {
 
   const visibleQuotes = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
-    const filtered = query
-      ? quotes.filter((quote) => quote.quote_text.toLowerCase().includes(query))
-      : quotes
+    const number = NUMBER_QUERY.exec(query)?.[1]
+    const filtered = number
+      ? quotes.filter((quote) => Number(quote.quote_number) === Number(number))
+      : query
+        ? quotes.filter((quote) => quote.quote_text.toLowerCase().includes(query))
+        : quotes
 
     if (sortMode === 'alpha') {
       return [...filtered].sort((a, b) => a.quote_text.localeCompare(b.quote_text, 'kk'))
@@ -91,23 +96,6 @@ function QuotesPage() {
             <div className="stat-tile">
               <span className="stat-value">{stats?.total_favorited ?? 0}</span>
               <span className="stat-label">{t.quotes.stats.favorites}</span>
-            </div>
-            {stats?.most_viewed_number ? (
-              <Link to={`/quotes/${stats.most_viewed_number}`} className="stat-tile stat-tile-link">
-                <span className="stat-value">{stats.most_viewed_count ?? 0}</span>
-                <span className="stat-label">
-                  {t.quotes.stats.mostViewed} · №{stats.most_viewed_number}
-                </span>
-              </Link>
-            ) : (
-              <div className="stat-tile">
-                <span className="stat-value">0</span>
-                <span className="stat-label">{t.quotes.stats.mostViewed}</span>
-              </div>
-            )}
-            <div className="stat-tile">
-              <span className="stat-value">{stats?.recently_added ?? 0}</span>
-              <span className="stat-label">{t.quotes.stats.recentlyAdded}</span>
             </div>
           </div>
 
@@ -169,9 +157,9 @@ function QuotesPage() {
           {error && <div className="alert">{error}</div>}
 
           {loading ? (
-            <p className="empty-state-text">{t.quotes.loading}</p>
+            <p className="empty-state-text quote-empty">{t.quotes.loading}</p>
           ) : visibleQuotes.length === 0 ? (
-            <p className="empty-state-text">{t.quotes.search.empty}</p>
+            <p className="empty-state-text quote-empty">{t.quotes.search.empty}</p>
           ) : (
             <div className="quote-grid">
               {visibleQuotes.map((quote) => (
@@ -182,7 +170,7 @@ function QuotesPage() {
                   onToggleFavorite={toggleFavorite}
                   onCopy={copyQuote}
                   onShare={shareQuote}
-                  searchQuery={search}
+                  searchQuery={NUMBER_QUERY.test(search.trim()) ? '' : search}
                 />
               ))}
             </div>
