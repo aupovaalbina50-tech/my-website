@@ -10,7 +10,7 @@ const day = (v) => {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : v
 }
 
-export function passportDocument({ p, x, lang, info, stage, template, check, runs, feed, sources, origins, vkinds, docStatus, fmt }) {
+export function passportDocument({ p, x, r, route, lang, info, stage, template, check, runs, feed, sources, origins, vkinds, docStatus, fmt }) {
   const blocks = []
   const add = (label, value, empty = p.notSet) => blocks.push(block(value || empty, label))
 
@@ -29,6 +29,13 @@ export function passportDocument({ p, x, lang, info, stage, template, check, run
   add(p.f.unit, info.unit)
   add(p.f.status, docStatus[info.status] ?? info.status)
   add(p.stageLabel, `${p.stages[stage.stage]}${stage.outdated ? ` — ${p.outdated}` : ''}`)
+
+  if (route) {
+    blocks.push(section(r.passportTitle))
+    for (const st of route.stages) blocks.push(block([r.status[st.status], st.at ? fmt(st.at) : '', st.count ? r.count(st.count) : ''].filter(Boolean).join(' · '), r.stages[st.key].title))
+    const fin = route.stages.find((st) => st.key === 'final')
+    blocks.push(block(fin?.at ? r.finalAt(fmt(fin.at), fin.version) : r.noFinal))
+  }
 
   blocks.push(section(p.tabs.checks))
   if (!runs.length) blocks.push(block(p.noRuns))

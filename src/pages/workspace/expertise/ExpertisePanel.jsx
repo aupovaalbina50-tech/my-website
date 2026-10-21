@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, BookOpenCheck, Check, CheckCircle2, Crosshair, ExternalLink, Loader2, PencilLine, RotateCcw, Undo2, X } from 'lucide-react'
+import { AlertTriangle, BookOpenCheck, Check, CheckCircle2, Crosshair, ExternalLink, HelpCircle, Loader2, PencilLine, RotateCcw, Undo2, X } from 'lucide-react'
 import { byPriority, canApply, canUndo, changeList, classify, counts, expertiseState, FILTERS, isStale, kindOf, matchesFilter, PRIORITIES, QC_CATEGORIES } from './model.js'
 import { OFFICIAL_SITES } from '../sources/registry.js'
 import './expertise.css'
@@ -131,7 +131,7 @@ function ReferencesList({ check, x, lang }) {
   )
 }
 
-function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, active, onAccept, onReject, onManual, onGoTo, onReopen }) {
+function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, active, onAccept, onReject, onClarify, onManual, onGoTo, onReopen }) {
   const [showBasis, setShowBasis] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -186,7 +186,7 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, active, 
         <p className={`exp-item-status exp-item-status--${item.status}`}>
           {x.status[item.status]}
           {item.applied != null && item.status === 'edited' && `: «${item.applied}»`}
-          {!readOnly && item.status === 'rejected' && (
+          {!readOnly && (item.status === 'rejected' || item.status === 'clarify') && (
             <button type="button" className="exp-link" onClick={() => onReopen(item)}>
               {x.reopen}
             </button>
@@ -231,6 +231,11 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, active, 
               <X size={14} aria-hidden="true" /> {x.reject}
             </button>
           )}
+          {item.status === 'open' && !readOnly && onClarify && (
+            <button type="button" className="doc-btn doc-btn--small" onClick={() => onClarify(item)}>
+              <HelpCircle size={14} aria-hidden="true" /> {x.markClarify}
+            </button>
+          )}
           {item.status === 'open' && applicable && (
             <button
               type="button"
@@ -258,7 +263,7 @@ function ItemCard({ item, check, values, x, errorTypes, lang, readOnly, active, 
   )
 }
 
-export function ExpertisePanel({ check, values, outdated = false, running, failure, x, errorTypes, lang, readOnly, activeId = null, onRun, onAccept, onReject, onManual, onGoTo, onReopen }) {
+export function ExpertisePanel({ check, values, outdated = false, running, failure, x, errorTypes, lang, readOnly, activeId = null, onRun, onRecheckChanged = null, onAccept, onReject, onClarify = null, onManual, onGoTo, onReopen }) {
   const [filter, setFilter] = useState('all')
   const [category, setCategory] = useState('all')
   const [priority, setPriority] = useState('all')
@@ -319,9 +324,16 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
             {check.termsFound > 0 && <p className="exp-summary-meta">{x.termsFound(check.termsFound, check.glossarySize)}</p>}
             {c.stale > 0 && <p className="exp-item-stale">{x.staleSummary(c.stale)}</p>}
             {!readOnly && (
-              <button type="button" className="doc-btn doc-btn--accent doc-btn--small" onClick={onRun}>
-                <RotateCcw size={14} aria-hidden="true" /> {x.rerun}
-              </button>
+              <div className="exp-actions">
+                {onRecheckChanged && c.stale > 0 && (
+                  <button type="button" className="doc-btn doc-btn--small" onClick={onRecheckChanged}>
+                    <RotateCcw size={14} aria-hidden="true" /> {x.recheckChanged}
+                  </button>
+                )}
+                <button type="button" className="doc-btn doc-btn--accent doc-btn--small" onClick={onRun}>
+                  <RotateCcw size={14} aria-hidden="true" /> {x.rerun}
+                </button>
+              </div>
             )}
           </div>
 
@@ -385,6 +397,7 @@ export function ExpertisePanel({ check, values, outdated = false, running, failu
                   active={item.id === activeId}
                   onAccept={onAccept}
                   onReject={onReject}
+                  onClarify={onClarify}
                   onManual={onManual}
                   onGoTo={onGoTo}
                   onReopen={onReopen}

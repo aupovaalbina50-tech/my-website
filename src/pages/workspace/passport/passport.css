@@ -365,3 +365,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.pp-route {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+
+  & li > span {
+    margin-right: 8px;
+  }
+}

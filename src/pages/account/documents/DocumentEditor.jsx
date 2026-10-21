@@ -49,6 +49,8 @@ import { contentKey, isOffline, isRealConflict, reconcile } from '../../workspac
 import { deleteDraftIf, getDraft, putDraft, saveEmergency } from '../../workspace/drafts/localDrafts.js'
 import { recordOpen } from '../../workspace/drafts/recent.js'
 import { ConflictDialog } from '../../workspace/drafts/ConflictDialog.jsx'
+import { changedSinceCheck, exportSummary, mergeCheck, routeOf, withRoute } from '../../workspace/route/routeModel.js'
+import { RoutePanel, ExportSummaryDialog } from '../../workspace/route/RoutePanel.jsx'
 import { logEvent } from '../../workspace/passport/passportApi.js'
 import { changedFields } from '../../workspace/passport/passportModel.js'
 import { PassportPanel } from '../../workspace/passport/PassportPanel.jsx'
@@ -103,6 +105,7 @@ function DocumentEditor() {
   const [check, setCheck] = useState(null)
   const [saveState, setSaveState] = useState('saved')
   const [checking, setChecking] = useState(false)
+  const [checkMode, setCheckMode] = useState(null) // 'full' | 'changed' | 'final' while a check runs
   const [invalid, setInvalid] = useState(() => new Set())
   const [flashKey, setFlashKey] = useState(null)
   const [rightTab, setRightTab] = useState('preview')
@@ -565,11 +568,51 @@ function DocumentEditor() {
   }, [])
   // Open remarks located in the current text, by field (nothing when the text changed since).
   const marks = useMemo(() => (check ? marksOf(check, values) : new Map()), [check, values])
+  // «Маршрут подготовки»: the state of each stage from the real data.
+  const route = useMemo(
+    () => (template ? routeOf({ template, values, issues: check, running: checking, runningFinal: checking && checkMode === 'final', contentHash: contentHash(values) }) : null),
+    [template, values, check, checking, checkMode],
+  )
+  const [exportAsk, setExportAsk] = useState(null) // { format } — the summary before the export
+  const askExport = (format = null) => {
+    setDialog(null)
+    setExportAsk({ format })
+  }
+  /** The action of a stage of the route: the tool that does it. */
+  const routeAction = (stage) => {
+    const analysis = ['terminology', 'language', 'facts', 'remarks']
+    if (stage.key === 'define') {
+      setStage('info')
+      if (stage.missing?.length) goTo(stage.missing[0])
+    } else if (stage.key === 'draft') setStage(stage.status === 'not_started' ? 'info' : 'draft')
+    else if (stage.key === 'structure') {
+      if (stage.missing.length) goTo(stage.missing[0])
+      else runCheckWith(check ? 'changed' : 'full')
+    } else if (analysis.includes(stage.key)) {
+      if (stage.status === 'not_started') runCheckWith('full')
+      else if (stage.status === 'recheck') runCheckWith('changed')
+      else setStage('check')
+    } else if (stage.key === 'final') {
+      if (stage.status === 'done') setStage('check')
+      else runCheckWith('final')
+    } else if (stage.key === 'export') askExport(null)
+  }
 
   // ---- expertise ----
   // «Проверить документ» / «Повторить экспертизу»: always the CURRENT text.
-  const runCheck = async () => {
+  /**
+   * The expertise of the current text.
+   *   full     — the whole document
+   *   changed  — only the fields changed since the stored check; the remarks of the
+   *              other fields stay (a full check when that cannot be worked out)
+   *   final    — a full check after the corrections, recorded as the final check of the route
+   */
+  const runCheck = () => runCheckWith('full')
+  const runCheckWith = async (mode) => {
     if (!template) return
+    const keys = mode === 'changed' && check ? changedSinceCheck(check, values, template) : null
+    const partialRun = Boolean(keys && keys.size)
+    setCheckMode(mode)
     setChecking(true)
     setCheckFailure(null)
     // The expertise is step 7: the document reopens there.
@@ -585,19 +628,21 @@ function DocumentEditor() {
     }
     let next
     try {
-      next = await runExpertise({ template, values, docLang, uiLang: lang, documentTitle: template.title[docLang], strings: s.checkPanel })
+      next = await runExpertise({ template, values, docLang, uiLang: lang, documentTitle: template.title[docLang], strings: s.checkPanel, onlyKeys: partialRun ? keys : null })
+      if (next && partialRun) next = mergeCheck(check, next, keys)
     } catch (err) {
       console.error('Expertise failed:', err)
       next = null
     }
     setChecking(false)
+    setCheckMode(null)
     const state = next ? expertiseState(next, values) : 'error'
     if (state === 'error') {
       // Nothing finished: the previous result stays as it was, marked by its own date.
       setStatus(prevStatus)
       write({ status: prevStatus }).catch(() => {})
       setCheckFailure(x.failedAll)
-      log('check_failed', '', { errors: Object.entries(next?.errors ?? {}).filter(([, c]) => c).map(([part, code]) => ({ part, code })) })
+      log('check_failed', '', { mode, errors: Object.entries(next?.errors ?? {}).filter(([, c]) => c).map(([part, code]) => ({ part, code })) })
       showToast(x.failedAll, { type: 'error' })
       return
     }
@@ -610,21 +655,27 @@ function DocumentEditor() {
     }
     const hash = contentHash(values)
     const nextStatus = open ? 'issues' : 'checked'
+    // The final check of the route: when, which version, which parts did not finish.
+    const checkedValues =
+      mode === 'final'
+        ? withRoute(values, { final: { at: next.at, version: next.version, hash, failedParts: Object.entries(next.parts ?? {}).filter(([, v]) => v === 'failed' || v === 'partial').map(([k]) => k) } })
+        : values
+    if (checkedValues !== values) setValues(checkedValues)
     setCheck(next)
     if (state === 'needs_review') setCheckFailure(x.failedPart)
     setStatus(nextStatus)
     setDoc((d) => ({ ...d, checked_at: next.at, checked_hash: hash, content_hash: hash }))
     // The checked text itself goes with the result, so «saved» is true of exactly this text.
-    const checkedPayload = savePayload(values, title, docLang, nextStatus, next)
+    const checkedPayload = savePayload(checkedValues, title, docLang, nextStatus, next)
     write({ ...checkedPayload, checked_at: next.at, checked_hash: hash })
       .then(() => {
         lastSaved.current = JSON.stringify(checkedPayload)
-        confirmed.current = contentKey({ values, title, lang: docLang })
+        confirmed.current = contentKey({ values: checkedValues, title, lang: docLang })
         if (user) deleteDraftIf(user.id, doc.id, confirmed.current).catch(() => {})
       })
       .catch(failed)
     showToast(x.state[state], { type: 'success' })
-    if (user) saveEditorExpertise(user.id, doc, title || template.title[docLang], next, values).then((row) => row && setLastExpertise(row)).catch((err) => console.error('Expertise history was not saved:', err))
+    if (user) saveEditorExpertise(user.id, doc, title || template.title[docLang], { ...next, mode }, values).then((row) => row && setLastExpertise(row)).catch((err) => console.error('Expertise history was not saved:', err))
   }
 
   // After the last open remark is decided, the text is kept as «Версия после проверки».
@@ -707,6 +758,8 @@ function DocumentEditor() {
     }
     try {
       log('exported', '', { format: kind })
+      // The route remembers which text was exported (a later edit makes it out of date).
+      if (kind !== 'copy') setValues((v) => withRoute(v, { exported: { at: new Date().toISOString(), hash: contentHash(v), format: kind } }))
       if (kind === 'docx') downloadBlob(await documentToDocx(rendered, docLang), fileNameOf(title || template.title[docLang], 'docx'))
       if (kind === 'pdf') downloadBlob(await documentToPdf(rendered, docLang), fileNameOf(title || template.title[docLang], 'pdf'))
       if (kind === 'copy') {
@@ -986,13 +1039,13 @@ function DocumentEditor() {
           </button>
           {dialog === 'export' && (
             <div className="doc-menu-list" role="menu">
-              <button type="button" role="menuitem" onClick={() => exportAs('docx')}>
+              <button type="button" role="menuitem" onClick={() => askExport('docx')}>
                 <FileText size={15} aria-hidden="true" /> {e.docx}
               </button>
-              <button type="button" role="menuitem" onClick={() => exportAs('pdf')}>
+              <button type="button" role="menuitem" onClick={() => askExport('pdf')}>
                 <FileText size={15} aria-hidden="true" /> {e.pdf}
               </button>
-              <button type="button" role="menuitem" onClick={() => exportAs('print')}>
+              <button type="button" role="menuitem" onClick={() => askExport('print')}>
                 <Printer size={15} aria-hidden="true" /> {e.print}
               </button>
               <button type="button" role="menuitem" onClick={() => exportAs('copy')}>
@@ -1006,6 +1059,8 @@ function DocumentEditor() {
           {e.finish}
         </button>
       </div>
+
+      {route && <RoutePanel route={route} saveState={saveState} onAction={routeAction} />}
 
       <WizardSteps
         stage={rightTab === 'changes' ? 'check' : rightTab}
@@ -1108,7 +1163,7 @@ function DocumentEditor() {
               />
             )}
             {rightTab === 'export' && (
-              <ExportPanel template={template} values={values} rendered={rendered} docLang={docLang} w={wz} lang={lang} saving={saveState === 'saving'} onExport={exportAs} onGoTo={(key) => goTo(key)} />
+              <ExportPanel template={template} values={values} rendered={rendered} docLang={docLang} w={wz} lang={lang} saving={saveState === 'saving'} onExport={askExport} onGoTo={(key) => goTo(key)} />
             )}
             {rightTab === 'preview' && (
               <DocumentPreview doc={rendered} lang={docLang} focusKey={flashKey} onPick={goTo} marks={marks} activeMark={activeRemark} onMark={openRemark} markTitle={x.qc.openRemark} />
@@ -1126,6 +1181,11 @@ function DocumentEditor() {
                 readOnly={readOnly}
                 activeId={activeRemark}
                 onRun={runCheck}
+                onRecheckChanged={() => runCheckWith('changed')}
+                onClarify={(item) => {
+                  setCheck((c) => setItemStatus(c, item.id, 'clarify'))
+                  log('remark_rejected', '', { itemId: item.id, target: item.target, fragment: item.fragment, clarify: true, checkAt: check?.at ?? null })
+                }}
                 onAccept={(item) => applyRemark(item, item.suggestion, 'accepted')}
                 onManual={(item, text) => applyRemark(item, text, 'edited')}
                 onReject={(item) => {
@@ -1213,6 +1273,18 @@ function DocumentEditor() {
           onKeepMine={keepMine}
           onTakeServer={takeServer}
           onLater={() => setConflict((cf) => ({ ...cf, open: false }))}
+        />
+      )}
+      {exportAsk && route && (
+        <ExportSummaryDialog
+          summary={exportSummary(route, check, values)}
+          route={route}
+          format={exportAsk.format}
+          onClose={() => setExportAsk(null)}
+          onExport={(f) => {
+            setExportAsk(null)
+            exportAs(f)
+          }}
         />
       )}
       {dialog === 'passport' && (

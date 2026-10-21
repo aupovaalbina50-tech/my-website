@@ -42,25 +42,9 @@ export function documentSource(values) {
   return source?.origin === 'upload' ? source : { origin: 'builder' }
 }
 
-/**
- * Fingerprint of a document's text: its field values without the
- * constructor's own bookkeeping (keys starting with «__»). Stored as
- * content_hash with every save and as checked_hash by an expertise.
- */
-export function contentHash(values) {
-  const keys = Object.keys(values ?? {})
-    .filter((k) => !k.startsWith('__'))
-    .sort()
-  const text = keys.map((k) => `${k}\u0001${JSON.stringify(values[k])}`).join('\u0002')
-  let h1 = 0x811c9dc5
-  let h2 = 0
-  for (let i = 0; i < text.length; i++) {
-    const c = text.charCodeAt(i)
-    h1 = Math.imul(h1 ^ c, 0x01000193)
-    h2 = (Math.imul(31, h2) + c) | 0
-  }
-  return `${(h1 >>> 0).toString(16)}${(h2 >>> 0).toString(16)}:${text.length}`
-}
+import { contentHash } from './documentHash.js'
+
+export { contentHash }
 
 /** The last expertise checked another text than the current one (needs migration 0055). */
 export const checkOutdated = (item) => Boolean(item.checked_at && item.checked_hash && item.content_hash && item.checked_hash !== item.content_hash)
@@ -148,6 +132,9 @@ export async function createUploadedDocument(userId, inspection, lang) {
       fileName: inspection.fileName,
       fileKind: doc.sourceKind ?? doc.kind,
       ocrPages: doc.pages.filter((p) => p.source === 'ocr').length,
+      // Quality of the recognition, for the route of the document.
+      unreadablePages: inspection.unreadablePages ?? 0,
+      illegiblePages: inspection.illegiblePages ?? 0,
     },
   }
   const row = await createDocument(userId, {
@@ -264,6 +251,8 @@ export async function saveEditorExpertise(userId, doc, title, check, values) {
       // For the passport: which version / text was checked, what failed, which sources were used, the remarks in short.
       snapshot: {
         kind: 'editor',
+        // full / changed (only the changed fields re-read) / final (the final check of the route)
+        mode: check.mode ?? 'full',
         documentId: doc.id,
         at: check.at,
         state: expertiseState(check, values),

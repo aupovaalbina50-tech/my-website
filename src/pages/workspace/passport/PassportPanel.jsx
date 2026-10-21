@@ -14,7 +14,9 @@ import { diffStats, diffText } from '../versions/diff.js'
 import { Diff } from '../versions/VersionsPanel.jsx'
 import { basicInfo, changedFields, checkRuns, fieldOrigins, preparationStage, remarkDiff, requisiteChanges, sourcesOfCheck, timeline } from './passportModel.js'
 import { loadPassportData } from './passportApi.js'
+import { routeOf } from '../route/routeModel.js'
 import { passportDocument } from './passportExport.js'
+import '../route/route.css'
 import './passport.css'
 
 // «Паспорт документа»: what the system knows about the document — basic
@@ -57,7 +59,9 @@ function Section({ title, children, note }) {
 }
 
 // ---- А, Б ----
-function MainTab({ info, stage, check, values, template, versions, p, x, lang, onGoTo }) {
+function MainTab({ info, stage, route, check, values, template, versions, p, x, lang, onGoTo }) {
+  const { t } = useLanguage()
+  const r = t.workspace.route
   const s = docStrings(lang)
   const fields = new Map(fieldsOf(template).map((f) => [f.key, f]))
   // What changed after the last check: the checked version against the current text.
@@ -94,6 +98,18 @@ function MainTab({ info, stage, check, values, template, versions, p, x, lang, o
           <Row label={p.f.unit} value={info.unit} empty={p.notSet} />
           <Row label={p.f.status} value={s.docStatus[info.status] ?? info.status} empty={p.notSet} />
         </dl>
+      </Section>
+      <Section title={r.passportTitle} note={route.stages.find((st) => st.key === 'final')?.at ? r.finalAt(fmt(route.stages.find((st) => st.key === 'final').at, lang), route.stages.find((st) => st.key === 'final').version) : r.noFinal}>
+        <ol className="pp-route">
+          {route.stages.map((st) => (
+            <li key={st.key}>
+              <span>{r.stages[st.key].title}</span>
+              <span className={`rt-badge rt-badge--${st.status}`}>{r.status[st.status]}</span>
+              {st.at && <span className="pp-muted">{fmt(st.at, lang)}</span>}
+              {st.count > 0 && <span className="pp-muted">{r.count(st.count)}</span>}
+            </li>
+          ))}
+        </ol>
       </Section>
       <Section title={p.lastCheckTitle}>
         {!check ? (
@@ -572,13 +588,14 @@ export function PassportPanel({ doc, template, values, title, status, check, doc
   const authorName = [profile?.last_name, profile?.first_name].filter(Boolean).join(' ').trim() || null
   const info = basicInfo({ doc: { ...doc, title, status }, template, values, authorName })
   const stage = preparationStage({ status, issues: check, values, contentHash: hash, checkedHash: doc.checked_hash ?? null })
+  const route = useMemo(() => routeOf({ template, values, issues: check, contentHash: hash }), [template, values, check, hash])
   const runs = useMemo(() => (data ? checkRuns({ history: data.history.data, events: data.events.data, currentHash: hash }).map((r) => ({ ...r, items: data.history.data.find((h) => h.id === r.id)?.snapshot?.items ?? null })) : []), [data, hash])
   const tl = useMemo(() => (data ? timeline({ doc, versions: data.versions.data, runs, events: data.events.data }) : { feed: [], logSince: null }), [data, doc, runs])
 
   const exportPdf = async (print = false) => {
     setExporting(true)
     try {
-      const pdfDoc = passportDocument({ p, x, lang, info, stage, template, check, runs, feed: tl.feed, sources: sourcesOfCheck(check, template), origins: fieldOrigins({ template, values, issues: check }), vkinds, docStatus: docStrings(lang).docStatus, fmt: (iso) => fmt(iso, lang) })
+      const pdfDoc = passportDocument({ p, x, r: t.workspace.route, route, lang, info, stage, template, check, runs, feed: tl.feed, sources: sourcesOfCheck(check, template), origins: fieldOrigins({ template, values, issues: check }), vkinds, docStatus: docStrings(lang).docStatus, fmt: (iso) => fmt(iso, lang) })
       const blob = await documentToPdf(pdfDoc, lang)
       if (print) {
         const url = URL.createObjectURL(blob)
@@ -620,7 +637,7 @@ export function PassportPanel({ doc, template, values, title, status, check, doc
             <Loader2 size={15} className="doc-spin" aria-hidden="true" /> {p.loading}
           </p>
         )}
-        {tab === 'main' && <MainTab info={info} stage={stage} check={check} values={values} template={template} versions={data?.versions.data} p={p} x={x} lang={lang} onGoTo={onGoTo} />}
+        {tab === 'main' && <MainTab info={info} stage={stage} route={route} check={check} values={values} template={template} versions={data?.versions.data} p={p} x={x} lang={lang} onGoTo={onGoTo} />}
         {tab === 'checks' && data && <ChecksTab runs={runs} loadError={data.history.error || data.events.error} check={check} p={p} x={x} lang={lang} onGoTo={onGoTo} />}
         {tab === 'sources' && <SourcesTab check={check} template={template} values={values} issues={check} p={p} x={x} lang={lang} />}
         {tab === 'history' && data && <HistoryTab feed={tl.feed} logSince={tl.logSince} loadError={data.versions.error || data.history.error || data.events.error} p={p} lang={lang} vkinds={vkinds} />}

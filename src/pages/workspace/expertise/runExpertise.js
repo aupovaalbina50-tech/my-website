@@ -299,7 +299,11 @@ function dedupe(items) {
  * Runs the expertise on the document as it is now.
  * @returns the check object (see model.js)
  */
-export async function runExpertise({ template, values, docLang, uiLang, documentTitle, strings }) {
+/**
+ * `onlyKeys` (a Set of field keys): re-reads only those fields — the editor
+ * merges the result into the stored check (route/routeModel.js mergeCheck).
+ */
+export async function runExpertise({ template, values, docLang, uiLang, documentTitle, strings, onlyKeys = null }) {
   const fields = new Map(fieldsOf(template).map((f) => [f.key, f]))
   const blocks = checkBlocks(template, values, docLang)
     .map((b) => ({ ...b, factual: FACT_TYPES.has(fields.get(String(b.key).split('.')[0])?.type) }))
@@ -308,11 +312,12 @@ export async function runExpertise({ template, values, docLang, uiLang, document
 
   const structure = structureItems(template, values, docLang, strings, uiLang)
   // Ranges are taken in the stored text, so the analysis reads exactly that.
-  const textBlocks = blocks.filter((b) => !b.factual && b.raw !== null).map((b) => ({ ...b, text: b.raw }))
+  const inScope = (b) => !onlyKeys || onlyKeys.has(String(b.key).split('.')[0])
+  const textBlocks = blocks.filter((b) => !b.factual && b.raw !== null && inScope(b)).map((b) => ({ ...b, text: b.raw }))
 
   const [terminology, language] = await Promise.all([
     textBlocks.length ? terminologyItems(textBlocks, uiLang) : { items: [], part: 'skipped', termsFound: 0, glossarySize: null, error: null },
-    blocks.length ? languageItems(textBlocks.length ? textBlocks : blocks, documentTitle, docLang) : { items: [], part: 'skipped', error: null },
+    blocks.length && (!onlyKeys || textBlocks.length) ? languageItems(textBlocks.length ? textBlocks : blocks, documentTitle, docLang) : { items: [], part: 'skipped', error: null },
   ])
   let registry = null
   let registryError = null
