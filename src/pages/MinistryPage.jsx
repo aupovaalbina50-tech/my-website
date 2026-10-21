@@ -308,11 +308,9 @@ function MinistryPage() {
           ]}
         />
 
-        <div className="ministry-panel">
-          <div className="ministry-panel-section ministry-facts-section">
-            <MinistryFacts m={m} lang={lang} territorialCount={territorialCount} onOpen={openFact} />
-          </div>
+        <MinistryFacts m={m} lang={lang} territorialCount={territorialCount} onOpen={openFact} />
 
+        <div className="ministry-panel">
           <div className="ministry-panel-section ministry-mission-block">
             <div className="ministry-mission-text">
               <h2 className="ministry-subtitle">{m.missionTitle}</h2>
