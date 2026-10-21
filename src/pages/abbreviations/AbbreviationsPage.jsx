@@ -88,26 +88,28 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
         </div>
 
         <dl className="abbr-fields">
-          <dt>{c.equivalent[row.lang][ui]}</dt>
-          <dd>
-            {equivalents.length ? (
-              equivalents.map((eq) => (
-                <button key={eq.id} type="button" className="abbr-equivalent" onClick={() => onOpen(eq)}>
-                  <ArrowLeftRight size={15} aria-hidden="true" />
-                  <strong lang={eq.lang}>{eq.abbr}</strong> — <span lang={eq.lang}>{eq.full_form}</span>
-                </button>
-              ))
-            ) : row.equivalent_full ? (
-              <>
-                {row.equivalent_full}
-                <span className="abbr-muted"> · {c.noEquivalent[ui]}</span>
-              </>
-            ) : (
-              <span className="abbr-muted">{c.notConfirmed[ui]}</span>
-            )}
-          </dd>
-          <dt>{c.english[ui]}</dt>
-          <dd>{row.equivalent_en || <span className="abbr-muted">{c.notConfirmed[ui]}</span>}</dd>
+          {/* Only what is known: empty «not confirmed» rows are not shown. */}
+          {(equivalents.length > 0 || row.equivalent_full) && (
+            <>
+              <dt>{c.equivalent[row.lang][ui]}</dt>
+              <dd>
+                {equivalents.length
+                  ? equivalents.map((eq) => (
+                      <button key={eq.id} type="button" className="abbr-equivalent" onClick={() => onOpen(eq)}>
+                        <ArrowLeftRight size={15} aria-hidden="true" />
+                        <strong lang={eq.lang}>{eq.abbr}</strong> — <span lang={eq.lang}>{eq.full_form}</span>
+                      </button>
+                    ))
+                  : row.equivalent_full}
+              </dd>
+            </>
+          )}
+          {row.equivalent_en && (
+            <>
+              <dt>{c.english[ui]}</dt>
+              <dd>{row.equivalent_en}</dd>
+            </>
+          )}
           <dt>{c.category[ui]}</dt>
           <dd className="abbr-field-cat">
             <CatIcon size={16} aria-hidden="true" /> {S.categories[row.category]?.[ui] ?? row.category}
@@ -141,8 +143,14 @@ function AbbrCard({ row, rows, ui, onOpen, onClose }) {
           <dd>
             <SourceLink url={row.source_url} title={row.source_title} />
           </dd>
-          <dt>{c.official[ui]}</dt>
-          <dd>{row.official_url ? <SourceLink url={row.official_url} title={row.official_title || row.official_url} /> : <span className="abbr-muted">{c.noOfficial[ui]}</span>}</dd>
+          {row.official_url && (
+            <>
+              <dt>{c.official[ui]}</dt>
+              <dd>
+                <SourceLink url={row.official_url} title={row.official_title || row.official_url} />
+              </dd>
+            </>
+          )}
           <dt>{c.checked[ui]}</dt>
           <dd>{row.checked_at ? new Date(row.checked_at).toLocaleDateString(ui === 'kk' ? 'kk-KZ' : 'ru-RU') : '—'}</dd>
         </dl>
