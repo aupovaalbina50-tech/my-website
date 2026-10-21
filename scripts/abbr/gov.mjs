@@ -22,36 +22,45 @@ const CAP = 'A-ZА-ЯЁӘҒҚҢӨҰҮҺІ'
 const ABBR = new RegExp(`\\(\\s*([${CAP}][${CAP}a-zа-яёәғқңөұүһі0-9\\-–/ ]{1,14})\\s*\\)`, 'g')
 const log = []
 const found = []
-for (const lang of ['ru', 'kk']) {
-  const seenArticles = new Set()
-  for (let page = 0; page < 12 && seenArticles.size < 160; page++) {
-    const listUrl = `https://www.gov.kz/org/emer/press/news?lang=${lang}&page=${page}`
-    const html = await get(listUrl)
-    if (!html) {
-      log.push(`${listUrl}: нет ответа`)
-      break
-    }
-    const links = [...new Set([...html.matchAll(/\/(?:org|memleket\/entities)\/emer\/press\/news\/details\/(\d+)/g)].map((m) => m[1]))]
-    log.push(`${listUrl}: ${links.length} статей, ${html.length} байт`)
-    if (page === 0) fs.writeFileSync(`out/gov-list-${lang}.html`, html)
-    let fresh = 0
-    for (const id of links) {
-      if (seenArticles.has(id)) continue
-      seenArticles.add(id)
-      fresh++
-      const url = `https://www.gov.kz/org/emer/press/news/details/${id}?lang=${lang}`
-      const a = await get(url)
-      if (!a) continue
-      const t = text(a)
-      for (const m of t.matchAll(ABBR)) {
-        const abbr = m[1].trim()
-        if ((abbr.match(new RegExp(`[${CAP}]`, 'g')) ?? []).length < 2) continue
-        found.push({ lang, abbr, before: t.slice(Math.max(0, m.index - 200), m.index).trim(), url })
-      }
-    }
-    if (!fresh) break
+// Article addresses from the sitemap: the Ministry («emer») and its
+// departments (entities whose name starts with «emer»).
+const urls = new Set()
+const index = await get('https://www.gov.kz/sitemap.xml')
+log.push(`sitemap.xml: ${index ? index.length + ' байт' : 'нет ответа'}`)
+const subs = index ? [...index.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]) : []
+log.push(`вложенных карт: ${subs.length}; пример: ${subs.slice(0, 3).join(' ')}`)
+const wanted = (u) => /\/(?:org|memleket\/entities)\/emer[\w-]*\/press\/(?:news|article)\/details\/\d+/.test(u)
+for (const sub of subs.filter((u) => /emer|news|press/i.test(u)).slice(0, 40)) {
+  const x = await get(sub)
+  if (!x) continue
+  for (const m of x.matchAll(/<loc>([^<]+)<\/loc>/g)) if (wanted(m[1])) urls.add(m[1].replace(/\?.*$/, ''))
+  if (urls.size > 600) break
+}
+if (!urls.size) {
+  // No per-ministry sitemap: scan all sub-sitemaps until enough MChS articles.
+  for (const sub of subs.slice(0, 120)) {
+    const x = await get(sub)
+    if (!x) continue
+    for (const m of x.matchAll(/<loc>([^<]+)<\/loc>/g)) if (wanted(m[1])) urls.add(m[1].replace(/\?.*$/, ''))
+    if (urls.size > 600) break
   }
 }
+log.push(`статей МЧС в карте сайта: ${urls.size}`)
+const list = [...urls].sort().reverse().slice(0, 260)
+for (const base of list) {
+  for (const lang of ['ru', 'kk']) {
+    const url = `${base}?lang=${lang}`
+    const a = await get(url)
+    if (!a) continue
+    const t = text(a)
+    for (const m of t.matchAll(ABBR)) {
+      const abbr = m[1].trim()
+      if ((abbr.match(new RegExp(`[${CAP}]`, 'g')) ?? []).length < 2) continue
+      found.push({ lang, abbr, before: t.slice(Math.max(0, m.index - 200), m.index).trim(), url })
+    }
+  }
+}
+log.push(`обработано статей: ${list.length} × 2 языка`)
 fs.writeFileSync('out/gov.json', JSON.stringify(found, null, 1))
 fs.writeFileSync('out/gov-summary.md', `${log.join('\n')}\n\nнайдено вводов сокращений: ${found.length}\n`)
 console.log(fs.readFileSync('out/gov-summary.md', 'utf8'))
