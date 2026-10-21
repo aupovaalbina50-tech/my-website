@@ -29,6 +29,11 @@ jobs:
         env:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      - name: Server logs
+        if: always()
+        run: sleep 60 && node scripts/live-check/logs.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       - name: Screenshots to the live-check-results branch
         if: always()
         run: |

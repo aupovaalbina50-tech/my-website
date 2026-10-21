@@ -86,7 +86,8 @@ for (const width of [1440, 390]) {
     } catch {
       ai = body.slice(0, 80)
     }
-    calls.push(`HTTP ${r.status()} ${ai}`)
+    const t = r.request().timing()
+    calls.push(`HTTP ${r.status()} за ${t.responseEnd > 0 ? (t.responseEnd / 1000).toFixed(0) : '?'} с ${ai}`)
   })
   await page.goto(SITE + '/documents/check', { waitUntil: 'networkidle' })
   const t0 = Date.now()
